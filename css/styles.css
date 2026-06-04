@@ -1,0 +1,473 @@
+/* ============================================================
+   Fiche de coulage terrain - CAEK
+   Charte : rouge #CC0000 / blanc - mobile-first
+   T1 : socle visuel (aucune logique metier)
+   ============================================================ */
+
+:root {
+  --caek-red: #CC0000;
+  --caek-red-dark: #A30000;
+  --white: #ffffff;
+  --gray-bg: #f4f4f4;
+  --gray-line: #e0e0e0;
+  --text-dark: #333333;
+  --text-muted: #777777;
+  --radius: 14px;
+  --tap-min: 56px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  color: var(--text-dark);
+  background: var(--gray-bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ---------- Header ---------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  background: var(--white);
+  border-bottom: 3px solid var(--caek-red);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-logo {
+  height: 42px;
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.app-titles { display: flex; flex-direction: column; line-height: 1.2; }
+.app-title { font-weight: 700; font-size: 16px; }
+.app-title .accent { color: var(--caek-red); }
+.app-subtitle { font-size: 12px; color: var(--text-muted); }
+
+/* ---------- Main / screens ---------- */
+.app-main { flex: 1 1 auto; padding: 18px 16px; }
+
+.screen { display: none; animation: fade .15s ease-in; }
+.screen.is-active { display: block; }
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+.screen-intro {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  margin: 6px 0 18px;
+}
+
+/* ---------- Tiles (accueil) ---------- */
+.tiles { display: flex; flex-direction: column; gap: 14px; max-width: 520px; margin: 0 auto; }
+
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 84px;
+  padding: 18px 20px;
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-left: 6px solid var(--caek-red);
+  border-radius: var(--radius);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-dark);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+
+.tile:active { transform: scale(.98); box-shadow: 0 0 0 rgba(0,0,0,0); }
+
+.tile-icon { font-size: 30px; line-height: 1; flex: 0 0 auto; }
+.tile-label { flex: 1 1 auto; }
+
+/* ---------- Inner screens ---------- */
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  margin-bottom: 14px;
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--caek-red);
+  cursor: pointer;
+}
+
+.btn-back:active { background: var(--gray-bg); }
+
+.screen-title {
+  font-size: 20px;
+  margin: 4px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--caek-red);
+}
+
+.screen-placeholder {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--white);
+  border: 1px dashed var(--gray-line);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+/* ---------- Ecran Mise a jour projet (T2) ---------- */
+.status-card {
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-left: 6px solid var(--caek-red);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.status-line { font-size: 14px; margin: 3px 0; }
+.status-label { color: var(--text-muted); }
+
+.btn-primary, .btn-secondary {
+  display: block;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 16px;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.btn-primary {
+  background: var(--caek-red);
+  color: var(--white);
+  margin-bottom: 10px;
+}
+.btn-primary:active { background: var(--caek-red-dark); }
+.btn-secondary {
+  background: var(--white);
+  color: var(--caek-red);
+  border-color: var(--gray-line);
+  margin-top: 14px;
+}
+.btn-secondary:active { background: var(--gray-bg); }
+
+.hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 8px 2px 0; }
+
+.result-card {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.result-card.is-ok { background: #eaf6ea; border: 1px solid #b6dcb6; color: #205020; }
+.result-card.is-error { background: #fdeaea; border: 1px solid #f0b6b6; color: #9a1a1a; }
+.result-card .warn { margin-top: 8px; font-size: 13px; color: #8a5a00; }
+
+.projets-liste { margin-top: 12px; }
+.plist { list-style: none; margin: 0; padding: 0; }
+.plist li {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  grid-template-areas: "code ent" "code nom";
+  gap: 0 10px;
+  padding: 10px 12px;
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.pcode { grid-area: code; align-self: center; font-weight: 700; color: var(--caek-red); }
+.pent { grid-area: ent; font-weight: 600; font-size: 14px; }
+.pnom { grid-area: nom; font-size: 13px; color: var(--text-muted); }
+
+/* ---------- Ecran Nouveau coulage (T3) ---------- */
+.seg-switch {
+  display: flex;
+  gap: 0;
+  margin-bottom: 18px;
+  border: 1px solid var(--caek-red);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.seg {
+  flex: 1 1 0;
+  min-height: 46px;
+  border: none;
+  background: var(--white);
+  color: var(--caek-red);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.seg.is-active { background: var(--caek-red); color: var(--white); }
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 12px 2px 4px;
+}
+.field {
+  display: block;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 12px 14px;
+  font-size: 16px;
+  color: var(--text-dark);
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-radius: 12px;
+}
+.field:focus { outline: none; border-color: var(--caek-red); }
+select.field { appearance: none; -webkit-appearance: none; background-image: none; }
+
+.ref-box {
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-left: 6px solid var(--caek-red);
+  border-radius: var(--radius);
+}
+.ref-line { font-size: 14px; margin-bottom: 4px; }
+.ref-line .lock { font-size: 12px; color: var(--text-muted); }
+.ref-result { margin-top: 10px; font-size: 18px; }
+.ref-result strong { color: var(--caek-red); letter-spacing: .5px; }
+
+.warn-inline {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #9a1a1a;
+  background: #fdeaea;
+  border: 1px solid #f0b6b6;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+#nc-creer { margin-top: 18px; }
+
+/* ---------- Ecran Fiche terrain (T4) ---------- */
+.block-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--caek-red);
+  margin: 22px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--gray-line);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #fff3e0;
+  color: #b06a00;
+}
+.badge-brouillon { background: #fff3e0; color: #b06a00; }
+.badge-validee { background: #eaf6ea; color: #205020; }
+.badge-envoyee { background: #e7f0fb; color: #1a4f8a; }
+
+.ro-grid { display: flex; flex-direction: column; gap: 8px; }
+.ro-grid > div {
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+.ro-label { display: block; font-size: 12px; color: var(--text-muted); }
+.ro-val { font-size: 15px; font-weight: 600; }
+
+textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
+
+.toupie-card {
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-left: 6px solid var(--caek-red);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.toupie-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.toupie-num { font-weight: 700; color: var(--caek-red); font-size: 14px; }
+.btn-del {
+  border: none;
+  background: transparent;
+  color: var(--caek-red);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.tg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tg-cell .field-label { margin: 4px 2px 2px; }
+.tg-cell .field { min-height: 46px; padding: 8px 10px; font-size: 15px; }
+.t-obs { min-height: 44px; }
+
+.totaux {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-left: 6px solid var(--caek-red);
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+.totaux strong { color: var(--caek-red); font-size: 16px; }
+
+#fc-save { margin-top: 18px; }
+
+/* ---------- Ecran Repertoire (T5) ---------- */
+.filter-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.chip {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--caek-red);
+  background: var(--white);
+  color: var(--caek-red);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chip.is-active { background: var(--caek-red); color: var(--white); }
+
+.rep-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-left: 6px solid var(--caek-red);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+.rep-top { display: flex; justify-content: space-between; align-items: center; }
+.rep-ref { font-weight: 700; color: var(--caek-red); font-size: 16px; letter-spacing: .5px; }
+.rep-ent { font-weight: 600; font-size: 14px; margin-top: 4px; }
+.rep-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ---------- Validation / verrouillage (T5) ---------- */
+.valid-box {
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-radius: var(--radius);
+}
+.btn-validate {
+  display: block;
+  width: 100%;
+  min-height: var(--tap-min);
+  margin-top: 10px;
+  padding: 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: #1f8a3b;
+  color: var(--white);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-validate:active { background: #176b2e; }
+
+.locked-box {
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: #f6f6f6;
+  border: 1px solid var(--gray-line);
+  border-radius: var(--radius);
+}
+.locked-info { font-size: 14px; margin-bottom: 10px; }
+
+/* ---------- Photos (T6) ---------- */
+.photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.photo-card {
+  position: relative;
+  border: 1px solid var(--gray-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--white);
+}
+.photo-thumb {
+  display: block;
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+}
+.photo-cat {
+  display: block;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: #f6f6f6;
+  border-top: 1px solid var(--gray-line);
+}
+.photo-del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(204, 0, 0, 0.9);
+  color: #fff;
+  font-size: 13px;
+  line-height: 26px;
+  cursor: pointer;
+}
+
+/* ---------- Footer ---------- */
+.app-footer {
+  padding: 10px 16px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  text-align: right;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted);
+  border-top: 2px solid var(--caek-red);
+  background: var(--white);
+}
+
+/* ---------- Larger screens ---------- */
+@media (min-width: 600px) {
+  .app-main { padding: 28px 24px; }
+  .app-title { font-size: 18px; }
+}

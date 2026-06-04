@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#CC0000">
+  <title>Fiche de coulage terrain - CAEK</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <img src="assets/logo-caek.png" alt="Logo CAEK" class="app-logo">
+    <div class="app-titles">
+      <span class="app-title">CAEK <span class="accent">ENGINEERING</span></span>
+      <span class="app-subtitle">Fiche de coulage terrain</span>
+    </div>
+  </header>
+
+  <main class="app-main">
+
+    <!-- ECRAN ACCUEIL -->
+    <section id="screen-accueil" class="screen is-active">
+      <p class="screen-intro">Choisissez une action</p>
+      <div class="tiles">
+        <button class="tile" data-goto="screen-nouveau">
+          <span class="tile-icon" aria-hidden="true">&#10133;</span>
+          <span class="tile-label">Nouveau coulage</span>
+        </button>
+        <button class="tile" data-goto="screen-repertoire">
+          <span class="tile-icon" aria-hidden="true">&#128193;</span>
+          <span class="tile-label">Répertoire</span>
+        </button>
+        <button class="tile" data-goto="screen-update">
+          <span class="tile-icon" aria-hidden="true">&#128260;</span>
+          <span class="tile-label">Mise à jour projet</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ECRAN NOUVEAU COULAGE (T3) -->
+    <section id="screen-nouveau" class="screen">
+      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <h1 class="screen-title">Nouveau coulage</h1>
+
+      <div class="seg-switch" id="nc-mode-switch">
+        <button type="button" class="seg is-active" data-mode="projet">Projet enregistré</button>
+        <button type="button" class="seg" data-mode="simple">Client simple</button>
+      </div>
+
+      <!-- Mode projet enregistre -->
+      <div id="nc-mode-projet">
+        <label class="field-label" for="nc-entreprise">Entreprise</label>
+        <select id="nc-entreprise" class="field"></select>
+
+        <label class="field-label" for="nc-projet">Projet</label>
+        <select id="nc-projet" class="field"></select>
+
+        <label class="field-label" for="nc-code-direct">ou saisir le code projet directement</label>
+        <input id="nc-code-direct" class="field" type="text" placeholder="ex. ABA" autocomplete="off">
+      </div>
+
+      <!-- Mode client simple / particulier -->
+      <div id="nc-mode-simple" hidden>
+        <label class="field-label" for="nc-simple-nom">Nom du client / particulier</label>
+        <input id="nc-simple-nom" class="field" type="text" placeholder="ex. M. Slimani" autocomplete="off">
+
+        <label class="field-label" for="nc-simple-lieu">Lieu / désignation</label>
+        <input id="nc-simple-lieu" class="field" type="text" placeholder="ex. Villa Misserghin" autocomplete="off">
+
+        <label class="field-label" for="nc-simple-code">Code (racine de la référence)</label>
+        <input id="nc-simple-code" class="field" type="text" placeholder="ex. PRT" autocomplete="off">
+      </div>
+
+      <!-- Reference de coulage -->
+      <div class="ref-box">
+        <div class="ref-line">Code projet : <strong id="nc-code-affiche">—</strong> <span class="lock">&#128274; verrouillé</span></div>
+        <label class="field-label" for="nc-numero">N° de coulage (modifiable)</label>
+        <input id="nc-numero" class="field" type="number" min="1" step="1" inputmode="numeric">
+        <div class="ref-result">Référence : <strong id="nc-ref">—</strong></div>
+        <div id="nc-ref-warn" class="warn-inline" hidden></div>
+      </div>
+
+      <button id="nc-creer" class="btn-primary" type="button">Créer le brouillon</button>
+      <div id="nc-result" class="result-card" hidden></div>
+    </section>
+
+    <!-- ECRAN FICHE TERRAIN (T4) -->
+    <section id="screen-fiche" class="screen">
+      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <h1 class="screen-title">Fiche de coulage <span id="fc-ref-titre"></span></h1>
+
+      <div class="status-card">
+        <div class="status-line"><span class="status-label">Référence :</span> <strong id="fc-ref"></strong></div>
+        <div class="status-line"><span class="status-label">Statut :</span> <span id="fc-statut" class="badge">brouillon</span></div>
+      </div>
+
+      <h2 class="block-title">Informations générales</h2>
+      <div class="ro-grid">
+        <div><span class="ro-label">Client / Entreprise</span><span id="fc-entreprise" class="ro-val">—</span></div>
+        <div><span class="ro-label">Projet</span><span id="fc-projet" class="ro-val">—</span></div>
+      </div>
+
+      <label class="field-label" for="fc-date">Date du coulage</label>
+      <input id="fc-date" class="field" type="date">
+
+      <label class="field-label" for="fc-refdossier">Référence dossier</label>
+      <input id="fc-refdossier" class="field" type="text" placeholder="ex. ABA/2026">
+
+      <label class="field-label" for="fc-ouvrage-coule">Ouvrage coulé</label>
+      <input id="fc-ouvrage-coule" class="field" type="text" placeholder="ex. Poteaux RDC">
+
+      <label class="field-label" for="fc-type-beton">Type de béton</label>
+      <input id="fc-type-beton" class="field" type="text" placeholder="ex. Béton armé">
+
+      <label class="field-label" for="fc-centrale">Centrale / fournisseur</label>
+      <input id="fc-centrale" class="field" type="text" autocomplete="off">
+
+      <label class="field-label" for="fc-classe">Classe béton</label>
+      <input id="fc-classe" class="field" type="text" placeholder="ex. C25/30">
+
+      <label class="field-label" for="fc-formulation">Formulation / dosage</label>
+      <input id="fc-formulation" class="field" type="text" autocomplete="off">
+
+      <label class="field-label" for="fc-type-ouvrage">Type d'ouvrage</label>
+      <input id="fc-type-ouvrage" class="field" type="text" autocomplete="off">
+
+      <label class="field-label" for="fc-zone">Ouvrage / zone / partie</label>
+      <input id="fc-zone" class="field" type="text" autocomplete="off">
+
+      <label class="field-label" for="fc-obs">Observations générales</label>
+      <textarea id="fc-obs" class="field" rows="2"></textarea>
+
+      <h2 class="block-title">Toupies / camions</h2>
+      <div id="fc-toupies"></div>
+      <button id="fc-add-toupie" class="btn-secondary" type="button">&#10133; Ajouter une toupie</button>
+
+      <div class="totaux">
+        <div><span class="status-label">Quantité totale :</span> <strong id="fc-total-qte">0</strong> m³</div>
+        <div><span class="status-label">Total éprouvettes :</span> <strong id="fc-total-epr">0</strong></div>
+      </div>
+
+      <label class="field-label" for="fc-prel-par">Prélèvement effectué par</label>
+      <input id="fc-prel-par" class="field" type="text" autocomplete="off">
+
+      <h2 class="block-title">Photos</h2>
+      <div id="fc-photos-zone">
+        <label class="field-label" for="fc-photo-cat">Catégorie de la photo</label>
+        <select id="fc-photo-cat" class="field">
+          <option value="bl">Bon de livraison (BL)</option>
+          <option value="formulation">Formulation</option>
+          <option value="prelevement">Prélèvement</option>
+          <option value="eprouvettes">Éprouvettes</option>
+          <option value="anomalie">Anomalie</option>
+        </select>
+        <label class="btn-secondary" for="fc-photo-input">&#128247; Ajouter une photo</label>
+        <input id="fc-photo-input" type="file" accept="image/*" capture="environment" hidden>
+        <p class="hint">La photo est compressée et stockée localement sur l'appareil.</p>
+      </div>
+      <div id="fc-photos-grid" class="photos-grid"></div>
+
+      <button id="fc-save" class="btn-primary" type="button">&#128190; Enregistrer le brouillon</button>
+
+      <div id="fc-valid-box" class="valid-box">
+        <label class="field-label" for="fc-operateur">Nom de l'opérateur (signature interne)</label>
+        <input id="fc-operateur" class="field" type="text" autocomplete="off">
+        <button id="fc-valider" class="btn-validate" type="button">&#9989; Valider la fiche</button>
+        <p class="hint">Une fois validée, la fiche est verrouillée. Vous pourrez seulement signaler une correction.</p>
+      </div>
+
+      <div id="fc-locked-box" class="locked-box" hidden>
+        <div class="locked-info">&#128274; Fiche <span id="fc-locked-statut">validée</span> — verrouillée.
+          <span id="fc-signataire-line"></span></div>
+        <button id="fc-exporter" class="btn-primary" type="button">&#128228; Exporter / Partager</button>
+        <button id="fc-telecharger" class="btn-secondary" type="button">&#11015; Télécharger le fichier Excel</button>
+        <button id="fc-signaler" class="btn-secondary" type="button">&#9888; Signaler une correction</button>
+      </div>
+
+      <div id="fc-result" class="result-card" hidden></div>
+    </section>
+
+    <!-- ECRAN REPERTOIRE (T5) -->
+    <section id="screen-repertoire" class="screen">
+      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <h1 class="screen-title">Répertoire</h1>
+
+      <input id="rep-search" class="field" type="search" placeholder="Rechercher (entreprise, projet, code, référence, date)…" autocomplete="off">
+
+      <div class="filter-chips" id="rep-filtres">
+        <button type="button" class="chip is-active" data-statut="">Toutes</button>
+        <button type="button" class="chip" data-statut="brouillon">Brouillons</button>
+        <button type="button" class="chip" data-statut="validee">Validées</button>
+        <button type="button" class="chip" data-statut="envoyee">Envoyées</button>
+      </div>
+
+      <div id="rep-count" class="hint"></div>
+      <div id="rep-liste"></div>
+    </section>
+
+    <!-- ECRAN MISE A JOUR PROJET (T2) -->
+    <section id="screen-update" class="screen">
+      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <h1 class="screen-title">Mise à jour projet</h1>
+
+      <div id="update-status" class="status-card">
+        <div class="status-line"><span class="status-label">Dernier import :</span> <span id="status-date">—</span></div>
+        <div class="status-line"><span class="status-label">Projets chargés :</span> <span id="status-count">0</span></div>
+        <div class="status-line"><span class="status-label">Fichier :</span> <span id="status-file">—</span></div>
+      </div>
+
+      <label class="btn-primary" for="update-file">&#128229; Importer le fichier du bureau</label>
+      <input id="update-file" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden>
+
+      <p class="hint">Fichier Excel envoyé par le bureau, feuille <strong>PROJETS</strong> (colonnes : Entreprise, Client, CodeProjet, NomProjet, Adresse, Contact, ResistanceRequise_MPa).</p>
+
+      <div id="update-result" class="result-card" hidden></div>
+
+      <button id="btn-voir-projets" class="btn-secondary" type="button">Voir les projets chargés</button>
+      <div id="update-liste" class="projets-liste" hidden></div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <span>document interne CAEK ENGINEERING LAB — Version 0 (essai terrain)</span>
+  </footer>
+
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/update.js"></script>
+  <script src="js/nouveau.js"></script>
+  <script src="js/fiche.js"></script>
+  <script src="js/photos.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/repertoire.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

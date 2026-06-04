@@ -1,0 +1,10 @@
+# Fichier de test (non nécessaire à la PWA déployée)
+exemple_UPDATE_projets.xlsx
+
+# Fichiers système / éditeur
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+.vscode/
+.idea/
