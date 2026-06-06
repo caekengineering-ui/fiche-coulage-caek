@@ -80,14 +80,17 @@
     Promise.all([
       CAEKDB.getMeta("lastImportDate"),
       CAEKDB.countProjets(),
-      CAEKDB.getMeta("lastImportFileName")
+      CAEKDB.getMeta("lastImportFileName"),
+      CAEKDB.countClients()
     ]).then(function (out) {
       var dateEl = document.getElementById("status-date");
       var countEl = document.getElementById("status-count");
       var fileEl = document.getElementById("status-file");
+      var clientsEl = document.getElementById("status-count-clients");
       if (dateEl) { dateEl.textContent = out[0] ? fmtDate(out[0]) : "Aucun import pour l'instant"; }
       if (countEl) { countEl.textContent = out[1]; }
       if (fileEl) { fileEl.textContent = out[2] || "—"; }
+      if (clientsEl) { clientsEl.textContent = out[3]; }
     });
   }
 
@@ -105,12 +108,17 @@
     reader.onload = function () {
       CAEKUpdate.importBuffer(reader.result, file.name).then(function (bilan) {
         if (!bilan.ok) { showResult("&#9888; " + escapeHtml(bilan.error), true); return; }
-        var msg = "&#10004; Import réussi : <strong>" + bilan.ajoutes +
-          "</strong> ajouté(s), <strong>" + bilan.misAJour + "</strong> mis à jour.";
+        var msg = "&#10004; Import réussi.<br>Projets : <strong>" + bilan.projetsAjoutes +
+          "</strong> ajouté(s), <strong>" + bilan.projetsMisAJour + "</strong> mis à jour.";
+        if (bilan.clientsAjoutes !== undefined) {
+          msg += "<br>Clients : <strong>" + bilan.clientsAjoutes +
+            "</strong> ajouté(s), <strong>" + bilan.clientsMisAJour + "</strong> mis à jour.";
+        }
         var warn = [];
-        if (bilan.ignorees) { warn.push(bilan.ignorees + " ligne(s) ignorée(s) (code, entreprise ou nom manquant)"); }
+        if (bilan.ignorees) { warn.push(bilan.ignorees + " projet(s) ignoré(s) (code ou nom manquant)"); }
         if (bilan.doublons) { warn.push(bilan.doublons + " doublon(s) de code dans le fichier"); }
         if (bilan.resInvalides) { warn.push(bilan.resInvalides + " résistance(s) non numérique(s) ignorée(s)"); }
+        if (bilan.orphelins) { warn.push(bilan.orphelins + " projet(s) sans client correspondant"); }
         if (warn.length) { msg += "<div class=\"warn\">&#9888; " + escapeHtml(warn.join(" · ")) + "</div>"; }
         showResult(msg, false);
         refreshUpdateStatus();
@@ -126,14 +134,20 @@
   function renderProjetsListe(forceShow) {
     var box = document.getElementById("update-liste");
     if (!box) { return; }
-    CAEKDB.getAllProjets().then(function (list) {
+    Promise.all([CAEKDB.getAllProjets(), CAEKDB.getAllClients()]).then(function (out) {
+      var list = out[0] || [];
+      var clients = out[1] || [];
+      var byId = {};
+      clients.forEach(function (c) { byId[c.clientId] = c; });
       list.sort(function (a, b) { return a.codeProjet.localeCompare(b.codeProjet); });
       if (!list.length) {
         box.innerHTML = "<p class=\"hint\">Aucun projet en mémoire.</p>";
       } else {
         var rows = list.map(function (p) {
+          var cli = byId[p.clientId];
+          var nomClient = cli ? cli.nom : (p.entreprise || "");
           return "<li><span class=\"pcode\">" + escapeHtml(p.codeProjet) + "</span>" +
-            "<span class=\"pent\">" + escapeHtml(p.entreprise) + "</span>" +
+            "<span class=\"pent\">" + escapeHtml(nomClient) + "</span>" +
             "<span class=\"pnom\">" + escapeHtml(p.nomProjet) + "</span></li>";
         }).join("");
         box.innerHTML = "<ul class=\"plist\">" + rows + "</ul>";

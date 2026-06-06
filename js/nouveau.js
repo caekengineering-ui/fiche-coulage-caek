@@ -12,6 +12,7 @@ var CAEKNouveau = (function () {
   var mode = "projet";          // "projet" | "simple"
   var activeCode = "";          // racine de reference (verrouillee)
   var activeProjet = null;      // snapshot projet si connu
+  var activeClient = null;      // snapshot client lie au projet actif
 
   function $(id) { return document.getElementById(id); }
 
@@ -34,34 +35,59 @@ var CAEKNouveau = (function () {
 
   function refresh() {
     if (!window.CAEKDB) { return; }
-    CAEKDB.getAllProjets().then(function (list) {
-      _projets = list;
-      populateEntreprises();
+    Promise.all([CAEKDB.getAllClients(), CAEKDB.getAllProjets()]).then(function (out) {
+      _clients = out[0] || [];
+      _projets = out[1] || [];
+      _clientsById = {};
+      _clients.forEach(function (c) { _clientsById[c.clientId] = c; });
+      populateClients();
       // reset affichage
       resetSelection();
     });
   }
 
   var _projets = [];
+  var _clients = [];
+  var _clientsById = {};
 
-  function populateEntreprises() {
+  // N'affiche que les clients actifs (par defaut). actif !== false => actif.
+  function clientActif(c) { return c && c.actif !== false; }
+  function projetActif(p) { return p && p.actif !== false; }
+
+  function findClient(clientId) {
+    return clientId && _clientsById[clientId] ? _clientsById[clientId] : null;
+  }
+
+  // Libelle d'un client : nom (+ ville si presente).
+  function clientLabel(c) {
+    if (!c) { return ""; }
+    return c.ville ? (c.nom + " — " + c.ville) : c.nom;
+  }
+
+  function populateClients() {
     var sel = $("nc-entreprise");
     if (!sel) { return; }
-    var noms = {};
-    _projets.forEach(function (p) { if (p.entreprise) { noms[p.entreprise] = true; } });
-    var liste = Object.keys(noms).sort();
-    var html = "<option value=\"\">— Choisir une entreprise —</option>";
-    liste.forEach(function (n) {
-      html += "<option value=\"" + escapeHtml(n) + "\">" + escapeHtml(n) + "</option>";
+    var liste = _clients.filter(clientActif).slice();
+    liste.sort(function (a, b) {
+      return String(a.nom || "").localeCompare(String(b.nom || ""));
+    });
+    var html = "<option value=\"\">— Choisir un client —</option>";
+    liste.forEach(function (c) {
+      html += "<option value=\"" + escapeHtml(c.clientId) + "\">" +
+        escapeHtml(clientLabel(c)) + "</option>";
     });
     sel.innerHTML = html;
     populateProjets("");
   }
 
-  function populateProjets(entreprise) {
+  // Liste les projets actifs (filtres par clientId si fourni).
+  function populateProjets(clientId) {
     var sel = $("nc-projet");
     if (!sel) { return; }
-    var sous = _projets.filter(function (p) { return !entreprise || p.entreprise === entreprise; });
+    var sous = _projets.filter(function (p) {
+      if (!projetActif(p)) { return false; }
+      return !clientId || p.clientId === clientId;
+    });
     sous.sort(function (a, b) { return a.codeProjet.localeCompare(b.codeProjet); });
     var html = "<option value=\"\">— Choisir un projet —</option>";
     sous.forEach(function (p) {
@@ -74,6 +100,7 @@ var CAEKNouveau = (function () {
   function resetSelection() {
     activeCode = "";
     activeProjet = null;
+    activeClient = null;
     if ($("nc-code-affiche")) { $("nc-code-affiche").textContent = "—"; }
     if ($("nc-ref")) { $("nc-ref").textContent = "—"; }
     if ($("nc-numero")) { $("nc-numero").value = ""; }
@@ -85,6 +112,17 @@ var CAEKNouveau = (function () {
   function setActiveCode(code, projet) {
     activeCode = cleanCode(code);
     activeProjet = projet || null;
+    activeClient = activeProjet ? findClient(activeProjet.clientId) : null;
+    // Si on a retrouve un projet : aligne les listes client + projet (recherche par code).
+    if (activeProjet) {
+      if ($("nc-entreprise") && activeProjet.clientId) {
+        if ($("nc-entreprise").value !== activeProjet.clientId) {
+          $("nc-entreprise").value = activeProjet.clientId;
+          populateProjets(activeProjet.clientId);
+        }
+      }
+      if ($("nc-projet")) { $("nc-projet").value = activeProjet.codeProjet; }
+    }
     if ($("nc-code-affiche")) { $("nc-code-affiche").textContent = activeCode || "—"; }
     if (!activeCode) { resetSelection(); return; }
     CAEKDB.peekNextNumero(activeCode).then(function (n) {
@@ -155,22 +193,41 @@ var CAEKNouveau = (function () {
       statut: "brouillon",
       dateCreation: new Date().toISOString(),
       // Snapshot identification
-      entreprise: "",
+      clientId: "",
+      entreprise: "",            // = nom du client (retro-compat affichage/export)
       client: "",
       nomProjet: "",
+      localisation: "",
       adresse: "",
+      ville: "",
       contact: "",
+      contactNom: "",
+      contactTel: "",
+      email: "",
+      referenceCommande: "",
+      referenceDossier: "",
       resistance: ""
     };
 
     if (mode === "projet") {
       if (activeProjet) {
-        coulage.entreprise = activeProjet.entreprise || "";
-        coulage.client = activeProjet.client || "";
+        var cli = activeClient || findClient(activeProjet.clientId);
+        coulage.clientId = activeProjet.clientId || "";
         coulage.nomProjet = activeProjet.nomProjet || "";
-        coulage.adresse = activeProjet.adresse || "";
-        coulage.contact = activeProjet.contact || "";
+        coulage.localisation = activeProjet.localisation || "";
+        coulage.referenceCommande = activeProjet.referenceCommande || "";
+        coulage.referenceDossier = activeProjet.referenceDossier || "";
         coulage.resistance = (activeProjet.resistance === undefined ? "" : activeProjet.resistance);
+        if (cli) {
+          coulage.entreprise = cli.nom || "";
+          coulage.client = cli.nom || "";
+          coulage.adresse = cli.adresse || "";
+          coulage.ville = cli.ville || "";
+          coulage.contactNom = cli.contactNom || "";
+          coulage.contactTel = cli.contactTel || "";
+          coulage.email = cli.email || "";
+          coulage.contact = [cli.contactNom, cli.contactTel].filter(Boolean).join(" · ");
+        }
       }
       // Si code direct sans projet connu : on garde juste le code.
     } else {
@@ -183,6 +240,7 @@ var CAEKNouveau = (function () {
       coulage.client = nom;
       coulage.entreprise = nom;     // pas d'entreprise structuree
       coulage.nomProjet = lieu;
+      coulage.localisation = lieu;
       coulage.adresse = lieu;
     }
 

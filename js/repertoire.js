@@ -25,7 +25,20 @@ var CAEKRepertoire = (function () {
     return parts.length === 3 ? (parts[2] + "/" + parts[1] + "/" + parts[0]) : s;
   }
 
-  var STATUT_LABEL = { brouillon: "brouillon", validee: "validée", envoyee: "envoyée" };
+  var STATUT_LABEL = { brouillon: "Brouillon", envoyee: "Envoyé" };
+
+  function num(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+
+  // Totaux terrain : quantite (m3) et nombre d'eprouvettes sur tous les malaxeurs.
+  function totaux(c) {
+    var mals = c.malaxeurs || [];
+    var qte = 0, epr = 0;
+    for (var i = 0; i < mals.length; i++) {
+      qte += num(mals[i].quantite);
+      if (mals[i].preleve) { epr += num(mals[i].eprNombre); }
+    }
+    return { qte: qte, epr: epr };
+  }
 
   function refresh() {
     if (!window.CAEKDB) { return; }
@@ -64,13 +77,19 @@ var CAEKRepertoire = (function () {
 
     box.innerHTML = filtered.map(function (c) {
       var st = c.statut || "brouillon";
-      return "<button type=\"button\" class=\"rep-item\" data-ref=\"" + escapeHtml(c.ref) + "\">" +
+      var t = totaux(c);
+      return "<div class=\"rep-item\" data-ref=\"" + escapeHtml(c.ref) + "\">" +
+        "<button type=\"button\" class=\"rep-open\" data-ref=\"" + escapeHtml(c.ref) + "\">" +
         "<div class=\"rep-top\"><span class=\"rep-ref\">" + escapeHtml(c.ref) + "</span>" +
         "<span class=\"badge badge-" + st + "\">" + (STATUT_LABEL[st] || st) + "</span></div>" +
         "<div class=\"rep-ent\">" + escapeHtml(c.client || c.entreprise || "—") + "</div>" +
         "<div class=\"rep-sub\">" + escapeHtml(c.nomProjet || "") +
         (c.dateCoulage ? " · " + escapeHtml(fmtDate(c.dateCoulage)) : "") + "</div>" +
-        "</button>";
+        "<div class=\"rep-tot\">" + t.qte + " m³ · " + t.epr + " éprouvette(s)</div>" +
+        "</button>" +
+        "<button type=\"button\" class=\"rep-del\" data-del=\"" + escapeHtml(c.ref) + "\" " +
+        "aria-label=\"Supprimer la fiche " + escapeHtml(c.ref) + "\" title=\"Supprimer\">&#128465;</button>" +
+        "</div>";
     }).join("");
   }
 
@@ -94,9 +113,19 @@ var CAEKRepertoire = (function () {
     var box = $("rep-liste");
     if (box) {
       box.addEventListener("click", function (ev) {
-        var item = ev.target.closest ? ev.target.closest(".rep-item") : null;
-        if (!item) { return; }
-        var ref = item.getAttribute("data-ref");
+        var del = ev.target.closest ? ev.target.closest(".rep-del") : null;
+        if (del) {
+          ev.stopPropagation();
+          var dref = del.getAttribute("data-del");
+          if (!dref) { return; }
+          if (window.confirm("Voulez-vous vraiment supprimer la fiche " + dref + " ? Cette action est irréversible.")) {
+            CAEKDB.deleteCoulage(dref).then(function () { refresh(); });
+          }
+          return;
+        }
+        var open = ev.target.closest ? ev.target.closest(".rep-open") : null;
+        if (!open) { return; }
+        var ref = open.getAttribute("data-ref");
         if (ref && window.CAEKFiche) { CAEKFiche.open(ref); }
       });
     }

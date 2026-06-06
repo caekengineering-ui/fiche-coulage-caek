@@ -5,12 +5,13 @@
    Pour publier une mise a jour : incrementer CACHE_VERSION.
    ============================================================ */
 
-var CACHE_VERSION = "caek-coulage-v8";
+var CACHE_VERSION = "caek-coulage-v23";
 
 var APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./icons_manifest.json",
   "./css/styles.css",
   "./js/app.js",
   "./js/db.js",
@@ -18,19 +19,50 @@ var APP_SHELL = [
   "./js/nouveau.js",
   "./js/fiche.js",
   "./js/photos.js",
+  "./js/zip.js",
   "./js/export.js",
   "./js/repertoire.js",
   "./vendor/xlsx.full.min.js",
   "./assets/logo-caek.png",
   "./assets/icons/icon-192.png",
-  "./assets/icons/icon-512.png"
+  "./assets/icons/icon-512.png",
+  "./assets/icons/ouvrages/fondation.png",
+  "./assets/icons/ouvrages/superstructure.png",
+  "./assets/icons/ouvrages/semelle.png",
+  "./assets/icons/ouvrages/semelle_filante.png",
+  "./assets/icons/ouvrages/radier.png",
+  "./assets/icons/ouvrages/longrine.png",
+  "./assets/icons/ouvrages/pieu.png",
+  "./assets/icons/ouvrages/plot.png",
+  "./assets/icons/ouvrages/mur_soutenement.png",
+  "./assets/icons/ouvrages/ouvrage_enterre.png",
+  "./assets/icons/ouvrages/regard.png",
+  "./assets/icons/ouvrages/piscine.png",
+  "./assets/icons/ouvrages/poteau.png",
+  "./assets/icons/ouvrages/voile.png",
+  "./assets/icons/ouvrages/dalle.png",
+  "./assets/icons/ouvrages/poutre.png",
+  "./assets/icons/ouvrages/escalier.png",
+  "./assets/icons/ouvrages/console_balcon.png",
+  "./assets/icons/ouvrages/parapet_acrotere.png",
+  "./assets/icons/ouvrages/cuve_bache_eau.png",
+  "./assets/icons/ouvrages/prelevement_beton.png",
+  "./assets/icons/ouvrages/echantillon_frais.png",
+  "./assets/icons/ouvrages/moule_cubique.png",
+  "./assets/icons/ouvrages/moule_cylindrique.png"
 ];
 
-// Installation : pre-cache du socle
+// Installation : pre-cache du socle.
+// On force un fetch reseau frais (cache: "reload") pour ne jamais
+// re-cacher une version perimee servie par le cache HTTP du navigateur.
 self.addEventListener("install", function (event) {
   event.waitUntil(
     caches.open(CACHE_VERSION).then(function (cache) {
-      return cache.addAll(APP_SHELL);
+      return Promise.all(APP_SHELL.map(function (url) {
+        return fetch(new Request(url, { cache: "reload" }))
+          .then(function (resp) { if (resp && resp.ok) { return cache.put(url, resp); } })
+          .catch(function () { /* ressource indispo : on ignore */ });
+      }));
     })
   );
   self.skipWaiting();

@@ -1,0 +1,49 @@
+{
+  "_doc": "Source de verite des icones de la PWA Fiche de coulage CAEK. card = grande carte, thumb = petite tuile. Les deux pointent vers assets/icons/ouvrages/ (le CSS gere la taille d'affichage). Textes en HTML sous l'icone, jamais dans l'image.",
+  "base": "assets/icons/ouvrages/",
+  "familles": [
+    {
+      "id": "fondation",
+      "label": "Fondation",
+      "subtitle": "Ouvrages d'infrastructure",
+      "card": "assets/icons/ouvrages/fondation.png",
+      "thumb": "assets/icons/ouvrages/fondation.png",
+      "items": ["semelle", "semelle_filante", "radier", "longrine", "pieu", "plot", "mur_soutenement", "ouvrage_enterre", "regard", "piscine"]
+    },
+    {
+      "id": "superstructure",
+      "label": "Superstructure",
+      "subtitle": "Ouvrages en elevation",
+      "card": "assets/icons/ouvrages/superstructure.png",
+      "thumb": "assets/icons/ouvrages/superstructure.png",
+      "items": ["poteau", "voile", "dalle", "poutre", "escalier", "console_balcon", "parapet_acrotere", "cuve_bache_eau"]
+    }
+  ],
+  "elements": [
+    { "id": "semelle", "famille": "fondation", "label": "Semelle isolée", "subtitle": "", "card": "assets/icons/ouvrages/semelle.png", "thumb": "assets/icons/ouvrages/semelle.png" },
+    { "id": "semelle_filante", "famille": "fondation", "label": "Semelle filante", "subtitle": "", "card": "assets/icons/ouvrages/semelle_filante.png", "thumb": "assets/icons/ouvrages/semelle_filante.png" },
+    { "id": "radier", "famille": "fondation", "label": "Radier", "subtitle": "", "card": "assets/icons/ouvrages/radier.png", "thumb": "assets/icons/ouvrages/radier.png" },
+    { "id": "longrine", "famille": "fondation", "label": "Longrine / libage", "subtitle": "", "card": "assets/icons/ouvrages/longrine.png", "thumb": "assets/icons/ouvrages/longrine.png" },
+    { "id": "pieu", "famille": "fondation", "label": "Pieu", "subtitle": "", "card": "assets/icons/ouvrages/pieu.png", "thumb": "assets/icons/ouvrages/pieu.png" },
+    { "id": "plot", "famille": "fondation", "label": "Plot", "subtitle": "", "card": "assets/icons/ouvrages/plot.png", "thumb": "assets/icons/ouvrages/plot.png" },
+    { "id": "mur_soutenement", "famille": "fondation", "label": "Mur de soutènement", "subtitle": "", "card": "assets/icons/ouvrages/mur_soutenement.png", "thumb": "assets/icons/ouvrages/mur_soutenement.png" },
+    { "id": "ouvrage_enterre", "famille": "fondation", "label": "Ouvrage enterré", "subtitle": "", "card": "assets/icons/ouvrages/ouvrage_enterre.png", "thumb": "assets/icons/ouvrages/ouvrage_enterre.png" },
+    { "id": "regard", "famille": "fondation", "label": "Regard", "subtitle": "", "card": "assets/icons/ouvrages/regard.png", "thumb": "assets/icons/ouvrages/regard.png" },
+    { "id": "piscine", "famille": "fondation", "label": "Piscine", "subtitle": "", "card": "assets/icons/ouvrages/piscine.png", "thumb": "assets/icons/ouvrages/piscine.png" },
+    { "id": "poteau", "famille": "superstructure", "label": "Poteau", "subtitle": "", "card": "assets/icons/ouvrages/poteau.png", "thumb": "assets/icons/ouvrages/poteau.png" },
+    { "id": "voile", "famille": "superstructure", "label": "Voile", "subtitle": "", "card": "assets/icons/ouvrages/voile.png", "thumb": "assets/icons/ouvrages/voile.png" },
+    { "id": "dalle", "famille": "superstructure", "label": "Dalle", "subtitle": "", "card": "assets/icons/ouvrages/dalle.png", "thumb": "assets/icons/ouvrages/dalle.png" },
+    { "id": "poutre", "famille": "superstructure", "label": "Poutre", "subtitle": "", "card": "assets/icons/ouvrages/poutre.png", "thumb": "assets/icons/ouvrages/poutre.png" },
+    { "id": "escalier", "famille": "superstructure", "label": "Escalier", "subtitle": "", "card": "assets/icons/ouvrages/escalier.png", "thumb": "assets/icons/ouvrages/escalier.png" },
+    { "id": "console_balcon", "famille": "superstructure", "label": "Console / Balcon", "subtitle": "", "card": "assets/icons/ouvrages/console_balcon.png", "thumb": "assets/icons/ouvrages/console_balcon.png" },
+    { "id": "parapet_acrotere", "famille": "superstructure", "label": "Parapet / Acrotère", "subtitle": "", "card": "assets/icons/ouvrages/parapet_acrotere.png", "thumb": "assets/icons/ouvrages/parapet_acrotere.png" },
+    { "id": "cuve_bache_eau", "famille": "superstructure", "label": "Cuve / Bâche à eau", "subtitle": "", "card": "assets/icons/ouvrages/cuve_bache_eau.png", "thumb": "assets/icons/ouvrages/cuve_bache_eau.png" }
+  ],
+  "eprouvettes": [
+    { "id": "moule_cubique", "label": "Cube", "subtitle": "Moule cubique", "card": "assets/icons/ouvrages/moule_cubique.png", "thumb": "assets/icons/ouvrages/moule_cubique.png" },
+    { "id": "moule_cylindrique", "label": "Cylindre", "subtitle": "Moule cylindrique", "card": "assets/icons/ouvrages/moule_cylindrique.png", "thumb": "assets/icons/ouvrages/moule_cylindrique.png" }
+  ],
+  "divers": [
+    { "id": "prelevement_beton", "label": "Prélèvement béton", "subtitle": "", "card": "assets/icons/ouvrages/prelevement_beton.png", "thumb": "assets/icons/ouvrages/prelevement_beton.png" }
+  ]
+}

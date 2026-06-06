@@ -18,6 +18,9 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+/* L'attribut hidden doit toujours masquer, meme sur .field (display:block). */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -167,6 +170,51 @@ body {
   margin-bottom: 10px;
 }
 .btn-primary:active { background: var(--caek-red-dark); }
+.btn-xl { min-height: 60px; font-size: 18px; padding: 18px; }
+.btn-with-icon {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+}
+.btn-icon-img {
+  width: 30px; height: 30px; object-fit: contain;
+  filter: brightness(0) invert(1); /* icone blanche sur fond rouge */
+  pointer-events: none;
+}
+
+/* Grande illustration au-dessus du bouton "Commencer le prelevement" */
+.fc-go-wrap { display: flex; flex-direction: column; align-items: center; margin-top: 10px; }
+.fc-go-illus {
+  width: 100%; max-width: 200px; height: 150px;
+  object-fit: contain; margin-bottom: 6px; pointer-events: none;
+}
+.fc-go-wrap .btn-primary { width: 100%; }
+
+/* Icone illustrative dans un sous-titre (ex. echantillons frais) */
+.subtitle-icon {
+  width: 26px; height: 26px; object-fit: contain;
+  vertical-align: middle; margin-right: 4px;
+}
+
+/* Champs facultatifs : caches tant que la case n'est pas cochee */
+.opt-toggle {
+  display: flex; align-items: center; gap: 10px;
+  margin: 14px 2px 4px;
+  font-size: 13px; font-weight: 600; color: var(--text-muted);
+  cursor: pointer;
+}
+.opt-toggle input[type="checkbox"] {
+  width: 22px; height: 22px; accent-color: var(--caek-red);
+  flex: 0 0 auto; cursor: pointer;
+}
+.opt-field { margin-top: 4px; }
+
+/* Continuer / Terminer : bien separes pour eviter les erreurs */
+.fc-mal-actions {
+  display: flex; flex-direction: column; gap: 18px;
+  margin-top: 22px; padding-top: 16px;
+  border-top: 1px solid var(--gray-line);
+}
+.fc-mal-actions .btn-primary,
+.fc-mal-actions .btn-secondary { margin: 0; }
 .btn-secondary {
   background: var(--white);
   color: var(--caek-red);
@@ -226,6 +274,23 @@ body {
 }
 .seg.is-active { background: var(--caek-red); color: var(--white); }
 
+/* Variante Oui / Non : deux gros boutons separes, selection tres visible */
+.seg-switch.seg-yesno {
+  gap: 12px;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+.seg-switch.seg-yesno .seg {
+  min-height: 58px;
+  border: 2px solid var(--caek-red);
+  border-radius: 14px;
+  font-size: 18px;
+}
+.seg-switch.seg-yesno .seg.is-active {
+  box-shadow: 0 0 0 3px rgba(204, 0, 0, .18);
+}
+
 .field-label {
   display: block;
   font-size: 13px;
@@ -272,6 +337,61 @@ select.field { appearance: none; -webkit-appearance: none; background-image: non
 
 #nc-creer { margin-top: 18px; }
 
+/* ---------- Stepper (barre d'avancement de l'assistant) ---------- */
+.stepper { margin: 4px 0 20px; }
+.stepper-track {
+  position: relative;
+  height: 5px;
+  background: var(--gray-line);
+  border-radius: 999px;
+  margin: 0 14px 12px;
+}
+.stepper-fill {
+  position: absolute;
+  left: 0; top: 0; height: 100%;
+  width: 0%;
+  background: var(--caek-red);
+  border-radius: 999px;
+  transition: width .25s ease;
+}
+.stepper-dots {
+  display: flex;
+  justify-content: space-between;
+  list-style: none;
+  margin: 0; padding: 0;
+}
+.step-dot {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  flex: 1 1 0;
+}
+.step-dot .dot {
+  position: relative;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 2px solid var(--gray-line);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s, border-color .2s, color .2s;
+}
+.step-dot .dot-num { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.step-dot .dot-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-align: center; }
+/* etat actif */
+.step-dot.is-active .dot {
+  background: var(--caek-red); border-color: var(--caek-red);
+  box-shadow: 0 0 0 4px rgba(204,0,0,.15);
+}
+.step-dot.is-active .dot-num { color: var(--white); }
+.step-dot.is-active .dot-label { color: var(--caek-red); }
+/* etat termine */
+.step-dot.is-done .dot { background: var(--caek-red); border-color: var(--caek-red); }
+.step-dot.is-done .dot-num { color: transparent; }
+.step-dot.is-done .dot::after {
+  content: "\2713";
+  position: absolute;
+  color: var(--white); font-size: 14px; font-weight: 700;
+}
+.step-dot.is-done .dot-label { color: var(--text-dark); }
+
 /* ---------- Ecran Fiche terrain (T4) ---------- */
 .block-title {
   font-size: 15px;
@@ -304,8 +424,158 @@ select.field { appearance: none; -webkit-appearance: none; background-image: non
 }
 .ro-label { display: block; font-size: 12px; color: var(--text-muted); }
 .ro-val { font-size: 15px; font-weight: 600; }
+/* Bloc projet verrouille : clair, lisible, professionnel */
+.ro-locked {
+  background: #f4f8ff;
+  border: 1px solid #cfe0f7;
+  border-left: 4px solid var(--brand, #cc0000);
+  border-radius: 12px;
+  padding: 10px;
+}
+.ro-locked > div {
+  background: #ffffff;
+  border: 1px solid #e3e9f2;
+}
+.ro-locked .ro-label { color: #5a6b85; }
+.ro-locked .ro-val { color: #15233b; }
+.block-title .lock { font-size: 12px; font-weight: 400; color: var(--text-muted); }
+/* Contact compact : libelle + valeur sur une seule ligne */
+.ro-contact {
+  display: flex; align-items: baseline; gap: 8px;
+  flex-wrap: wrap;
+  border-left: 3px solid var(--brand, #cc0000) !important;
+}
+.ro-contact .ro-label { display: inline; }
+.ro-contact .ro-val { font-size: 14px; }
 
 textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
+
+/* ---- Selection d'ouvrage par icones ---- */
+
+/* Familles cote a cote (Fondation / Superstructure) */
+.family-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.family-card {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 16px 10px 14px;
+  background: #fff;
+  border: 2px solid #e3e9f2;
+  border-radius: 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.family-card:active { transform: scale(.99); }
+.family-img {
+  width: 100%; max-width: 130px; height: 96px;
+  object-fit: contain; pointer-events: none;
+}
+.family-name { font-size: 16px; font-weight: 700; color: #15233b; }
+.family-check {
+  position: absolute; top: 6px; right: 8px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--brand, #cc0000); color: #fff;
+  font-size: 15px; line-height: 24px; text-align: center;
+  opacity: 0; transform: scale(.6); transition: opacity .15s, transform .15s;
+}
+.family-card.is-selected {
+  border-color: var(--brand, #cc0000);
+  background: #fff2f2;
+  box-shadow: 0 0 0 3px rgba(204,0,0,.15);
+}
+.family-card.is-selected .family-check { opacity: 1; transform: scale(1); }
+.family-card.is-selected .family-name { color: var(--brand, #cc0000); }
+.family-card:disabled { opacity: .6; cursor: default; }
+
+/* Sections d'elements (apparaissent selon les familles choisies) */
+.ouvrage-items-wrap { display: flex; flex-direction: column; gap: 14px; }
+.ouvrage-section-title {
+  font-size: 13px; font-weight: 700; color: var(--brand, #cc0000);
+  margin-bottom: 6px;
+}
+
+/* Tuiles d'elements : 3 colonnes sur smartphone, 5 max sur grand ecran */
+.ouvrage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (min-width: 560px) {
+  .ouvrage-grid { grid-template-columns: repeat(5, 1fr); }
+}
+.ouvrage-item {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 6px 10px;
+  background: #fff;
+  border: 1.5px solid #e3e9f2;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color .12s, background .12s, box-shadow .12s;
+}
+.ouvrage-item:active { transform: scale(.97); }
+.ouvrage-img { width: 100%; max-width: 72px; height: 60px; object-fit: contain; pointer-events: none; }
+.ouvrage-label { font-size: 12px; line-height: 1.2; color: #15233b; }
+.ouvrage-check {
+  position: absolute; top: 5px; right: 6px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--brand, #cc0000); color: #fff;
+  font-size: 12px; line-height: 20px; text-align: center;
+  opacity: 0; transform: scale(.5); transition: opacity .12s, transform .12s;
+}
+.ouvrage-item.is-selected {
+  border-color: var(--brand, #cc0000);
+  background: #fff2f2;
+  box-shadow: 0 0 0 2px rgba(204,0,0,.20);
+}
+.ouvrage-item.is-selected .ouvrage-check { opacity: 1; transform: scale(1); }
+.ouvrage-item.is-selected .ouvrage-label { font-weight: 700; }
+.ouvrage-item:disabled { opacity: .6; cursor: default; }
+
+/* Type d'eprouvette : 2 grandes cartes (cube / cylindre) */
+.epr-types {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 6px 0 4px;
+}
+.epr-type {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px 10px;
+  background: #fff;
+  border: 2px solid #e3e9f2;
+  border-radius: 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.epr-type:active { transform: scale(.99); }
+.epr-img { width: 100%; max-width: 110px; height: 84px; object-fit: contain; pointer-events: none; }
+.epr-type span { font-size: 15px; font-weight: 700; color: #15233b; }
+.epr-type.is-selected {
+  border-color: var(--brand, #cc0000);
+  background: #fff2f2;
+  box-shadow: 0 0 0 3px rgba(204, 0, 0, .15);
+}
+.epr-type.is-selected span { color: var(--brand, #cc0000); }
+
+.ouvrage-resume {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #f4f8ff;
+  border: 1px solid #cfe0f7;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #15233b;
+}
 
 .toupie-card {
   background: var(--white);
@@ -361,21 +631,43 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
 .chip.is-active { background: var(--caek-red); color: var(--white); }
 
 .rep-item {
-  display: block;
+  display: flex;
+  align-items: stretch;
   width: 100%;
-  text-align: left;
   background: var(--white);
   border: 1px solid var(--gray-line);
   border-left: 6px solid var(--caek-red);
   border-radius: var(--radius);
-  padding: 12px 14px;
   margin-bottom: 10px;
+  overflow: hidden;
+}
+.rep-open {
+  display: block;
+  flex: 1 1 auto;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 12px 14px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.rep-del {
+  flex: 0 0 auto;
+  width: 52px;
+  background: #fbeaea;
+  border: 0;
+  border-left: 1px solid var(--gray-line);
+  color: var(--caek-red);
+  font-size: 20px;
   cursor: pointer;
 }
+.rep-del:active { background: #f6d6d6; }
 .rep-top { display: flex; justify-content: space-between; align-items: center; }
 .rep-ref { font-weight: 700; color: var(--caek-red); font-size: 16px; letter-spacing: .5px; }
 .rep-ent { font-weight: 600; font-size: 14px; margin-top: 4px; }
 .rep-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.rep-tot { font-size: 12px; color: #333; margin-top: 4px; font-weight: 600; }
 
 /* ---------- Validation / verrouillage (T5) ---------- */
 .valid-box {

@@ -53,13 +53,13 @@
 
       <!-- Mode projet enregistre -->
       <div id="nc-mode-projet">
-        <label class="field-label" for="nc-entreprise">Entreprise</label>
+        <label class="field-label" for="nc-entreprise">Client / Entreprise</label>
         <select id="nc-entreprise" class="field"></select>
 
         <label class="field-label" for="nc-projet">Projet</label>
         <select id="nc-projet" class="field"></select>
 
-        <label class="field-label" for="nc-code-direct">ou saisir le code projet directement</label>
+        <label class="field-label" for="nc-code-direct">ou rechercher par code projet</label>
         <input id="nc-code-direct" class="field" type="text" placeholder="ex. ABA" autocomplete="off">
       </div>
 
@@ -88,95 +88,237 @@
       <div id="nc-result" class="result-card" hidden></div>
     </section>
 
-    <!-- ECRAN FICHE TERRAIN (T4) -->
+    <!-- ECRAN FICHE TERRAIN (V1 : assistant pas-a-pas) -->
     <section id="screen-fiche" class="screen">
-      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
-      <h1 class="screen-title">Fiche de coulage <span id="fc-ref-titre"></span></h1>
+      <button class="btn-back" id="fc-back" type="button">&#8592; Retour</button>
+      <h1 class="screen-title">Fiche <span id="fc-ref-titre"></span></h1>
 
       <div class="status-card">
         <div class="status-line"><span class="status-label">Référence :</span> <strong id="fc-ref"></strong></div>
         <div class="status-line"><span class="status-label">Statut :</span> <span id="fc-statut" class="badge">brouillon</span></div>
       </div>
 
-      <h2 class="block-title">Informations générales</h2>
-      <div class="ro-grid">
-        <div><span class="ro-label">Client / Entreprise</span><span id="fc-entreprise" class="ro-val">—</span></div>
-        <div><span class="ro-label">Projet</span><span id="fc-projet" class="ro-val">—</span></div>
-      </div>
+      <!-- Barre d'avancement de l'assistant (Projet -> Prelevement -> Recap) -->
+      <nav class="stepper" id="fc-stepper" aria-label="Progression de la fiche">
+        <div class="stepper-track"><span class="stepper-fill" id="fc-stepper-fill"></span></div>
+        <ol class="stepper-dots">
+          <li class="step-dot" data-step="projet"><span class="dot"><span class="dot-num">1</span></span><span class="dot-label">Projet</span></li>
+          <li class="step-dot" data-step="malaxeur"><span class="dot"><span class="dot-num">2</span></span><span class="dot-label">Prélèvement</span></li>
+          <li class="step-dot" data-step="recap"><span class="dot"><span class="dot-num">3</span></span><span class="dot-label">Récap</span></li>
+        </ol>
+      </nav>
 
-      <label class="field-label" for="fc-date">Date du coulage</label>
-      <input id="fc-date" class="field" type="date">
+      <!-- ================= ETAPE PROJET / OUVRAGES / BLOC-ETAGE ================= -->
+      <div id="fc-step-projet" class="fc-step">
+        <h2 class="block-title">Projet <span class="lock">&#128274; verrouillé</span></h2>
+        <div id="fc-projet-box" class="ro-grid ro-locked">
+          <div><span class="ro-label">Client / Entreprise</span><span id="fc-entreprise" class="ro-val">—</span></div>
+          <div><span class="ro-label">Adresse / Ville</span><span id="fc-adresse-ville" class="ro-val">—</span></div>
+          <div><span class="ro-label">Projet</span><span id="fc-projet" class="ro-val">—</span></div>
+          <div><span class="ro-label">Code projet</span><span id="fc-code-projet" class="ro-val">—</span></div>
+          <div class="ro-contact"><span class="ro-label">Contact</span><span id="fc-contact" class="ro-val">—</span></div>
+        </div>
 
-      <label class="field-label" for="fc-refdossier">Référence dossier</label>
-      <input id="fc-refdossier" class="field" type="text" placeholder="ex. ABA/2026">
+        <label class="field-label" for="fc-date">&#128197; Date du coulage</label>
+        <input id="fc-date" class="field" type="date">
 
-      <label class="field-label" for="fc-ouvrage-coule">Ouvrage coulé</label>
-      <input id="fc-ouvrage-coule" class="field" type="text" placeholder="ex. Poteaux RDC">
+        <h2 class="block-title">Ouvrage(s) coulé(s)</h2>
+        <p class="hint">Choisissez la (les) famille(s), puis touchez les ouvrages concernés.</p>
+        <div id="fc-ouvrages" class="ouvrage-families"></div>
+        <div id="fc-ouvrages-resume" class="ouvrage-resume" hidden></div>
+        <input id="fc-ouvrage-coule" type="hidden">
 
-      <label class="field-label" for="fc-type-beton">Type de béton</label>
-      <input id="fc-type-beton" class="field" type="text" placeholder="ex. Béton armé">
+        <h2 class="block-title">Bloc / Étage <span class="opt">(facultatif)</span></h2>
+        <label class="opt-toggle" for="fc-bloc-on"><input type="checkbox" id="fc-bloc-on"><span>&#127970; Bloc / zone <span class="opt">(facultatif)</span></span></label>
+        <input id="fc-bloc" class="field opt-field" type="text" placeholder="ex. A, B, Bloc 5, Zone 2" autocomplete="off" hidden>
 
-      <label class="field-label" for="fc-centrale">Centrale / fournisseur</label>
-      <input id="fc-centrale" class="field" type="text" autocomplete="off">
-
-      <label class="field-label" for="fc-classe">Classe béton</label>
-      <input id="fc-classe" class="field" type="text" placeholder="ex. C25/30">
-
-      <label class="field-label" for="fc-formulation">Formulation / dosage</label>
-      <input id="fc-formulation" class="field" type="text" autocomplete="off">
-
-      <label class="field-label" for="fc-type-ouvrage">Type d'ouvrage</label>
-      <input id="fc-type-ouvrage" class="field" type="text" autocomplete="off">
-
-      <label class="field-label" for="fc-zone">Ouvrage / zone / partie</label>
-      <input id="fc-zone" class="field" type="text" autocomplete="off">
-
-      <label class="field-label" for="fc-obs">Observations générales</label>
-      <textarea id="fc-obs" class="field" rows="2"></textarea>
-
-      <h2 class="block-title">Toupies / camions</h2>
-      <div id="fc-toupies"></div>
-      <button id="fc-add-toupie" class="btn-secondary" type="button">&#10133; Ajouter une toupie</button>
-
-      <div class="totaux">
-        <div><span class="status-label">Quantité totale :</span> <strong id="fc-total-qte">0</strong> m³</div>
-        <div><span class="status-label">Total éprouvettes :</span> <strong id="fc-total-epr">0</strong></div>
-      </div>
-
-      <label class="field-label" for="fc-prel-par">Prélèvement effectué par</label>
-      <input id="fc-prel-par" class="field" type="text" autocomplete="off">
-
-      <h2 class="block-title">Photos</h2>
-      <div id="fc-photos-zone">
-        <label class="field-label" for="fc-photo-cat">Catégorie de la photo</label>
-        <select id="fc-photo-cat" class="field">
-          <option value="bl">Bon de livraison (BL)</option>
-          <option value="formulation">Formulation</option>
-          <option value="prelevement">Prélèvement</option>
-          <option value="eprouvettes">Éprouvettes</option>
-          <option value="anomalie">Anomalie</option>
+        <label class="opt-toggle" for="fc-etage-on"><input type="checkbox" id="fc-etage-on"><span>&#127970; Étage <span class="opt">(facultatif)</span></span></label>
+        <select id="fc-etage" class="field opt-field" hidden>
+          <option value="">— Aucun —</option>
+          <option>4e sous-sol</option>
+          <option>3e sous-sol</option>
+          <option>2e sous-sol</option>
+          <option>1er sous-sol</option>
+          <option>RDC</option>
+          <option>Mezzanine 1</option>
+          <option>Mezzanine 2</option>
+          <option>1er étage</option>
+          <option>2e étage</option>
+          <option>3e étage</option>
+          <option>4e étage</option>
+          <option>5e étage</option>
+          <option>6e étage</option>
+          <option>7e étage</option>
+          <option>8e étage</option>
+          <option>9e étage</option>
+          <option>10e étage</option>
+          <option>11e étage</option>
+          <option>12e étage</option>
+          <option>13e étage</option>
+          <option>14e étage</option>
+          <option>15e étage</option>
+          <option>Buanderie</option>
         </select>
-        <label class="btn-secondary" for="fc-photo-input">&#128247; Ajouter une photo</label>
-        <input id="fc-photo-input" type="file" accept="image/*" capture="environment" hidden>
-        <p class="hint">La photo est compressée et stockée localement sur l'appareil.</p>
+
+        <div class="fc-go-wrap">
+          <img class="fc-go-illus" src="assets/icons/ouvrages/prelevement_beton.png" alt="Prélèvement de béton frais">
+          <button id="fc-go-malaxeur" class="btn-primary btn-xl" type="button">Commencer le prélèvement</button>
+        </div>
       </div>
-      <div id="fc-photos-grid" class="photos-grid"></div>
 
-      <button id="fc-save" class="btn-primary" type="button">&#128190; Enregistrer le brouillon</button>
+      <!-- ================= ETAPE MALAXEUR ================= -->
+      <div id="fc-step-malaxeur" class="fc-step" hidden>
+        <h2 class="block-title" id="fc-mal-titre">Malaxeur 01</h2>
 
-      <div id="fc-valid-box" class="valid-box">
-        <label class="field-label" for="fc-operateur">Nom de l'opérateur (signature interne)</label>
+        <label class="field-label" for="fc-mal-heure">&#9200; Heure de prélèvement</label>
+        <input id="fc-mal-heure" class="field" type="time">
+
+        <label class="field-label" for="fc-mal-quantite">&#128666; Quantité de béton (m³)</label>
+        <input id="fc-mal-quantite" class="field" type="number" inputmode="decimal" step="any" min="0">
+
+        <label class="field-label" for="fc-mal-affaissement">&#128317; Affaissement (cm)</label>
+        <input id="fc-mal-affaissement" class="field" type="number" inputmode="decimal" step="any" min="0">
+
+        <label class="field-label" for="fc-mal-temperature">&#127777;&#65039; Température (°C)</label>
+        <input id="fc-mal-temperature" class="field" type="number" inputmode="decimal" step="any">
+
+        <label class="opt-toggle" for="fc-mal-camion-on">
+          <input type="checkbox" id="fc-mal-camion-on">
+          <span>&#128667; N° camion / toupie <span class="opt">(facultatif)</span></span>
+        </label>
+        <input id="fc-mal-camion" class="field opt-field" type="text" autocomplete="off" hidden>
+
+        <label class="opt-toggle" for="fc-mal-bl-on">
+          <input type="checkbox" id="fc-mal-bl-on">
+          <span>&#128196; N° BL <span class="opt">(facultatif)</span></span>
+        </label>
+        <input id="fc-mal-bl" class="field opt-field" type="text" autocomplete="off" hidden>
+
+        <h3 class="block-subtitle"><img class="subtitle-icon" src="assets/icons/ouvrages/echantillon_frais.png" alt=""> Échantillons frais de béton</h3>
+        <p class="hint">Avez-vous prélevé des échantillons frais de béton ?</p>
+        <div class="seg-switch seg-yesno" id="fc-mal-prel-switch">
+          <button type="button" class="seg" data-prel="oui">Oui</button>
+          <button type="button" class="seg" data-prel="non">Non</button>
+        </div>
+        <div id="fc-mal-epr" hidden>
+          <label class="field-label">Type d'éprouvette</label>
+          <div class="epr-types">
+            <button type="button" class="epr-type" data-epr="cube">
+              <img class="epr-img" src="assets/icons/ouvrages/moule_cubique.png" alt="" loading="lazy">
+              <span>Cube</span></button>
+            <button type="button" class="epr-type" data-epr="cylindre">
+              <img class="epr-img" src="assets/icons/ouvrages/moule_cylindrique.png" alt="" loading="lazy">
+              <span>Cylindre</span></button>
+          </div>
+          <label class="field-label" for="fc-mal-epr-nb">Nombre d'éprouvettes</label>
+          <input id="fc-mal-epr-nb" class="field" type="number" inputmode="numeric" min="0" step="1">
+        </div>
+
+        <h3 class="block-subtitle">&#128196; Formulation / Centrale</h3>
+        <div id="fc-mal-reprise" hidden>
+          <p class="hint">Même formulation / centrale que le malaxeur précédent ?</p>
+          <div class="seg-switch seg-yesno" id="fc-mal-reprise-switch">
+            <button type="button" class="seg" data-reprise="oui">Oui</button>
+            <button type="button" class="seg" data-reprise="non">Non</button>
+          </div>
+        </div>
+        <div id="fc-mal-form">
+          <div class="seg-switch" id="fc-mal-form-mode">
+            <button type="button" class="seg is-active" data-fmode="structure">&#9999;&#65039; Saisie</button>
+            <button type="button" class="seg" data-fmode="photo">&#128247; Photo BL</button>
+          </div>
+
+          <div id="fc-mal-form-structure">
+            <label class="field-label" for="fc-mal-fournisseur">&#127981; Fournisseur / centrale</label>
+            <input id="fc-mal-fournisseur" class="field" type="text" autocomplete="off">
+
+            <label class="field-label" for="fc-mal-classe">Classe béton</label>
+            <select id="fc-mal-classe" class="field" data-autre="fc-mal-classe-autre">
+              <option value="">—</option>
+              <option>C25/30</option><option>C30/37</option><option>C35/45</option><option>C40/50</option>
+              <option value="autre">Autre…</option>
+            </select>
+            <input id="fc-mal-classe-autre" class="field" type="text" placeholder="Préciser la classe" hidden>
+
+            <label class="field-label" for="fc-mal-ciment">Type de ciment</label>
+            <select id="fc-mal-ciment" class="field" data-autre="fc-mal-ciment-autre">
+              <option value="">—</option>
+              <option>CRS</option><option>CPJ</option>
+              <option value="autre">Autre…</option>
+            </select>
+            <input id="fc-mal-ciment-autre" class="field" type="text" placeholder="Préciser le ciment" hidden>
+
+            <label class="field-label" for="fc-mal-dosage">Dosage ciment (kg/m³)</label>
+            <select id="fc-mal-dosage" class="field" data-autre="fc-mal-dosage-autre">
+              <option value="">—</option>
+              <option>350</option><option>380</option><option>400</option>
+              <option value="autre">Autre…</option>
+            </select>
+            <input id="fc-mal-dosage-autre" class="field" type="number" inputmode="numeric" placeholder="Préciser le dosage" hidden>
+
+            <label class="field-label" for="fc-mal-dmax">Dmax (mm)</label>
+            <select id="fc-mal-dmax" class="field" data-autre="fc-mal-dmax-autre">
+              <option value="">—</option>
+              <option>15</option><option>25</option>
+              <option value="autre">Autre…</option>
+            </select>
+            <input id="fc-mal-dmax-autre" class="field" type="number" inputmode="numeric" placeholder="Préciser le Dmax" hidden>
+
+            <label class="field-label" for="fc-mal-adjuvant">Adjuvant</label>
+            <select id="fc-mal-adjuvant" class="field" data-autre="fc-mal-adjuvant-autre">
+              <option value="">— Aucun —</option>
+              <option>Superplastifiant</option><option>Hydrofuge</option><option>Entraîneur d'air</option>
+              <option value="autre">Autre…</option>
+            </select>
+            <input id="fc-mal-adjuvant-autre" class="field" type="text" placeholder="Préciser l'adjuvant" hidden>
+          </div>
+
+          <div id="fc-mal-form-photo" hidden>
+            <label class="btn-secondary" for="fc-mal-form-photo-input">&#128247; Photo du BL / formulation</label>
+            <input id="fc-mal-form-photo-input" type="file" accept="image/*" capture="environment" hidden>
+            <div id="fc-mal-form-photo-preview" class="photos-grid"></div>
+            <p class="hint">La photo est compressée et stockée localement.</p>
+          </div>
+        </div>
+
+        <div class="fc-mal-actions">
+          <button id="fc-mal-continuer" class="btn-secondary" type="button">&#10133; Continuer (malaxeur suivant)</button>
+          <button id="fc-mal-terminer" class="btn-primary" type="button">&#9989; Terminer</button>
+        </div>
+        <button id="fc-mal-annuler" class="btn-text" type="button">Annuler ce malaxeur</button>
+      </div>
+
+      <!-- ================= ETAPE RECAPITULATIF ================= -->
+      <div id="fc-step-recap" class="fc-step" hidden>
+        <h2 class="block-title">Récapitulatif</h2>
+        <div id="fc-recap"></div>
+
+        <button id="fc-recap-add" class="btn-secondary" type="button">&#10133; Ajouter un malaxeur</button>
+
+        <h3 class="block-subtitle">&#9888;&#65039; Signaler un problème / anomalie</h3>
+        <textarea id="fc-anomalie-texte" class="field" rows="2" placeholder="Décrire le problème (facultatif)"></textarea>
+        <label class="btn-secondary" for="fc-anomalie-photo-input">&#128247; Photo de l'anomalie</label>
+        <input id="fc-anomalie-photo-input" type="file" accept="image/*" capture="environment" hidden>
+        <div id="fc-anomalie-photos" class="photos-grid"></div>
+        <p class="hint">&#127908; Note audio : prévue dans une prochaine version.</p>
+
+        <label class="field-label" for="fc-operateur">&#129683; Nom de l'opérateur (signature interne)</label>
         <input id="fc-operateur" class="field" type="text" autocomplete="off">
-        <button id="fc-valider" class="btn-validate" type="button">&#9989; Valider la fiche</button>
-        <p class="hint">Une fois validée, la fiche est verrouillée. Vous pourrez seulement signaler une correction.</p>
-      </div>
 
-      <div id="fc-locked-box" class="locked-box" hidden>
-        <div class="locked-info">&#128274; Fiche <span id="fc-locked-statut">validée</span> — verrouillée.
-          <span id="fc-signataire-line"></span></div>
-        <button id="fc-exporter" class="btn-primary" type="button">&#128228; Exporter / Partager</button>
-        <button id="fc-telecharger" class="btn-secondary" type="button">&#11015; Télécharger le fichier Excel</button>
-        <button id="fc-signaler" class="btn-secondary" type="button">&#9888; Signaler une correction</button>
+        <button id="fc-save" class="btn-primary" type="button">&#128190; Enregistrer (brouillon)</button>
+
+        <div id="fc-export-box" class="export-box">
+          <h3 class="block-subtitle">&#128228; Envoyer au bureau</h3>
+          <button id="fc-copy-msg" class="btn-secondary" type="button">&#128203; Copier le message récap</button>
+          <button id="fc-zip" class="btn-secondary" type="button">&#128230; Télécharger le ZIP (Excel + photos)</button>
+          <button id="fc-exporter" class="btn-primary" type="button">&#128228; Partager (WhatsApp / e-mail)</button>
+          <button id="fc-telecharger" class="btn-text" type="button">&#11015; Excel seul</button>
+          <p class="hint">L'envoi requiert le nom de l'opérateur. La fiche passe alors en « envoyée ».</p>
+        </div>
+
+        <div id="fc-locked-note" class="locked-box" hidden>
+          <div class="locked-info">&#128274; Fiche envoyée — verrouillée. <span id="fc-signataire-line"></span></div>
+        </div>
       </div>
 
       <div id="fc-result" class="result-card" hidden></div>
@@ -192,7 +334,6 @@
       <div class="filter-chips" id="rep-filtres">
         <button type="button" class="chip is-active" data-statut="">Toutes</button>
         <button type="button" class="chip" data-statut="brouillon">Brouillons</button>
-        <button type="button" class="chip" data-statut="validee">Validées</button>
         <button type="button" class="chip" data-statut="envoyee">Envoyées</button>
       </div>
 
@@ -207,6 +348,7 @@
 
       <div id="update-status" class="status-card">
         <div class="status-line"><span class="status-label">Dernier import :</span> <span id="status-date">—</span></div>
+        <div class="status-line"><span class="status-label">Clients chargés :</span> <span id="status-count-clients">0</span></div>
         <div class="status-line"><span class="status-label">Projets chargés :</span> <span id="status-count">0</span></div>
         <div class="status-line"><span class="status-label">Fichier :</span> <span id="status-file">—</span></div>
       </div>
@@ -214,7 +356,7 @@
       <label class="btn-primary" for="update-file">&#128229; Importer le fichier du bureau</label>
       <input id="update-file" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden>
 
-      <p class="hint">Fichier Excel envoyé par le bureau, feuille <strong>PROJETS</strong> (colonnes : Entreprise, Client, CodeProjet, NomProjet, Adresse, Contact, ResistanceRequise_MPa).</p>
+      <p class="hint">Fichier Excel <strong>client.xlsx</strong> du bureau : feuilles <strong>CLIENTS</strong> et <strong>PROJETS</strong> (jointure par ClientID). Seuls les clients et projets actifs sont proposés à la saisie.</p>
 
       <div id="update-result" class="result-card" hidden></div>
 
@@ -225,7 +367,7 @@
   </main>
 
   <footer class="app-footer">
-    <span>document interne CAEK ENGINEERING LAB — Version 0 (essai terrain)</span>
+    <span>document interne CAEK ENGINEERING LAB — Version 1</span>
   </footer>
 
   <script src="vendor/xlsx.full.min.js"></script>
@@ -234,6 +376,7 @@
   <script src="js/nouveau.js"></script>
   <script src="js/fiche.js"></script>
   <script src="js/photos.js"></script>
+  <script src="js/zip.js"></script>
   <script src="js/export.js"></script>
   <script src="js/repertoire.js"></script>
   <script src="js/app.js"></script>
