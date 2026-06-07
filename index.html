@@ -300,7 +300,12 @@
         <label class="btn-secondary" for="fc-anomalie-photo-input">&#128247; Photo de l'anomalie</label>
         <input id="fc-anomalie-photo-input" type="file" accept="image/*" capture="environment" hidden>
         <div id="fc-anomalie-photos" class="photos-grid"></div>
-        <p class="hint">&#127908; Note audio : prévue dans une prochaine version.</p>
+
+        <div id="fc-audio-wrap" class="audio-wrap">
+          <button id="fc-audio-rec" class="btn-secondary" type="button">&#127908; Enregistrer une note audio</button>
+          <span id="fc-audio-status" class="hint"></span>
+        </div>
+        <div id="fc-audio-list" class="audio-list" hidden></div>
 
         <label class="field-label" for="fc-operateur">&#129683; Nom de l'opérateur (signature interne)</label>
         <input id="fc-operateur" class="field" type="text" autocomplete="off">
@@ -309,9 +314,10 @@
 
         <div id="fc-export-box" class="export-box">
           <h3 class="block-subtitle">&#128228; Envoyer au bureau</h3>
+          <button id="fc-exporter" class="btn-primary" type="button">&#128228; Partager le dossier (1 seul fichier)</button>
+          <p class="hint">Tout (Excel + photos + notes audio) est regroupé dans un <strong>seul fichier compressé</strong> nommé par la référence, avec le récap en texte du message.</p>
           <button id="fc-copy-msg" class="btn-secondary" type="button">&#128203; Copier le message récap</button>
-          <button id="fc-zip" class="btn-secondary" type="button">&#128230; Télécharger le ZIP (Excel + photos)</button>
-          <button id="fc-exporter" class="btn-primary" type="button">&#128228; Partager (WhatsApp / e-mail)</button>
+          <button id="fc-zip" class="btn-secondary" type="button">&#128230; Télécharger le fichier (.zip)</button>
           <button id="fc-telecharger" class="btn-text" type="button">&#11015; Excel seul</button>
           <p class="hint">L'envoi requiert le nom de l'opérateur. La fiche passe alors en « envoyée ».</p>
         </div>
@@ -319,6 +325,8 @@
         <div id="fc-locked-note" class="locked-box" hidden>
           <div class="locked-info">&#128274; Fiche envoyée — verrouillée. <span id="fc-signataire-line"></span></div>
         </div>
+
+        <button id="fc-accueil" class="btn-secondary btn-home" type="button">&#127968; Retour à l'accueil</button>
       </div>
 
       <div id="fc-result" class="result-card" hidden></div>

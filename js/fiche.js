@@ -13,6 +13,11 @@ var CAEKFiche = (function () {
   var selectedOuvrages = {};
   var ouvragesLocked = false;
   var thumbUrls = [];
+  var audioUrls = [];
+  var mediaRec = null;
+  var audioChunks = [];
+  var audioTimer = null;
+  var audioStartTs = 0;
 
   function $(id) { return document.getElementById(id); }
   function val(id) { var e = $(id); return e ? e.value : ""; }
@@ -220,6 +225,22 @@ var CAEKFiche = (function () {
     updateStepper(s);
     if (s === "recap") { renderRecap(); }
     window.scrollTo(0, 0);
+  }
+
+  // Bouton "Retour" de l'en-tete : recule d'une etape, sinon revient a l'accueil.
+  function goBack() {
+    stopAudioIfRecording();
+    if (step === "malaxeur") {
+      gotoStep((current && current.malaxeurs && current.malaxeurs.length) ? "recap" : "projet");
+    } else if (step === "recap") {
+      gotoAccueil();
+    } else {
+      gotoAccueil();
+    }
+  }
+  function gotoAccueil() {
+    stopAudioIfRecording();
+    if (window.CAEKApp) { CAEKApp.navigate("screen-accueil"); }
   }
 
   function setStatut(s) {
@@ -495,6 +516,8 @@ var CAEKFiche = (function () {
     show("fc-recap-add", !locked);
     setVal("fc-anomalie-texte", (c.anomalie && c.anomalie.texte) || "");
     renderAnomaliePhotos();
+    renderAudioNotes();
+    show("fc-audio-wrap", !locked);
     setVal("fc-operateur", c.signatureOperateur || "");
 
     show("fc-export-box", true);
@@ -529,6 +552,83 @@ var CAEKFiche = (function () {
       list.filter(function (p) { return p.categorie === "anomalie"; }).forEach(function (p) {
         var u = URL.createObjectURL(p.blob); thumbUrls.push(u);
         box.innerHTML += "<div class=\"photo-card\"><img class=\"photo-thumb\" src=\"" + u + "\"><span class=\"photo-cat\">Anomalie</span></div>";
+      });
+    });
+  }
+
+  /* ---- Notes audio (signalement) ---- */
+  function audioSupported() {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  }
+  function pickAudioMime() {
+    var cands = ["audio/webm", "audio/mp4", "audio/ogg"];
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported) {
+      for (var i = 0; i < cands.length; i++) { if (MediaRecorder.isTypeSupported(cands[i])) { return cands[i]; } }
+    }
+    return "";
+  }
+  function fmtChrono(sec) { return pad2(Math.floor(sec / 60)) + ":" + pad2(sec % 60); }
+  function stopAudioIfRecording() {
+    if (mediaRec && mediaRec.state === "recording") { try { mediaRec.stop(); } catch (e) {} }
+  }
+  function toggleAudioRec() {
+    var btn = $("fc-audio-rec"); var status = $("fc-audio-status");
+    if (!btn || !current) { return; }
+    if (mediaRec && mediaRec.state === "recording") { mediaRec.stop(); return; }
+    if (!audioSupported()) { alert("L'enregistrement audio n'est pas disponible sur cet appareil/navigateur."); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      var mime = pickAudioMime();
+      try { mediaRec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
+      catch (e) { mediaRec = new MediaRecorder(stream); }
+      audioChunks = [];
+      mediaRec.ondataavailable = function (e) { if (e.data && e.data.size) { audioChunks.push(e.data); } };
+      mediaRec.onstop = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        if (audioTimer) { clearInterval(audioTimer); audioTimer = null; }
+        btn.classList.remove("is-recording");
+        btn.innerHTML = "🎤 Enregistrer une note audio";
+        if (status) { status.textContent = ""; }
+        var blob = new Blob(audioChunks, { type: (mediaRec && mediaRec.mimeType) || mime || "audio/webm" });
+        audioChunks = [];
+        if (current && blob.size && window.CAEKDB) {
+          CAEKDB.addPhoto(current.ref, "audio", blob).then(renderAudioNotes).catch(function () {});
+        }
+      };
+      mediaRec.start();
+      audioStartTs = Date.now();
+      btn.classList.add("is-recording");
+      btn.innerHTML = "⏹ Arrêter (00:00)";
+      if (status) { status.textContent = "● Enregistrement en cours…"; }
+      audioTimer = setInterval(function () {
+        var s = Math.floor((Date.now() - audioStartTs) / 1000);
+        btn.innerHTML = "⏹ Arrêter (" + fmtChrono(s) + ")";
+      }, 500);
+    }).catch(function (err) {
+      alert("Micro indisponible : " + (err && err.message || err) + "\nAutorisez l'accès au micro.");
+    });
+  }
+  function renderAudioNotes() {
+    var box = $("fc-audio-list"); if (!box || !window.CAEKDB || !current) { return; }
+    var locked = (current.statut || "brouillon") !== "brouillon";
+    CAEKDB.getPhotosByRef(current.ref).then(function (list) {
+      audioUrls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} }); audioUrls = [];
+      box.innerHTML = "";
+      var audios = list.filter(function (p) { return p.categorie === "audio"; });
+      if (!audios.length) { box.hidden = true; return; }
+      box.hidden = false;
+      audios.forEach(function (p, i) {
+        var u = URL.createObjectURL(p.blob); audioUrls.push(u);
+        var card = document.createElement("div"); card.className = "audio-card";
+        var head = "<span class=\"audio-cat\">🎤 Note " + pad2(i + 1) + "</span>";
+        if (!locked) { head += " <button type=\"button\" class=\"btn-link audio-del\" data-id=\"" + p.id + "\">Supprimer</button>"; }
+        card.innerHTML = head + "<audio controls preload=\"metadata\" src=\"" + u + "\"></audio>";
+        box.appendChild(card);
+      });
+      box.querySelectorAll(".audio-del").forEach(function (b) {
+        b.addEventListener("click", function () {
+          if (!confirm("Supprimer cette note audio ?")) { return; }
+          CAEKDB.deletePhoto(parseInt(b.getAttribute("data-id"), 10)).then(renderAudioNotes);
+        });
       });
     });
   }
@@ -585,6 +685,13 @@ var CAEKFiche = (function () {
 
     var go = $("fc-go-malaxeur");
     if (go) { go.addEventListener("click", function () { goMalaxeur(); }); }
+
+    var back = $("fc-back");
+    if (back) { back.addEventListener("click", goBack); }
+    var home = $("fc-accueil");
+    if (home) { home.addEventListener("click", gotoAccueil); }
+    var arec = $("fc-audio-rec");
+    if (arec) { arec.addEventListener("click", toggleAudioRec); }
 
     bindSegSwitch("fc-mal-prel-switch", "prel", function (v) {
       if (!malaxeurDraft) { return; }

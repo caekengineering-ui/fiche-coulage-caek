@@ -198,7 +198,8 @@ var CAEKExport = (function () {
   }
 
   function xlsxName(c) { return safeName(c.ref) + "_fiche_coulage.xlsx"; }
-  function zipName(c) { return safeName(c.ref) + "_export.zip"; }
+  // Fichier unique nomme par la reference seule : ex. ABA014.zip
+  function zipName(c) { return safeName(c.ref) + ".zip"; }
 
   /* ---------- Telechargement utilitaire ---------- */
 
@@ -216,16 +217,21 @@ var CAEKExport = (function () {
   /* ---------- Nommage des photos par reference ---------- */
 
   function ext(mime) {
+    mime = String(mime || "").split(";")[0];
     if (mime === "image/png") { return "png"; }
     if (mime === "image/webp") { return "webp"; }
     if (mime === "audio/mp4" || mime === "audio/m4a") { return "m4a"; }
     if (mime === "audio/mpeg") { return "mp3"; }
+    if (mime === "audio/webm") { return "webm"; }
+    if (mime === "audio/ogg") { return "ogg"; }
+    if (mime === "audio/wav" || mime === "audio/x-wav") { return "wav"; }
     return "jpg";
   }
 
   // Jeton de categorie pour le nom de fichier (formulation/bl -> BL).
   function catToken(cat) {
     if (cat === "formulation" || cat === "bl") { return "BL"; }
+    if (cat === "audio") { return "note"; }
     return cat || "photo";
   }
 
@@ -249,51 +255,45 @@ var CAEKExport = (function () {
   /* ---------- 3) ZIP complet (Excel + photos + audios) ---------- */
 
   function downloadZip(c) {
-    if (!window.CAEKZip) { return Promise.reject(new Error("Module ZIP indisponible.")); }
-    return attachments(c).then(function (atts) {
-      var files = [{ name: xlsxName(c), data: toBlob(c) }];
-      atts.forEach(function (a) { files.push({ name: a.name, data: a.blob }); });
-      return CAEKZip.create(files);
-    }).then(function (zipBlob) {
+    return buildZipBlob(c).then(function (zipBlob) {
       triggerDownload(zipBlob, zipName(c));
       return { ok: true };
     });
   }
 
-  /* ---------- 4) Partage (Web Share API) ---------- */
+  /* ---------- 4) Partage (Web Share API) ----------
+     Strategie V1.1 : on ne partage qu'UN SEUL fichier compresse (ABxxx.zip)
+     contenant Excel + photos + notes audio, pour ne pas saturer le receveur.
+     Le recap textuel est mis en description (text) du message. */
+
+  function buildZipBlob(c) {
+    if (!window.CAEKZip) { return Promise.reject(new Error("Module ZIP indisponible.")); }
+    return attachments(c).then(function (atts) {
+      var files = [{ name: xlsxName(c), data: toBlob(c) }];
+      atts.forEach(function (a) { files.push({ name: a.name, data: a.blob }); });
+      return CAEKZip.create(files);
+    });
+  }
 
   function share(c) {
-    var blob = toBlob(c);
     var titre = "Fiche de coulage " + (c.ref || "");
     var texte = buildMessage(c);
+    return buildZipBlob(c).then(function (zipBlob) {
+      var zipFile = null;
+      try { zipFile = new File([zipBlob], zipName(c), { type: "application/zip" }); } catch (e) { zipFile = null; }
 
-    var xlsxFile = null;
-    try { xlsxFile = new File([blob], xlsxName(c), { type: blob.type }); } catch (e) { xlsxFile = null; }
-
-    if (!xlsxFile || !navigator.canShare) {
-      download(c);
-      return Promise.resolve({ shared: false, downloaded: true });
-    }
-
-    return attachments(c).then(function (atts) {
-      var photoFiles = [];
-      atts.forEach(function (a) {
-        try { photoFiles.push(new File([a.blob], a.name, { type: a.blob.type || "image/jpeg" })); }
-        catch (e) { /* File non supporte : ignore */ }
-      });
-      var files = [xlsxFile].concat(photoFiles);
-      if (!navigator.canShare({ files: files })) { files = [xlsxFile]; }
-      if (!navigator.canShare({ files: files })) {
-        download(c);
-        return { shared: false, downloaded: true };
+      if (zipFile && navigator.canShare && navigator.canShare({ files: [zipFile] })) {
+        return navigator.share({ files: [zipFile], title: titre, text: texte })
+          .then(function () { return { shared: true, downloaded: false }; })
+          .catch(function (err) {
+            if (err && err.name === "AbortError") { return { shared: false, downloaded: false }; }
+            triggerDownload(zipBlob, zipName(c));
+            return { shared: false, downloaded: true };
+          });
       }
-      return navigator.share({ files: files, title: titre, text: texte })
-        .then(function () { return { shared: true, downloaded: false }; })
-        .catch(function (err) {
-          if (err && err.name === "AbortError") { return { shared: false, downloaded: false }; }
-          download(c);
-          return { shared: false, downloaded: true };
-        });
+      // Pas de partage de fichier possible : on telecharge le fichier unique.
+      triggerDownload(zipBlob, zipName(c));
+      return { shared: false, downloaded: true };
     });
   }
 

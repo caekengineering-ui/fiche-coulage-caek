@@ -746,6 +746,40 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
   cursor: pointer;
 }
 
+/* ---------- Notes audio (signalement) ---------- */
+.audio-wrap { margin-top: 12px; }
+.audio-wrap .hint { margin-top: 6px; }
+#fc-audio-rec.is-recording {
+  background: var(--caek-red);
+  color: #fff;
+  border-color: var(--caek-red);
+  animation: rec-pulse 1.1s ease-in-out infinite;
+}
+@keyframes rec-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.72; } }
+.audio-list { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.audio-card {
+  border: 1px solid var(--gray-line);
+  border-radius: var(--radius);
+  background: var(--white);
+  padding: 10px 12px;
+}
+.audio-card .audio-cat {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.audio-card audio { width: 100%; height: 36px; }
+.audio-del {
+  margin-left: 8px;
+  font-weight: 600;
+  color: var(--caek-red);
+}
+
+/* ---------- Bouton retour accueil ---------- */
+.btn-home { margin-top: 18px; }
+
 /* ---------- Footer ---------- */
 .app-footer {
   padding: 10px 16px;
