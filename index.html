@@ -16,15 +16,55 @@
     <img src="assets/logo-caek.png" alt="Logo CAEK" class="app-logo">
     <div class="app-titles">
       <span class="app-title">CAEK <span class="accent">ENGINEERING</span></span>
-      <span class="app-subtitle">Fiche de coulage terrain</span>
+      <span class="app-subtitle">Laboratoire béton</span>
+    </div>
+    <div class="header-actions">
+      <button class="header-icon-btn" id="btn-profil" type="button" data-goto="screen-profil" title="Profil opérateur">
+        <img src="assets/icons/menu/profil.png" alt="Profil">
+        <span class="menu-badge" id="badge-profil" hidden></span>
+      </button>
+      <button class="header-icon-btn" id="btn-maj" type="button" data-goto="screen-update" title="Mise à jour projet">
+        <img src="assets/icons/menu/mise-a-jour.png" alt="Mise à jour">
+      </button>
     </div>
   </header>
+
+  <!-- Bandeau profil operateur (visible partout) -->
+  <button class="profil-bar" id="profil-bar" type="button" data-goto="screen-profil">
+    <span class="profil-bar-icon" aria-hidden="true">&#128100;</span>
+    <span class="profil-bar-text" id="profil-bar-text">Profil non renseigné</span>
+    <span class="profil-bar-edit" aria-hidden="true">&#9999;&#65039;</span>
+  </button>
 
   <main class="app-main">
 
     <!-- ECRAN ACCUEIL -->
     <section id="screen-accueil" class="screen is-active">
-      <p class="screen-intro">Choisissez une action</p>
+      <p class="screen-intro">Choisissez un module</p>
+      <div class="big-cards">
+        <button class="big-card" data-goto="screen-coulage">
+          <img class="big-card-img" src="assets/icons/menu/coulage-beton.png" alt="">
+          <span class="big-card-label">Coulage béton</span>
+          <span class="menu-badge" id="badge-coulage" hidden></span>
+        </button>
+        <button class="big-card" data-goto="screen-bassin">
+          <img class="big-card-img" src="assets/icons/menu/bassin-conservation.png" alt="">
+          <span class="big-card-label">Bassin de conservation</span>
+          <span class="menu-badge" id="badge-bassin" hidden></span>
+        </button>
+        <button class="big-card" data-goto="screen-compression">
+          <img class="big-card-img" src="assets/icons/menu/test-compression.png" alt="">
+          <span class="big-card-label">Test de compression</span>
+          <span class="menu-badge" id="badge-compression" hidden></span>
+        </button>
+      </div>
+    </section>
+
+    <!-- SOUS-MENU COULAGE BETON -->
+    <section id="screen-coulage" class="screen">
+      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <h1 class="screen-title">Coulage béton</h1>
+      <div class="synthese-bar" data-synth="coulage"></div>
       <div class="tiles">
         <button class="tile" data-goto="screen-nouveau">
           <span class="tile-icon" aria-hidden="true">&#10133;</span>
@@ -32,14 +72,163 @@
         </button>
         <button class="tile" data-goto="screen-repertoire">
           <span class="tile-icon" aria-hidden="true">&#128193;</span>
-          <span class="tile-label">Répertoire</span>
-        </button>
-        <button class="tile" data-goto="screen-update">
-          <span class="tile-icon" aria-hidden="true">&#128260;</span>
-          <span class="tile-label">Mise à jour projet</span>
+          <span class="tile-label">Répertoire des coulages</span>
         </button>
       </div>
     </section>
+
+    <!-- SOUS-MENU BASSIN DE CONSERVATION -->
+    <section id="screen-bassin" class="screen">
+      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <h1 class="screen-title">Bassin de conservation</h1>
+      <div class="synthese-bar" data-synth="bassin"></div>
+      <div class="tiles">
+        <button class="tile" data-goto="screen-repartir">
+          <span class="tile-icon" aria-hidden="true">&#128203;</span>
+          <span class="tile-label">À répartir</span>
+        </button>
+        <button class="tile" data-goto="screen-bassin-virtuel">
+          <span class="tile-icon" aria-hidden="true">&#129518;</span>
+          <span class="tile-label">Bassin virtuel</span>
+        </button>
+        <button class="tile" data-goto="screen-archives">
+          <span class="tile-icon" aria-hidden="true">&#128230;</span>
+          <span class="tile-label">Archives</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ECRAN PROFIL OPERATEUR -->
+    <section id="screen-profil" class="screen">
+      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <h1 class="screen-title">Profil opérateur</h1>
+
+      <div class="profil-illus-wrap">
+        <img class="profil-illus" src="assets/icons/menu/profil.png" alt="">
+      </div>
+
+      <label class="field-label" for="profil-nom">Nom de l'opérateur</label>
+      <input id="profil-nom" class="field" type="text" placeholder="ex. CHAHID Ayoub" autocomplete="off">
+
+      <label class="field-label" for="profil-qualif">Qualification / fonction</label>
+      <input id="profil-qualif" class="field" type="text" placeholder="ex. Technicien laboratoire" autocomplete="off">
+
+      <button id="profil-save" class="btn-primary" type="button">&#128190; Enregistrer le profil</button>
+      <button id="profil-clear" class="btn-text" type="button">Effacer le profil</button>
+      <div id="profil-result" class="result-card" hidden></div>
+    </section>
+
+    <!-- BASSIN > A REPARTIR -->
+    <section id="screen-repartir" class="screen">
+      <button class="btn-back" data-goto="screen-bassin">&#8592; Retour</button>
+      <h1 class="screen-title">À répartir</h1>
+      <div class="synthese-bar" data-synth="bassin"></div>
+      <p class="hint">Fiches validées comportant des éprouvettes, pas encore réparties au bassin.</p>
+      <div id="rep-bassin-count" class="hint"></div>
+      <div id="rep-bassin-liste"></div>
+    </section>
+
+    <!-- BASSIN > BASSIN VIRTUEL -->
+    <section id="screen-bassin-virtuel" class="screen">
+      <button class="btn-back" data-goto="screen-bassin">&#8592; Retour</button>
+      <h1 class="screen-title">Bassin virtuel</h1>
+      <div id="bassin-alerte" class="bassin-alerte" hidden></div>
+      <div class="bassin-legende">
+        <span class="leg-titre">Couleurs (échéance d'essai) :</span>
+        <span class="leg"><span class="leg-color st-loin"></span> Échéance loin</span>
+        <span class="leg"><span class="leg-color st-j2"></span> J-2 (à sortir bientôt)</span>
+        <span class="leg"><span class="leg-color st-j1"></span> J-1 (à sortir aujourd'hui)</span>
+        <span class="leg"><span class="leg-color st-retard"></span> Retard (R)</span>
+        <span class="leg"><span class="leg-color st-sorti"></span> Sorti pour essai</span>
+      </div>
+      <div class="bassin-legende bassin-legende-formes">
+        <span class="leg-titre">Formes (type) :</span>
+        <span class="leg"><span class="leg-shape leg-form shape-cube"></span> Carré = Cube</span>
+        <span class="leg"><span class="leg-shape leg-form shape-cyl"></span> Cercle = Cylindre</span>
+        <span class="leg"><span class="leg-shape leg-form shape-mixte"></span> Hexagone = Mixte</span>
+      </div>
+      <div id="bassin-grille" class="bassin-grille"></div>
+    </section>
+
+    <!-- BASSIN > ARCHIVES -->
+    <section id="screen-archives" class="screen">
+      <button class="btn-back" data-goto="screen-bassin">&#8592; Retour</button>
+      <h1 class="screen-title">Archives</h1>
+      <p class="hint">Historique permanent des écrasements. Jamais supprimé.</p>
+      <div class="archive-filtre">
+        <label class="field-label" for="arch-du">Du</label>
+        <input id="arch-du" class="field" type="date">
+        <label class="field-label" for="arch-au">au</label>
+        <input id="arch-au" class="field" type="date">
+      </div>
+      <div class="archive-actions">
+        <button id="arch-export-xls" class="btn-primary" type="button">&#11015; Exporter en Excel</button>
+        <button id="arch-share" class="btn-secondary" type="button">&#128228; Partager la liste</button>
+      </div>
+      <div id="arch-count" class="hint"></div>
+      <div id="arch-liste"></div>
+    </section>
+
+    <!-- Overlay detail / ecrasement d'un lot -->
+    <div id="bassin-detail" class="bassin-overlay" hidden>
+      <div class="bassin-overlay-card">
+        <button id="bassin-detail-close" class="bassin-overlay-close" type="button" aria-label="Fermer">&#10005;</button>
+        <div id="bassin-detail-body"></div>
+      </div>
+    </div>
+
+    <!-- SOUS-MENU TEST DE COMPRESSION (V2.01) -->
+    <section id="screen-compression" class="screen">
+      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <h1 class="screen-title">Test de compression</h1>
+      <div class="synthese-bar" data-synth="compression"></div>
+      <div class="tiles">
+        <button class="tile" data-goto="screen-comp-atester">
+          <span class="tile-icon" aria-hidden="true">&#129514;</span>
+          <span class="tile-label">À tester</span>
+        </button>
+        <button class="tile" data-goto="screen-comp-historique">
+          <span class="tile-icon" aria-hidden="true">&#128202;</span>
+          <span class="tile-label">Historique des essais</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- COMPRESSION > A TESTER -->
+    <section id="screen-comp-atester" class="screen">
+      <button class="btn-back" data-goto="screen-compression">&#8592; Retour</button>
+      <h1 class="screen-title">À tester</h1>
+      <div class="synthese-bar" data-synth="compression"></div>
+      <p class="hint">Lots sortis du bassin pour essai. Saisissez les résultats d'écrasement.</p>
+      <div id="comp-atester-count" class="hint"></div>
+      <div id="comp-atester-liste"></div>
+    </section>
+
+    <!-- COMPRESSION > HISTORIQUE -->
+    <section id="screen-comp-historique" class="screen">
+      <button class="btn-back" data-goto="screen-compression">&#8592; Retour</button>
+      <h1 class="screen-title">Historique des essais</h1>
+      <div class="comp-hist-periode">
+        <label class="comp-per-f"><span>Du</span><input id="comp-hist-du" class="field" type="date"></label>
+        <label class="comp-per-f"><span>Au</span><input id="comp-hist-au" class="field" type="date"></label>
+        <button id="comp-hist-periode-reset" class="btn-text" type="button">Tout</button>
+      </div>
+      <div class="archive-actions">
+        <button id="comp-hist-partager" class="btn-primary" type="button">&#128228; Partager l'historique</button>
+        <button id="comp-hist-export-xls" class="btn-secondary" type="button">&#11015; Exporter en Excel</button>
+      </div>
+      <div id="comp-hist-result" class="result-card" hidden></div>
+      <div id="comp-historique-count" class="hint"></div>
+      <div id="comp-historique-liste"></div>
+    </section>
+
+    <!-- Overlay detail / saisie d'essai d'un lot -->
+    <div id="comp-detail" class="bassin-overlay" hidden>
+      <div class="bassin-overlay-card">
+        <button id="comp-detail-close" class="bassin-overlay-close" type="button" aria-label="Fermer">&#10005;</button>
+        <div id="comp-detail-body"></div>
+      </div>
+    </div>
 
     <!-- ECRAN NOUVEAU COULAGE (T3) -->
     <section id="screen-nouveau" class="screen">
@@ -103,7 +292,7 @@
         <div class="stepper-track"><span class="stepper-fill" id="fc-stepper-fill"></span></div>
         <ol class="stepper-dots">
           <li class="step-dot" data-step="projet"><span class="dot"><span class="dot-num">1</span></span><span class="dot-label">Projet</span></li>
-          <li class="step-dot" data-step="malaxeur"><span class="dot"><span class="dot-num">2</span></span><span class="dot-label">Prélèvement</span></li>
+          <li class="step-dot" data-step="malaxeur"><span class="dot"><span class="dot-num">2</span></span><span class="dot-label">Malaxeurs</span></li>
           <li class="step-dot" data-step="recap"><span class="dot"><span class="dot-num">3</span></span><span class="dot-label">Récap</span></li>
         </ol>
       </nav>
@@ -162,7 +351,7 @@
 
         <div class="fc-go-wrap">
           <img class="fc-go-illus" src="assets/icons/ouvrages/prelevement_beton.png" alt="Prélèvement de béton frais">
-          <button id="fc-go-malaxeur" class="btn-primary btn-xl" type="button">Commencer le prélèvement</button>
+          <button id="fc-go-malaxeur" class="btn-primary btn-xl" type="button">Saisir les malaxeurs</button>
         </div>
       </div>
 
@@ -193,26 +382,6 @@
           <span>&#128196; N° BL <span class="opt">(facultatif)</span></span>
         </label>
         <input id="fc-mal-bl" class="field opt-field" type="text" autocomplete="off" hidden>
-
-        <h3 class="block-subtitle"><img class="subtitle-icon" src="assets/icons/ouvrages/echantillon_frais.png" alt=""> Échantillons frais de béton</h3>
-        <p class="hint">Avez-vous prélevé des échantillons frais de béton ?</p>
-        <div class="seg-switch seg-yesno" id="fc-mal-prel-switch">
-          <button type="button" class="seg" data-prel="oui">Oui</button>
-          <button type="button" class="seg" data-prel="non">Non</button>
-        </div>
-        <div id="fc-mal-epr" hidden>
-          <label class="field-label">Type d'éprouvette</label>
-          <div class="epr-types">
-            <button type="button" class="epr-type" data-epr="cube">
-              <img class="epr-img" src="assets/icons/ouvrages/moule_cubique.png" alt="" loading="lazy">
-              <span>Cube</span></button>
-            <button type="button" class="epr-type" data-epr="cylindre">
-              <img class="epr-img" src="assets/icons/ouvrages/moule_cylindrique.png" alt="" loading="lazy">
-              <span>Cylindre</span></button>
-          </div>
-          <label class="field-label" for="fc-mal-epr-nb">Nombre d'éprouvettes</label>
-          <input id="fc-mal-epr-nb" class="field" type="number" inputmode="numeric" min="0" step="1">
-        </div>
 
         <h3 class="block-subtitle">&#128196; Formulation / Centrale</h3>
         <div id="fc-mal-reprise" hidden>
@@ -295,6 +464,11 @@
 
         <button id="fc-recap-add" class="btn-secondary" type="button">&#10133; Ajouter un malaxeur</button>
 
+        <h3 class="block-subtitle"><img class="subtitle-icon" src="assets/icons/ouvrages/echantillon_frais.png" alt=""> Prélèvements d'éprouvettes</h3>
+        <p class="hint">Indiquez chaque prélèvement (E1, E2, …) : heure, type, nombre. La codification est calculée automatiquement.</p>
+        <div id="fc-prelevements" class="fc-prelevements"></div>
+        <button id="fc-prel-add" class="btn-secondary" type="button">&#10133; Ajouter un prélèvement</button>
+
         <h3 class="block-subtitle">&#9888;&#65039; Signaler un problème / anomalie</h3>
         <textarea id="fc-anomalie-texte" class="field" rows="2" placeholder="Décrire le problème (facultatif)"></textarea>
         <label class="btn-secondary" for="fc-anomalie-photo-input">&#128247; Photo de l'anomalie</label>
@@ -309,18 +483,10 @@
 
         <label class="field-label" for="fc-operateur">&#129683; Nom de l'opérateur (signature interne)</label>
         <input id="fc-operateur" class="field" type="text" autocomplete="off">
+        <p id="fc-operateur-hint" class="hint" hidden></p>
 
-        <button id="fc-save" class="btn-primary" type="button">&#128190; Enregistrer (brouillon)</button>
-
-        <div id="fc-export-box" class="export-box">
-          <h3 class="block-subtitle">&#128228; Envoyer au bureau</h3>
-          <button id="fc-exporter" class="btn-primary" type="button">&#128228; Partager le dossier (1 seul fichier)</button>
-          <p class="hint">Tout (Excel + photos + notes audio) est regroupé dans un <strong>seul fichier compressé</strong> nommé par la référence, avec le récap en texte du message.</p>
-          <button id="fc-copy-msg" class="btn-secondary" type="button">&#128203; Copier le message récap</button>
-          <button id="fc-zip" class="btn-secondary" type="button">&#128230; Télécharger le fichier (.zip)</button>
-          <button id="fc-telecharger" class="btn-text" type="button">&#11015; Excel seul</button>
-          <p class="hint">L'envoi requiert le nom de l'opérateur. La fiche passe alors en « envoyée ».</p>
-        </div>
+        <button id="fc-save" class="btn-primary" type="button">&#128190; Enregistrer le coulage</button>
+        <p class="hint">La <strong>validation</strong> et le <strong>partage au bureau</strong> se font ensuite depuis le <strong>Répertoire des coulages</strong>.</p>
 
         <div id="fc-locked-note" class="locked-box" hidden>
           <div class="locked-info">&#128274; Fiche envoyée — verrouillée. <span id="fc-signataire-line"></span></div>
@@ -336,12 +502,14 @@
     <section id="screen-repertoire" class="screen">
       <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
       <h1 class="screen-title">Répertoire</h1>
+      <div class="synthese-bar" data-synth="coulage"></div>
 
       <input id="rep-search" class="field" type="search" placeholder="Rechercher (entreprise, projet, code, référence, date)…" autocomplete="off">
 
       <div class="filter-chips" id="rep-filtres">
         <button type="button" class="chip is-active" data-statut="">Toutes</button>
         <button type="button" class="chip" data-statut="brouillon">Brouillons</button>
+        <button type="button" class="chip" data-statut="validee">Validées</button>
         <button type="button" class="chip" data-statut="envoyee">Envoyées</button>
       </div>
 
@@ -370,16 +538,27 @@
 
       <button id="btn-voir-projets" class="btn-secondary" type="button">Voir les projets chargés</button>
       <div id="update-liste" class="projets-liste" hidden></div>
+
+      <!-- Outil interne de controle : donnees d'exemple V2.01 (prefixe DEMO-) -->
+      <div class="demo-zone">
+        <h2 class="demo-titre">&#129514; Contrôle interne (V2.01)</h2>
+        <p class="hint">Crée des données fictives marquées <strong>DEMO-</strong> pour tester rapidement les badges, le bassin et le module de compression. Sans effet sur vos vraies fiches.</p>
+        <button id="btn-demo-load" class="btn-secondary" type="button">&#129514; Charger données exemple V2.01</button>
+        <button id="btn-demo-clear" class="btn-text demo-clear" type="button">&#128465; Supprimer données exemple</button>
+        <div id="demo-result" class="result-card" hidden></div>
+      </div>
     </section>
 
   </main>
 
   <footer class="app-footer">
-    <span>document interne CAEK ENGINEERING LAB — Version 1</span>
+    <span>Logiciel interne CAEK ENGINEERING LAB — Version 2.01</span>
   </footer>
 
   <script src="vendor/xlsx.full.min.js"></script>
   <script src="js/db.js"></script>
+  <script src="js/model.js"></script>
+  <script src="js/profil.js"></script>
   <script src="js/update.js"></script>
   <script src="js/nouveau.js"></script>
   <script src="js/fiche.js"></script>
@@ -387,6 +566,10 @@
   <script src="js/zip.js"></script>
   <script src="js/export.js"></script>
   <script src="js/repertoire.js"></script>
+  <script src="js/bassin.js"></script>
+  <script src="js/compression.js"></script>
+  <script src="js/badges.js"></script>
+  <script src="js/demo.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

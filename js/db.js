@@ -9,7 +9,7 @@ var CAEKDB = (function () {
   "use strict";
 
   var DB_NAME = "caek_coulage";
-  var DB_VERSION = 4;
+  var DB_VERSION = 5;
   var _dbPromise = null;
 
   function open() {
@@ -36,6 +36,25 @@ var CAEKDB = (function () {
         if (!db.objectStoreNames.contains("photos")) {
           var sp = db.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
           sp.createIndex("ref", "ref", { unique: false });
+        }
+        // T7+ : module bassin de conservation.
+        // Lots d'eprouvettes en bassin (repartis, en attente d'ecrasement ou ecrases <24h).
+        if (!db.objectStoreNames.contains("lots")) {
+          var sl = db.createObjectStore("lots", { keyPath: "id", autoIncrement: true });
+          sl.createIndex("ref", "ref", { unique: false });
+          sl.createIndex("statut", "statut", { unique: false });
+        }
+        // Archives permanentes des eprouvettes ecrasees (jamais supprimees).
+        if (!db.objectStoreNames.contains("archives")) {
+          var sa = db.createObjectStore("archives", { keyPath: "id", autoIncrement: true });
+          sa.createIndex("ref", "ref", { unique: false });
+          sa.createIndex("dateReelle", "dateReelle", { unique: false });
+        }
+        // Journal des actions (repartition, ecrasement) pour tracabilite.
+        if (!db.objectStoreNames.contains("journal")) {
+          var sj = db.createObjectStore("journal", { keyPath: "id", autoIncrement: true });
+          sj.createIndex("ref", "ref", { unique: false });
+          sj.createIndex("date", "date", { unique: false });
         }
       };
       req.onsuccess = function () { resolve(req.result); };
@@ -335,6 +354,122 @@ var CAEKDB = (function () {
     });
   }
 
+  /* ---------- Lots bassin ---------- */
+
+  function addLots(lots) {
+    return open().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var t = db.transaction("lots", "readwrite");
+        var store = t.objectStore("lots");
+        (lots || []).forEach(function (l) { store.add(l); });
+        t.oncomplete = function () { resolve({ ok: true }); };
+        t.onerror = function () { reject(t.error); };
+        t.onabort = function () { reject(t.error); };
+      });
+    });
+  }
+
+  function getAllLots() {
+    return tx("lots", "readonly").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.getAll();
+        req.onsuccess = function () { resolve(req.result || []); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function getLotsByRef(ref) {
+    return tx("lots", "readonly").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var out = [];
+        var idx = store.index("ref");
+        var req = idx.openCursor(IDBKeyRange.only(ref));
+        req.onsuccess = function (ev) {
+          var cur = ev.target.result;
+          if (cur) { out.push(cur.value); cur.continue(); }
+          else { resolve(out); }
+        };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function getLot(id) {
+    return tx("lots", "readonly").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.get(id);
+        req.onsuccess = function () { resolve(req.result || null); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function updateLot(lot) {
+    return tx("lots", "readwrite").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.put(lot);
+        req.onsuccess = function () { resolve({ ok: true }); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function deleteLot(id) {
+    return tx("lots", "readwrite").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.delete(id);
+        req.onsuccess = function () { resolve({ ok: true }); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  /* ---------- Archives ---------- */
+
+  function addArchive(rec) {
+    return tx("archives", "readwrite").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.add(rec);
+        req.onsuccess = function () { resolve(req.result); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function getAllArchives() {
+    return tx("archives", "readonly").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.getAll();
+        req.onsuccess = function () { resolve(req.result || []); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  /* ---------- Journal des actions ---------- */
+
+  function addJournal(rec) {
+    rec.date = rec.date || new Date().toISOString();
+    return tx("journal", "readwrite").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.add(rec);
+        req.onsuccess = function () { resolve(req.result); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function getAllJournal() {
+    return tx("journal", "readonly").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.getAll();
+        req.onsuccess = function () { resolve(req.result || []); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
   return {
     upsertProjets: upsertProjets,
     getAllProjets: getAllProjets,
@@ -356,6 +491,16 @@ var CAEKDB = (function () {
     deleteCoulage: deleteCoulage,
     addPhoto: addPhoto,
     getPhotosByRef: getPhotosByRef,
-    deletePhoto: deletePhoto
+    deletePhoto: deletePhoto,
+    addLots: addLots,
+    getAllLots: getAllLots,
+    getLotsByRef: getLotsByRef,
+    getLot: getLot,
+    updateLot: updateLot,
+    deleteLot: deleteLot,
+    addArchive: addArchive,
+    getAllArchives: getAllArchives,
+    addJournal: addJournal,
+    getAllJournal: getAllJournal
   };
 })();

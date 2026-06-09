@@ -29,21 +29,21 @@ var CAEKExport = (function () {
   function safeName(s) { return String(s == null ? "" : s).replace(/[^A-Za-z0-9_-]+/g, "_"); }
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
   function num(v) { var n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? 0 : n; }
-  function intOr0(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
 
   function statutLabel(s) {
     return ({ brouillon: "Brouillon", validee: "Validée", envoyee: "Envoyé" })[s] || (s || "Brouillon");
   }
 
-  // Totaux recalcules (securite si non stockes).
+  // Totaux recalcules : quantite sur les malaxeurs, eprouvettes via le modele
+  // partage (prelevements V2.01, retro-compatible avec les anciens malaxeurs).
   function totals(c) {
-    var q = 0, e = 0;
-    (c.malaxeurs || []).forEach(function (m) {
-      q += num(m.quantite);
-      if (m.preleve === true) { e += intOr0(m.eprNombre); }
-    });
+    var q = 0;
+    (c.malaxeurs || []).forEach(function (m) { q += num(m.quantite); });
+    var e = window.CAEKModel ? CAEKModel.totalEprouvettes(c) : 0;
     return { quantite: Math.round(q * 100) / 100, eprouvettes: e };
   }
+
+  var TYPE_LABEL_XLS = { cube: "Cube", cylindre: "Cylindre", mixte: "Mixte" };
 
   // Description texte d'une formulation (resolue : reprise deja appliquee a la saisie).
   function formuDesc(f) {
@@ -52,14 +52,6 @@ var CAEKExport = (function () {
     return [f.fournisseur, f.classe, f.ciment,
       (f.dosage ? f.dosage + " kg/m³" : ""), (f.dmax ? "Dmax " + f.dmax : ""), f.adjuvant]
       .filter(Boolean).join(" · ");
-  }
-
-  function eprDesc(m) {
-    if (m.preleve !== true) { return "Non"; }
-    var t = [];
-    if (m.eprCube) { t.push("Cube"); }
-    if (m.eprCylindre) { t.push("Cylindre"); }
-    return (t.join("+") || "Oui") + " · " + intOr0(m.eprNombre);
   }
 
   /* ---------- 1) Message recap (WhatsApp / e-mail) ---------- */
@@ -99,15 +91,32 @@ var CAEKExport = (function () {
     aoa.push(["Ouvrage(s) coulé(s)", c.ouvrageCoule || ""]);
     aoa.push(["Bloc / Étage", c.ouvrageZonePartie || ""]);
     aoa.push([]);
-    aoa.push(["MALAXEURS / PRÉLÈVEMENTS"]);
+    aoa.push(["MALAXEURS"]);
     aoa.push(["N°", "Heure", "Quantité (m³)", "Affaiss. (cm)", "Temp. (°C)",
-      "N° camion", "N° BL", "Échantillons", "Formulation / centrale"]);
+      "N° camion", "N° BL", "Formulation / centrale"]);
     (c.malaxeurs || []).forEach(function (m, i) {
       aoa.push([
         i + 1, m.heure || "", num(m.quantite) || "", m.affaissement || "", m.temperature || "",
-        m.numCamion || "", m.numBL || "", eprDesc(m), formuDesc(m.formulation)
+        m.numCamion || "", m.numBL || "", formuDesc(m.formulation)
       ]);
     });
+    aoa.push([]);
+
+    // --- Prelevements d'eprouvettes + codification (V2.01) ---
+    var codif = window.CAEKModel ? CAEKModel.codification(c) : [];
+    aoa.push(["PRÉLÈVEMENTS D'ÉPROUVETTES"]);
+    aoa.push(["Prélèvement", "Heure", "Type", "Nombre", "Codification", "Observation"]);
+    if (codif.length) {
+      codif.forEach(function (p) {
+        var plage = p.nombre > 1 ? (p.premier + " → " + p.dernier) : (p.premier || "");
+        aoa.push([
+          p.numero, p.heure || "", TYPE_LABEL_XLS[p.type] || p.type || "",
+          p.nombre || "", plage, p.observation || ""
+        ]);
+      });
+    } else {
+      aoa.push(["Aucun prélèvement", "", "", "", "", ""]);
+    }
     aoa.push([]);
     aoa.push(["Quantité totale (m³)", t.quantite]);
     aoa.push(["Total éprouvettes", t.eprouvettes]);
@@ -119,8 +128,8 @@ var CAEKExport = (function () {
     aoa.push(["Opérateur (signature interne)", c.signatureOperateur || ""]);
 
     var ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = [{ wch: 5 }, { wch: 9 }, { wch: 13 }, { wch: 12 }, { wch: 10 },
-      { wch: 14 }, { wch: 12 }, { wch: 18 }, { wch: 34 }];
+    ws["!cols"] = [{ wch: 13 }, { wch: 9 }, { wch: 13 }, { wch: 12 }, { wch: 22 },
+      { wch: 14 }, { wch: 12 }, { wch: 34 }];
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Fiche coulage");
     appendCompatSheets(wb, c);
@@ -174,7 +183,8 @@ var CAEKExport = (function () {
     setCell(wsR, "A11", "Affaissement (cm)"); if (aff != null) { setCell(wsR, "B11", aff); } // B11 = 1er malaxeur
     setCell(wsR, "A13", "Technicien prélèvement"); setCell(wsR, "B13", c.signatureOperateur || "");
     setCell(wsR, "A16", "Classe béton"); setCell(wsR, "B16", f0.classe || "");
-    setCell(wsR, "A18", "Prélèvement par CAEK"); setCell(wsR, "B18", (m0.preleve === true) ? "Oui" : "");
+    var aCAEK = window.CAEKModel ? CAEKModel.hasEprouvettes(c) : (m0.preleve === true);
+    setCell(wsR, "A18", "Prélèvement par CAEK"); setCell(wsR, "B18", aCAEK ? "Oui" : "");
     setCell(wsR, "A20", "Formulation / dosage"); setCell(wsR, "B20", formuDesc(f0));
     setCell(wsR, "A21", "Centrale / fournisseur"); setCell(wsR, "B21", f0.fournisseur || "");
     wsR["!ref"] = "A1:H21";

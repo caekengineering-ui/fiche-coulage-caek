@@ -1,0 +1,987 @@
+/* ============================================================
+   Fiche de coulage terrain - CAEK
+   bassin.js - Module "Bassin de conservation des éprouvettes".
+   Trois écrans :
+     - À répartir : fiches validées/envoyées avec éprouvettes,
+       réparties en LOTS (par âge, par type) ;
+     - Bassin virtuel : lots affichés en formes colorées selon
+       l'échéance d'écrasement ; écrasement avec profil + motif ;
+     - Archives : historique permanent, export Excel + partage par période.
+   Couleurs : gris=loin, orange=J-1, rouge=jour J, rouge+R=retard,
+   vert=écrasé (<24h, puis archivage automatique).
+   Formes : carré=cube, cercle=cylindre, hexagone=mixte.
+   ============================================================ */
+
+var CAEKBassin = (function () {
+  "use strict";
+
+  function $(id) { return document.getElementById(id); }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function intOr0(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
+
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+
+  // Ajoute n jours à une date "YYYY-MM-DD" et renvoie "YYYY-MM-DD".
+  function addDaysStr(ymd, n) {
+    var p = String(ymd).slice(0, 10).split("-");
+    var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+
+  // Différence en jours entre deux dates "YYYY-MM-DD" (b - a).
+  function diffDays(a, b) {
+    function toD(ymd) {
+      var p = String(ymd).slice(0, 10).split("-");
+      return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+    }
+    return Math.round((toD(b) - toD(a)) / 86400000);
+  }
+
+  function fmtDate(d) {
+    if (!d) { return "—"; }
+    var s = String(d);
+    if (s.indexOf("T") >= 0) { s = s.slice(0, 10); }
+    var parts = s.split("-");
+    return parts.length === 3 ? (parts[2] + "/" + parts[1] + "/" + parts[0]) : s;
+  }
+
+  function typeLabel(t) {
+    if (t === "cylindre") { return "Cylindre"; }
+    if (t === "mixte") { return "Mixte"; }
+    return "Cube";
+  }
+
+  /* ============================================================
+     Icône de l'élément d'ouvrage (mêmes fichiers que le module
+     coulage, cf. icons_manifest.json). On normalise le libellé
+     (minuscules, sans accent) puis on cherche un mot-clé connu.
+     Le plus spécifique d'abord (« semelle filante » avant « semelle »).
+     ============================================================ */
+  var OUVRAGE_ICONS = [
+    { kw: "semelle filante", id: "semelle_filante" },
+    { kw: "filante", id: "semelle_filante" },
+    { kw: "semelle", id: "semelle" },
+    { kw: "radier", id: "radier" },
+    { kw: "longrine", id: "longrine" },
+    { kw: "libage", id: "longrine" },
+    { kw: "pieu", id: "pieu" },
+    { kw: "plot", id: "plot" },
+    { kw: "soutenement", id: "mur_soutenement" },
+    { kw: "mur", id: "mur_soutenement" },
+    { kw: "enterre", id: "ouvrage_enterre" },
+    { kw: "regard", id: "regard" },
+    { kw: "piscine", id: "piscine" },
+    { kw: "poteau", id: "poteau" },
+    { kw: "voile", id: "voile" },
+    { kw: "dalle", id: "dalle" },
+    { kw: "poutre", id: "poutre" },
+    { kw: "escalier", id: "escalier" },
+    { kw: "console", id: "console_balcon" },
+    { kw: "balcon", id: "console_balcon" },
+    { kw: "parapet", id: "parapet_acrotere" },
+    { kw: "acrotere", id: "parapet_acrotere" },
+    { kw: "cuve", id: "cuve_bache_eau" },
+    { kw: "bache", id: "cuve_bache_eau" },
+    { kw: "fondation", id: "fondation" },
+    { kw: "superstructure", id: "superstructure" }
+  ];
+
+  function normalize(s) {
+    var str = String(s == null ? "" : s).toLowerCase();
+    if (str.normalize) { str = str.normalize("NFD").replace(/[̀-ͯ]/g, ""); }
+    return str;
+  }
+
+  function ouvrageIconSrc(label) {
+    var n = normalize(label);
+    if (!n) { return ""; }
+    for (var i = 0; i < OUVRAGE_ICONS.length; i++) {
+      if (n.indexOf(OUVRAGE_ICONS[i].kw) >= 0) {
+        return "assets/icons/ouvrages/" + OUVRAGE_ICONS[i].id + ".png";
+      }
+    }
+    return "";
+  }
+
+  // Icône d'ouvrage (image) avec repli emoji chantier si inconnu.
+  function ouvrageIconHtml(label) {
+    var src = ouvrageIconSrc(label);
+    if (src) {
+      return "<img class=\"arch-ouvrage-ico\" src=\"" + src + "\" alt=\"\" " +
+        "onerror=\"this.style.display='none'\">";
+    }
+    return "<span aria-hidden=\"true\">&#127959;&#65039;</span> ";
+  }
+
+  /* ============================================================
+     Totaux d'éprouvettes d'un coulage + types disponibles.
+     Règle métier des types proposés à la répartition :
+       - cubes seuls          -> choix figé sur "Cube" ;
+       - cylindres seuls      -> choix figé sur "Cylindre" ;
+       - cubes + cylindres    -> choix possible Cube / Cylindre / Mixte.
+     Forme associée : carré=cube, cercle=cylindre, hexagone=mixte.
+     ============================================================ */
+  function specimenInfo(coulage) {
+    if (window.CAEKModel) { return CAEKModel.typesInfo(coulage); }
+    return { total: 0, hasCube: false, hasCyl: false, availableTypes: ["cube"], defaultType: "cube" };
+  }
+
+  /* ============================================================
+     ÉCRAN « À RÉPARTIR »
+     ============================================================ */
+  var _repList = [];
+  var _doneList = [];
+  var _pendingRevoirRef = null;
+
+  function refreshRepartir() {
+    if (!window.CAEKDB) { return; }
+    Promise.all([
+      CAEKDB.getAllCoulages(),
+      CAEKDB.getAllLots(),
+      CAEKDB.getAllArchives()
+    ]).then(function (out) {
+      var list = out[0] || [], lots = out[1] || [], archives = out[2] || [];
+      // Index par ref : présence d'un lot sorti/testé/écrasé ou d'une archive => verrouillé.
+      var locked = {};
+      lots.forEach(function (l) {
+        if (l.statut === "sorti" || l.statut === "teste" || l.statut === "ecrase") { locked[l.ref] = true; }
+      });
+      archives.forEach(function (a) { locked[a.ref] = true; });
+
+      // Éligible à la répartition : validée/envoyée, avec éprouvettes,
+      // ET récupération + codification confirmées (cf. Répertoire).
+      var eligibles = list.filter(function (c) {
+        var st = c.statut || "brouillon";
+        if (st !== "validee" && st !== "envoyee") { return false; }
+        if (specimenInfo(c).total <= 0) { return false; }
+        return window.CAEKModel ? CAEKModel.recuperationOk(c) : true;
+      });
+      _repList = eligibles.filter(function (c) { return !c.bassinReparti; });
+      _doneList = eligibles.filter(function (c) { return !!c.bassinReparti; });
+      _doneList.forEach(function (c) { c._editable = !locked[c.ref]; });
+
+      var byDate = function (a, b) {
+        return String(b.dateRepartition || b.dateValidation || b.dateModification || "")
+          .localeCompare(String(a.dateRepartition || a.dateValidation || a.dateModification || ""));
+      };
+      _repList.sort(byDate);
+      _doneList.sort(byDate);
+      renderRepartir();
+    });
+  }
+
+  function findCoulage(ref) {
+    var i;
+    for (i = 0; i < _repList.length; i++) { if (_repList[i].ref === ref) { return _repList[i]; } }
+    for (i = 0; i < _doneList.length; i++) { if (_doneList[i].ref === ref) { return _doneList[i]; } }
+    return null;
+  }
+
+  function repCardInner(c) {
+    var info = specimenInfo(c);
+    var ref = escapeHtml(c.ref);
+    var typesTxt = info.availableTypes.map(typeLabel).join(" / ");
+    return "<div class=\"rep-top\"><span class=\"rep-ref\">" + ref + "</span></div>" +
+      "<div class=\"rep-ent\">" + escapeHtml(c.client || c.entreprise || "—") + "</div>" +
+      "<div class=\"rep-sub\">" + escapeHtml(c.nomProjet || "") +
+      (c.dateCoulage ? " · coulé le " + escapeHtml(fmtDate(c.dateCoulage)) : "") + "</div>" +
+      "<div class=\"rep-tot\">" + info.total + " éprouvette(s) · " + escapeHtml(typesTxt) + "</div>";
+  }
+
+  function renderRepartir() {
+    var box = $("rep-bassin-liste");
+    if (!box) { return; }
+    if ($("rep-bassin-count")) {
+      $("rep-bassin-count").textContent = _repList.length + " fiche(s) à répartir";
+    }
+
+    var html = "";
+    if (!_repList.length) {
+      html += "<p class=\"screen-placeholder\">Aucune fiche à répartir pour l'instant.</p>";
+    } else {
+      html += _repList.map(function (c) {
+        var ref = escapeHtml(c.ref);
+        return "<div class=\"repb-item\" data-ref=\"" + ref + "\">" +
+          "<button type=\"button\" class=\"repb-open\" data-ref=\"" + ref + "\">" +
+          repCardInner(c) + "</button>" +
+          "<div class=\"repb-form\" hidden></div>" +
+          "</div>";
+      }).join("");
+    }
+
+    // Section « Répartitions déjà faites » : modifiable tant qu'aucun
+    // lot n'est écrasé ni archivé ; sinon verrouillée.
+    if (_doneList.length) {
+      html += "<div class=\"repb-section-titre\">Répartitions déjà faites</div>";
+      html += _doneList.map(function (c) {
+        var ref = escapeHtml(c.ref);
+        var action = c._editable
+          ? "<button type=\"button\" class=\"btn-text repb-revoir\" data-ref=\"" + ref + "\">&#9998; Revoir / corriger</button>"
+          : "<span class=\"repb-lock\">&#128274; Verrouillée : un lot a déjà été écrasé ou archivé.</span>";
+        return "<div class=\"repb-item repb-done\" data-ref=\"" + ref + "\">" +
+          "<div class=\"repb-head\">" + repCardInner(c) + "</div>" +
+          action +
+          "<div class=\"repb-form\" hidden></div>" +
+          "</div>";
+      }).join("");
+    }
+
+    box.innerHTML = html;
+
+    // Ouverture automatique du formulaire de révision (venant du bassin).
+    if (_pendingRevoirRef) {
+      var ref = _pendingRevoirRef;
+      _pendingRevoirRef = null;
+      var coulage = findCoulage(ref);
+      var item = box.querySelector(".repb-done[data-ref=\"" + ref + "\"]");
+      if (coulage && coulage._editable && item) {
+        CAEKDB.getLotsByRef(ref).then(function (lots) {
+          openRepartForm(item, coulage, lots);
+          item.scrollIntoView({ block: "center" });
+        });
+      }
+    }
+  }
+
+  // Sélecteur de type : figé si un seul type disponible (cube ou cylindre seuls).
+  function typeSelectHtml(selected, availableTypes) {
+    var locked = availableTypes.length <= 1;
+    var opts = availableTypes.map(function (t) {
+      return "<option value=\"" + t + "\"" + (selected === t ? " selected" : "") + ">" + typeLabel(t) + "</option>";
+    }).join("");
+    return "<select class=\"field lot-type\"" + (locked ? " disabled data-locked=\"1\"" : "") + ">" + opts + "</select>";
+  }
+
+  // Lot d'âge fixe (7j ou 28j). Le 28j a un nombre recalculé, non éditable.
+  // vals (optionnel) pré-remplit lors d'une révision : { nb, type }.
+  function fixedRowHtml(age, info, vals) {
+    vals = vals || {};
+    var selType = vals.type || info.defaultType;
+    var label = age === "7j" ? "7 jours" : "28 jours";
+    var ts = typeSelectHtml(selType, info.availableTypes);
+    if (age === "7j") {
+      var def = (vals.nb != null) ? vals.nb : Math.min(3, info.total);
+      return "<div class=\"lot-row lot-fixe\" data-age=\"7j\">" + ts +
+        "<span class=\"lot-age-fixed\">" + label + "</span>" +
+        "<input class=\"field lot-nb\" type=\"number\" min=\"0\" step=\"1\" inputmode=\"numeric\" value=\"" + def + "\">" +
+        "<span class=\"lot-del-spacer\"></span></div>";
+    }
+    return "<div class=\"lot-row lot-fixe lot-28\" data-age=\"28j\">" + ts +
+      "<span class=\"lot-age-fixed\">" + label + " <span class=\"opt\">(reste)</span></span>" +
+      "<span class=\"lot-28-nb\">0</span>" +
+      "<span class=\"lot-del-spacer\"></span></div>";
+  }
+
+  // Lot ajouté manuellement : âge libre en jours.
+  // vals (optionnel) pré-remplit lors d'une révision : { jours, nb, type }.
+  function autreRowHtml(info, vals) {
+    vals = vals || {};
+    var selType = vals.type || info.defaultType;
+    var vj = (vals.jours != null) ? " value=\"" + vals.jours + "\"" : "";
+    var vn = (vals.nb != null) ? " value=\"" + vals.nb + "\"" : "";
+    return "<div class=\"lot-row lot-autre\" data-age=\"autre\">" +
+      typeSelectHtml(selType, info.availableTypes) +
+      "<input class=\"field lot-jours\" type=\"number\" min=\"1\" step=\"1\" inputmode=\"numeric\" placeholder=\"jours\"" + vj + ">" +
+      "<input class=\"field lot-nb\" type=\"number\" min=\"1\" step=\"1\" inputmode=\"numeric\" placeholder=\"nb\"" + vn + ">" +
+      "<button type=\"button\" class=\"lot-del\" aria-label=\"Supprimer le lot\">&#10005;</button></div>";
+  }
+
+  function openRepartForm(itemEl, coulage, existingLots) {
+    var form = itemEl.querySelector(".repb-form");
+    if (!form) { return; }
+    if (!form.hidden) { form.hidden = true; form.innerHTML = ""; return; }
+    var info = specimenInfo(coulage);
+    var isEdit = !!(existingLots && existingLots.length);
+
+    // Pré-remplissage à partir des lots existants (révision).
+    var lot7 = null, lot28 = null, autres = [];
+    if (isEdit) {
+      existingLots.forEach(function (l) {
+        if (l.age === "7j") { lot7 = l; }
+        else if (l.age === "28j") { lot28 = l; }
+        else { autres.push(l); }
+      });
+    }
+    var vals7 = lot7 ? { nb: lot7.nombre, type: lot7.type } : null;
+    var vals28 = lot28 ? { type: lot28.type } : null;
+    var autresHtml = autres.map(function (l) {
+      return autreRowHtml(info, { jours: l.ageJours, nb: l.nombre, type: l.type });
+    }).join("");
+
+    var titre = isEdit
+      ? "<p class=\"hint\">Révision de la répartition. Total prélevé : <strong>" + info.total +
+        "</strong> éprouvette(s). Le lot <strong>28 jours</strong> = reste (recalculé automatiquement).</p>"
+      : "<p class=\"hint\">Total prélevé : <strong>" + info.total + "</strong> éprouvette(s). " +
+        "Le lot <strong>7 jours</strong> est proposé à 3 ; le lot <strong>28 jours</strong> = reste (calculé automatiquement).</p>";
+
+    form.innerHTML =
+      titre +
+      "<div class=\"lots-editor\">" +
+        fixedRowHtml("7j", info, vals7) +
+        autresHtml +
+        fixedRowHtml("28j", info, vals28) +
+      "</div>" +
+      "<button type=\"button\" class=\"btn-text repb-add\">&#10133; Ajouter un lot (âge manuel)</button>" +
+      "<div class=\"repb-sum\"></div>" +
+      "<button type=\"button\" class=\"btn-primary repb-valider\">&#10004; " +
+        (isEdit ? "Enregistrer les corrections" : "Confirmer la répartition") + "</button>" +
+      "<div class=\"repb-result\" hidden></div>";
+    form.setAttribute("data-total", info.total);
+    form.hidden = false;
+    updateSum(form);
+  }
+
+  // Lit les lots : 7j (nombre saisi), autres (jours + nombre saisis), 28j (reste).
+  function readRows(form) {
+    var total = intOr0(form.getAttribute("data-total"));
+    var out = [];
+    var sumNon28 = 0;
+    var row7 = form.querySelector(".lot-row[data-age='7j']");
+    if (row7) {
+      var n7 = intOr0(row7.querySelector(".lot-nb").value);
+      sumNon28 += n7;
+      out.push({ kind: "7j", type: row7.querySelector(".lot-type").value, age: "7j", ageJours: 7, nombre: n7 });
+    }
+    var autres = form.querySelectorAll(".lot-row.lot-autre");
+    for (var i = 0; i < autres.length; i++) {
+      var r = autres[i];
+      var j = intOr0(r.querySelector(".lot-jours").value);
+      var nb = intOr0(r.querySelector(".lot-nb").value);
+      sumNon28 += nb;
+      out.push({ kind: "autre", type: r.querySelector(".lot-type").value, age: "autre", ageJours: j, nombre: nb });
+    }
+    var reste = total - sumNon28;
+    var row28 = form.querySelector(".lot-row[data-age='28j']");
+    out.push({ kind: "28j", type: row28 ? row28.querySelector(".lot-type").value : "cube", age: "28j", ageJours: 28, nombre: reste });
+    return out;
+  }
+
+  function updateSum(form) {
+    var total = intOr0(form.getAttribute("data-total"));
+    var rows = readRows(form);
+    var reste = 0;
+    rows.forEach(function (l) { if (l.kind === "28j") { reste = l.nombre; } });
+    // Affiche le reste calculé sur la ligne 28j.
+    var nb28 = form.querySelector(".lot-28-nb");
+    if (nb28) {
+      nb28.textContent = reste;
+      nb28.className = "lot-28-nb" + (reste < 0 ? " is-neg" : "");
+    }
+    var box = form.querySelector(".repb-sum");
+    var ok = reste >= 0;
+    if (box) {
+      box.className = "repb-sum " + (ok ? "is-ok" : "is-warn");
+      box.innerHTML = ok
+        ? "Réparti : <strong>" + total + "</strong> / " + total + " &#10004;"
+        : "&#9888; Le reste (28 j) est négatif. Réduisez les autres lots.";
+    }
+    var btn = form.querySelector(".repb-valider");
+    if (btn) { btn.disabled = !ok; }
+  }
+
+  function validerRepartition(form, coulage) {
+    var prof = window.CAEKProfil
+      ? CAEKProfil.require("Profil opérateur requis. Veuillez renseigner votre nom et qualification.")
+      : { nom: "", qualification: "" };
+    if (!prof) { return; }
+    var total = intOr0(form.getAttribute("data-total"));
+    var rows = readRows(form);
+
+    var reste = 0;
+    rows.forEach(function (l) { if (l.kind === "28j") { reste = l.nombre; } });
+    if (reste < 0) {
+      window.alert("Le reste pour le lot 28 jours est négatif (" + reste + "). Réduisez les nombres des autres lots.");
+      return;
+    }
+    // Validations : valeurs négatives, âge vide, doublon d'âge.
+    var ages = {}, bad = "";
+    rows.forEach(function (l) {
+      if (l.nombre < 0) { bad = "Un nombre d'éprouvettes est négatif."; }
+      if (l.kind === "autre") {
+        if (l.ageJours <= 0) { bad = "Chaque lot ajouté doit avoir un âge (en jours) valide."; }
+        if (l.nombre <= 0) { bad = "Chaque lot ajouté doit avoir un nombre d'éprouvettes."; }
+      }
+      if (l.nombre > 0) {
+        if (ages[l.ageJours]) { bad = "Deux lots ont le même âge (" + l.ageJours + " j). Fusionnez-les ou changez l'âge."; }
+        ages[l.ageJours] = true;
+      }
+    });
+    if (bad) { window.alert(bad); return; }
+
+    // Ne garde que les lots non vides.
+    var kept = rows.filter(function (l) { return l.nombre > 0; });
+    if (!kept.length) { window.alert("Aucune éprouvette à répartir."); return; }
+
+    // Blocage : aucune date prévue d'écrasement ne doit être déjà dépassée.
+    var today = todayStr();
+    var dc = coulage.dateCoulage || today;
+    for (var k = 0; k < kept.length; k++) {
+      var dp = addDaysStr(dc, kept[k].ageJours);
+      if (dp < today) {
+        window.alert("Impossible de créer un lot à " + kept[k].ageJours +
+          " jours : la date prévue d'écrasement (" + fmtDate(dp) + ") est déjà dépassée.");
+        return;
+      }
+    }
+    var isEdit = !!coulage.bassinReparti;
+    var confirmMsg = isEdit
+      ? "Enregistrer les corrections de cette répartition ?\nLes lots encore en bassin de ce coulage seront remplacés."
+      : "Confirmer la répartition des éprouvettes ?";
+    if (!window.confirm(confirmMsg)) { return; }
+
+    var now = new Date().toISOString();
+    // Codification individuelle (REF-01-Ei …) distribuée séquentiellement aux lots.
+    var allCodes = window.CAEKModel ? CAEKModel.allCodes(coulage) : [];
+    var offset = 0;
+    var lots = kept.map(function (l) {
+      var datePrevue = addDaysStr(coulage.dateCoulage || todayStr(), l.ageJours);
+      var codes = allCodes.slice(offset, offset + l.nombre).map(function (x) {
+        return { code: x.code, type: x.type };
+      });
+      offset += l.nombre;
+      return {
+        ref: coulage.ref,
+        client: coulage.client || coulage.entreprise || "",
+        nomProjet: coulage.nomProjet || "",
+        ouvrage: coulage.ouvrageCoule || coulage.ouvrage || "",
+        bloc: coulage.bloc || "",
+        etage: coulage.etage || "",
+        dateCoulage: coulage.dateCoulage || "",
+        type: l.type,
+        nombre: l.nombre,
+        age: l.age,
+        ageJours: l.ageJours,
+        datePrevue: datePrevue,
+        codes: codes,
+        statut: "en_bassin",
+        operateurRepartition: prof.nom || "",
+        qualificationRepartition: prof.qualification || "",
+        dateRepartition: now
+      };
+    });
+
+    // Garde-fou + remplacement : on revérifie qu'aucun lot n'est écrasé
+    // et qu'aucune archive n'existe pour ce coulage avant de réécrire.
+    Promise.all([CAEKDB.getLotsByRef(coulage.ref), CAEKDB.getAllArchives()]).then(function (out) {
+      var existants = out[0] || [];
+      var archives = (out[1] || []).filter(function (a) { return a.ref === coulage.ref; });
+      var bloque = existants.some(function (l) {
+        return l.statut === "sorti" || l.statut === "teste" || l.statut === "ecrase";
+      });
+      if (bloque || archives.length) {
+        window.alert("Cette répartition ne peut plus être modifiée : un lot a déjà été sorti pour essai, testé ou archivé.");
+        refreshRepartir();
+        return Promise.reject({ handled: true });
+      }
+      // Supprime l'ancienne répartition (lots encore en bassin) puis réécrit.
+      return Promise.all(existants.map(function (l) { return CAEKDB.deleteLot(l.id); }));
+    }).then(function () {
+      return CAEKDB.addLots(lots);
+    }).then(function () {
+      coulage.bassinReparti = true;
+      coulage.dateRepartition = now;
+      coulage.dateModification = now;
+      return CAEKDB.updateCoulage(coulage);
+    }).then(function () {
+      return CAEKDB.addJournal({
+        type: isEdit ? "repartition_revue" : "repartition", ref: coulage.ref,
+        operateur: prof.nom || "", qualification: prof.qualification || "",
+        nbLots: lots.length, total: total
+      });
+    }).then(function () {
+      refreshRepartir();
+    }).catch(function (err) {
+      if (err && err.handled) { return; }
+      window.alert("Erreur lors de la répartition : " + (err && err.message || err));
+    });
+  }
+
+  /* ============================================================
+     ÉCRAN « BASSIN VIRTUEL »
+     ============================================================ */
+  var _lots = [];
+
+  // Statut couleur d'un lot encore en bassin, selon l'échéance d'ESSAI.
+  // datePrevue = date prévue d'essai ; les éprouvettes doivent sortir AVANT.
+  //   diff >= 3 : loin (gris) · diff === 2 : J-2 (orange) ·
+  //   diff === 1 : J-1, à sortir aujourd'hui (rouge) · diff <= 0 : retard (R).
+  function colorStatut(lot) {
+    var diff = diffDays(todayStr(), lot.datePrevue);
+    if (diff >= 3) { return "loin"; }
+    if (diff === 2) { return "j2"; }
+    if (diff === 1) { return "j1"; }
+    return "retard";
+  }
+
+  // Archive automatique des lots écrasés depuis plus de 24h.
+  function autoArchive(lots) {
+    var now = Date.now();
+    var pending = [];
+    lots.forEach(function (l) {
+      if (l.statut === "ecrase" && l.ecraseAt) {
+        var age = now - new Date(l.ecraseAt).getTime();
+        if (age >= 86400000) { pending.push(l); }
+      }
+    });
+    if (!pending.length) { return Promise.resolve(false); }
+    return Promise.all(pending.map(function (l) {
+      return CAEKDB.addArchive(toArchive(l)).then(function () { return CAEKDB.deleteLot(l.id); });
+    })).then(function () { return true; });
+  }
+
+  function toArchive(l) {
+    return {
+      ref: l.ref, client: l.client, nomProjet: l.nomProjet, ouvrage: l.ouvrage,
+      bloc: l.bloc, etage: l.etage, type: l.type, nombre: l.nombre,
+      age: l.age, ageJours: l.ageJours, dateCoulage: l.dateCoulage,
+      datePrevue: l.datePrevue, dateReelle: l.dateReelle, heureReelle: l.heureReelle,
+      ecart: (l.datePrevue && l.dateReelle) ? diffDays(l.datePrevue, l.dateReelle) : "",
+      operateur: l.operateurEcrasement || "", qualification: l.qualificationEcrasement || "",
+      motif: l.motif || "", observation: l.observationEcrasement || ""
+    };
+  }
+
+  function refreshBassin() {
+    if (!window.CAEKDB) { return; }
+    CAEKDB.getAllLots().then(function (lots) {
+      return autoArchive(lots).then(function (changed) {
+        return changed ? CAEKDB.getAllLots() : lots;
+      });
+    }).then(function (lots) {
+      _lots = lots;
+      renderBassin();
+      renderVeille();
+    });
+  }
+
+  function renderVeille() {
+    var nJour = 0, nRetard = 0, nBientot = 0;
+    _lots.forEach(function (l) {
+      if (l.statut !== "en_bassin") { return; }
+      var st = colorStatut(l);
+      if (st === "j1") { nJour++; }
+      else if (st === "retard") { nRetard++; }
+      else if (st === "j2") { nBientot++; }
+    });
+    var html = "<strong>" + nJour + "</strong> à sortir aujourd'hui · " +
+      "<strong>" + nRetard + "</strong> en retard · " +
+      "<strong>" + nBientot + "</strong> bientôt (J-2)";
+    var cls = "bassin-alerte" + (nRetard ? " is-retard" : (nJour ? " is-jour" : ""));
+    [$("bassin-alerte"), $("bassin-veille")].forEach(function (el) {
+      if (!el) { return; }
+      el.className = cls;
+      el.innerHTML = "&#128276; " + html;
+      el.hidden = false;
+    });
+  }
+
+  // Forme selon le type : carré=cube, cercle=cylindre, hexagone=mixte.
+  function shapeFormClass(type) {
+    if (type === "cylindre") { return "shape-cyl"; }
+    if (type === "mixte") { return "shape-mixte"; }
+    return "shape-cube";
+  }
+
+  // Statut d'affichage d'un lot : "sorti" si déjà sorti pour essai, sinon couleur d'échéance.
+  function dispStatut(lot) {
+    return (lot.statut === "sorti") ? "sorti" : colorStatut(lot);
+  }
+
+  function shapeClass(lot) {
+    var st = dispStatut(lot);
+    var retardR = (st === "retard") ? " has-r" : "";
+    return "bassin-shape " + shapeFormClass(lot.type) + " st-" + st + retardR;
+  }
+
+  function renderBassin() {
+    var grid = $("bassin-grille");
+    if (!grid) { return; }
+    // On n'affiche que les lots encore en bassin ou sortis (les testés ont quitté le bassin).
+    var visibles = _lots.filter(function (l) { return l.statut === "en_bassin" || l.statut === "sorti"; });
+    if (!visibles.length) {
+      grid.innerHTML = "<p class=\"screen-placeholder\">Aucun lot dans le bassin. Répartissez d'abord des éprouvettes.</p>";
+      return;
+    }
+    // Tri : retard d'abord, puis J-1, J-2, loin, puis sortis.
+    var order = { retard: 0, j1: 1, j2: 2, loin: 3, sorti: 4 };
+    var sorted = visibles.slice().sort(function (a, b) {
+      var sa = dispStatut(a), sb = dispStatut(b);
+      if (order[sa] !== order[sb]) { return order[sa] - order[sb]; }
+      return String(a.datePrevue).localeCompare(String(b.datePrevue));
+    });
+    grid.innerHTML = sorted.map(function (l) {
+      var st = dispStatut(l);
+      var rTag = (st === "retard") ? "<span class=\"shape-r\">R</span>" : "";
+      return "<button type=\"button\" class=\"" + shapeClass(l) + "\" data-id=\"" + l.id + "\" " +
+        "title=\"" + escapeHtml(l.ref + " · " + typeLabel(l.type) + " · " + l.age) + "\">" +
+        "<span class=\"shape-nb\">" + l.nombre + "</span>" +
+        "<span class=\"shape-age\">" + escapeHtml(l.age === "autre" ? l.ageJours + "j" : l.age) + "</span>" +
+        rTag + "</button>";
+    }).join("");
+  }
+
+  /* ============================================================
+     DÉTAIL D'UN LOT + SORTIE POUR ESSAI
+     ============================================================ */
+  var MOTIFS_ACCORD = ["Accord client", "Accord chef labo", "Contrainte planning", "Jour férié", "Autre"];
+  var MOTIFS_RETARD = ["Presse indisponible", "Oubli", "Demande client", "Jour non ouvrable", "Autre"];
+
+  function openDetail(id) {
+    var lot = null;
+    for (var i = 0; i < _lots.length; i++) { if (_lots[i].id === id) { lot = _lots[i]; break; } }
+    if (!lot) { return; }
+    var body = $("bassin-detail-body");
+    if (!body) { return; }
+
+    var st = dispStatut(lot);
+    var stLabel = {
+      loin: "Échéance loin", j2: "À sortir bientôt (J-2)",
+      j1: "À sortir aujourd'hui (J-1)", retard: "En retard", sorti: "Sorti pour essai"
+    }[st];
+
+    var rows = "" +
+      detRow("Référence", lot.ref) +
+      detRow("Client", lot.client) +
+      detRow("Projet", lot.nomProjet) +
+      detRow("Ouvrage", lot.ouvrage) +
+      detRow("Bloc / Étage", [lot.bloc, lot.etage].filter(Boolean).join(" / ")) +
+      detRow("Date de coulage", fmtDate(lot.dateCoulage)) +
+      detRow("Type", typeLabel(lot.type)) +
+      detRow("Nombre", lot.nombre + " éprouvette(s)") +
+      detRow("Âge", lot.age === "autre" ? lot.ageJours + " jours" : lot.age) +
+      detRow("Date prévue d'essai", fmtDate(lot.datePrevue)) +
+      detRow("Statut", stLabel) +
+      detRow("Opérateur (répartition)", lot.operateurRepartition);
+
+    var action;
+    if (lot.statut === "sorti") {
+      action = "<div class=\"result-card is-ok\">&#10004; Sorti pour essai le " + fmtDate(lot.dateSortie) +
+        " à " + escapeHtml(lot.heureSortie || "") + " par " + escapeHtml(lot.operateurSortie || "") +
+        (lot.motifSortie ? "<br>Motif : " + escapeHtml(lot.motifSortie) : "") +
+        (lot.observationSortie ? "<br>Obs. : " + escapeHtml(lot.observationSortie) : "") +
+        "<br><span class=\"opt\">Saisie de l'essai dans le module « Test de compression ».</span>" +
+        "</div>";
+    } else {
+      action = sortieFormHtml(st);
+    }
+
+    // Révision possible tant que le lot est encore en bassin (non sorti / non testé).
+    var revoir = (lot.statut === "en_bassin")
+      ? "<button type=\"button\" class=\"btn-text bassin-revoir\" data-ref=\"" + escapeHtml(lot.ref) + "\">" +
+        "&#9998; Revoir la répartition de ce coulage</button>"
+      : "";
+
+    body.innerHTML =
+      "<h2 class=\"block-title\">Lot " + escapeHtml(lot.ref) + "</h2>" +
+      "<div class=\"det-grid\">" + rows + "</div>" +
+      "<div id=\"bassin-sortie-zone\" data-id=\"" + lot.id + "\" data-st=\"" + st + "\">" + action + "</div>" +
+      revoir;
+
+    $("bassin-detail").hidden = false;
+  }
+
+  function detRow(label, val) {
+    return "<div class=\"det-row\"><span class=\"det-label\">" + escapeHtml(label) +
+      "</span><span class=\"det-val\">" + escapeHtml(val || "—") + "</span></div>";
+  }
+
+  // Formulaire de SORTIE pour essai. J-1 = jour de sortie prévu (sans motif) ;
+  // toute autre échéance (loin, J-2, retard) exige un motif.
+  function sortieFormHtml(st) {
+    var html = "";
+    var needMotif = (st !== "j1");
+    var motifs = (st === "retard") ? MOTIFS_RETARD : MOTIFS_ACCORD;
+    if (st === "retard") {
+      html += "<p class=\"hint\">Sortie en retard (échéance d'essai dépassée) : motif obligatoire.</p>";
+    } else if (st === "j1") {
+      html += "<p class=\"hint\">Jour de sortie prévu (J-1 avant l'essai). Confirmez la sortie pour essai.</p>";
+    } else {
+      html += "<p class=\"hint\">Sortie anticipée (avant l'échéance d'essai) : motif obligatoire.</p>";
+    }
+    if (needMotif) {
+      html += "<label class=\"field-label\" for=\"sortie-motif\">Motif</label>" +
+        "<select id=\"sortie-motif\" class=\"field\"><option value=\"\">— Choisir —</option>" +
+        motifs.map(function (m) { return "<option>" + m + "</option>"; }).join("") + "</select>";
+    }
+    html += "<label class=\"field-label\" for=\"sortie-heure\">Heure de sortie</label>" +
+      "<input id=\"sortie-heure\" class=\"field\" type=\"time\">" +
+      "<label class=\"field-label\" for=\"sortie-obs\">Observation" + (needMotif ? "" : " <span class=\"opt\">(facultatif)</span>") + "</label>" +
+      "<textarea id=\"sortie-obs\" class=\"field\" rows=\"2\"></textarea>" +
+      "<button type=\"button\" class=\"btn-primary\" id=\"sortie-valider\">&#10004; Confirmer la sortie pour essai</button>";
+    return html;
+  }
+
+  function confirmSortie() {
+    var zone = $("bassin-sortie-zone");
+    if (!zone) { return; }
+    var id = intOr0(zone.getAttribute("data-id"));
+    var st = zone.getAttribute("data-st");
+    var lot = null;
+    for (var i = 0; i < _lots.length; i++) { if (_lots[i].id === id) { lot = _lots[i]; break; } }
+    if (!lot) { return; }
+
+    var prof = window.CAEKProfil
+      ? CAEKProfil.require("Profil opérateur requis pour sortir un lot du bassin.")
+      : { nom: "", qualification: "" };
+    if (!prof) { return; }
+
+    var needMotif = (st !== "j1");
+    var motif = "";
+    if (needMotif) {
+      var sel = $("sortie-motif");
+      motif = sel ? sel.value : "";
+      if (!motif) { window.alert("Le motif est obligatoire."); return; }
+    }
+    var heure = ($("sortie-heure") && $("sortie-heure").value) || (pad2(new Date().getHours()) + ":" + pad2(new Date().getMinutes()));
+    var obs = ($("sortie-obs") && $("sortie-obs").value.trim()) || "";
+
+    if (!window.confirm("Confirmer la sortie pour essai de ce lot (" + lot.nombre + " éprouvette(s)) ?")) { return; }
+
+    lot.statut = "sorti";
+    lot.dateSortie = todayStr();
+    lot.heureSortie = heure;
+    lot.operateurSortie = prof.nom || "";
+    lot.qualificationSortie = prof.qualification || "";
+    lot.motifSortie = motif;
+    lot.observationSortie = obs;
+    lot.sortiAt = new Date().toISOString();
+
+    CAEKDB.updateLot(lot).then(function () {
+      return CAEKDB.addJournal({
+        type: "sortie", ref: lot.ref, lotId: lot.id,
+        operateur: prof.nom || "", qualification: prof.qualification || "",
+        motif: motif, statutEcheance: st, observation: obs
+      });
+    }).then(function () {
+      $("bassin-detail").hidden = true;
+      refreshBassin();
+      if (window.CAEKBadges) { CAEKBadges.refresh(); }
+    }).catch(function (err) {
+      window.alert("Erreur lors de la sortie pour essai : " + (err && err.message || err));
+    });
+  }
+
+  /* ============================================================
+     ÉCRAN « ARCHIVES »
+     ============================================================ */
+  var _archives = [];
+
+  function refreshArchives() {
+    if (!window.CAEKDB) { return; }
+    CAEKDB.getAllArchives().then(function (list) {
+      list.sort(function (a, b) { return String(b.dateReelle || "").localeCompare(String(a.dateReelle || "")); });
+      _archives = list;
+      renderArchives();
+    });
+  }
+
+  function filteredArchives() {
+    var du = $("arch-du") ? $("arch-du").value : "";
+    var au = $("arch-au") ? $("arch-au").value : "";
+    return _archives.filter(function (a) {
+      var d = String(a.dateReelle || "").slice(0, 10);
+      if (du && d < du) { return false; }
+      if (au && d > au) { return false; }
+      return true;
+    });
+  }
+
+  function renderArchives() {
+    var box = $("arch-liste");
+    if (!box) { return; }
+    var list = filteredArchives();
+    if ($("arch-count")) { $("arch-count").textContent = list.length + " écrasement(s)"; }
+    if (!list.length) {
+      box.innerHTML = "<p class=\"screen-placeholder\">Aucun écrasement archivé pour cette période.</p>";
+      return;
+    }
+    box.innerHTML = list.map(function (a) {
+      var ecart = (a.ecart === "" || a.ecart == null) ? "" :
+        (a.ecart === 0 ? "à l'heure" : (a.ecart > 0 ? "+" + a.ecart + "j" : a.ecart + "j"));
+      var glyph = "<span class=\"arch-shape bassin-shape " + shapeFormClass(a.type) + "\" aria-hidden=\"true\"></span>";
+      return "<div class=\"arch-item\">" +
+        "<div class=\"rep-top\"><span class=\"rep-ref\">&#128274; " + escapeHtml(a.ref) + "</span>" +
+        "<span class=\"arch-type\">" + glyph + " " + escapeHtml(typeLabel(a.type)) + " · " +
+        escapeHtml(a.age === "autre" ? a.ageJours + "j" : a.age) + "</span></div>" +
+        "<div class=\"rep-ent\">" + escapeHtml(a.client || "—") + "</div>" +
+        "<div class=\"rep-sub\">" + escapeHtml(a.nomProjet || "") + "</div>" +
+        (a.ouvrage ? "<div class=\"arch-ouvrage\">" + ouvrageIconHtml(a.ouvrage) + escapeHtml(a.ouvrage) +
+          ([a.bloc, a.etage].filter(Boolean).length ? " <span class=\"opt\">(" + escapeHtml([a.bloc, a.etage].filter(Boolean).join(" / ")) + ")</span>" : "") +
+          "</div>" : "") +
+        "<div class=\"arch-dates\">Coulé " + fmtDate(a.dateCoulage) +
+        " · prévu " + fmtDate(a.datePrevue) +
+        " · écrasé <strong>" + fmtDate(a.dateReelle) + "</strong>" + (ecart ? " (" + ecart + ")" : "") + "</div>" +
+        "<div class=\"arch-meta\">" + escapeHtml(a.nombre + " épr. · " + (a.operateur || "")) +
+        (a.qualification ? " (" + escapeHtml(a.qualification) + ")" : "") +
+        (a.motif ? " · motif : " + escapeHtml(a.motif) : "") + "</div>" +
+        (a.observation ? "<div class=\"arch-obs\">" + escapeHtml(a.observation) + "</div>" : "") +
+        "</div>";
+    }).join("");
+  }
+
+  var ARCH_HEADERS = ["Référence", "Client", "Projet", "Ouvrage", "Type", "Nombre", "Âge",
+    "Date coulage", "Date prévue", "Date réelle", "Écart (j)", "Opérateur", "Qualification", "Motif", "Observation"];
+
+  function archRow(a) {
+    return [
+      a.ref, a.client, a.nomProjet, a.ouvrage, typeLabel(a.type), a.nombre,
+      a.age === "autre" ? a.ageJours + "j" : a.age,
+      a.dateCoulage, a.datePrevue, a.dateReelle, a.ecart,
+      a.operateur, a.qualification, a.motif, a.observation
+    ];
+  }
+
+  function periodeSuffix() {
+    var du = $("arch-du") ? $("arch-du").value : "";
+    var au = $("arch-au") ? $("arch-au").value : "";
+    return (du || au) ? ("_" + (du || "debut") + "_" + (au || "fin")) : "_complet";
+  }
+
+  function periodeLabel() {
+    var du = $("arch-du") ? $("arch-du").value : "";
+    var au = $("arch-au") ? $("arch-au").value : "";
+    if (!du && !au) { return "(toutes périodes)"; }
+    return "du " + (du ? fmtDate(du) : "début") + " au " + (au ? fmtDate(au) : "aujourd'hui");
+  }
+
+  function exportArchivesXls() {
+    var list = filteredArchives();
+    if (!list.length) { window.alert("Aucun écrasement à exporter pour cette période."); return; }
+    if (!window.XLSX) { window.alert("Module Excel indisponible."); return; }
+    var aoa = [ARCH_HEADERS].concat(list.map(archRow));
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Écrasements");
+    XLSX.writeFile(wb, "archives_bassin" + periodeSuffix() + ".xlsx");
+  }
+
+  function shareArchives() {
+    var list = filteredArchives();
+    if (!list.length) { window.alert("Aucun écrasement à partager pour cette période."); return; }
+    var titre = "Liste des écrasements effectués " + periodeLabel();
+    var lignes = list.map(function (a) {
+      var ecart = (a.ecart === "" || a.ecart == null) ? "" :
+        (a.ecart === 0 ? " (à l'heure)" : (a.ecart > 0 ? " (+" + a.ecart + "j)" : " (" + a.ecart + "j)"));
+      return "• " + a.ref + " — " + typeLabel(a.type) + " " +
+        (a.age === "autre" ? a.ageJours + "j" : a.age) + " ×" + a.nombre +
+        " — écrasé le " + fmtDate(a.dateReelle) + ecart +
+        (a.operateur ? " par " + a.operateur : "") +
+        (a.motif ? " — motif : " + a.motif : "");
+    });
+    var texte = titre + "\n\n" + lignes.join("\n");
+
+    if (navigator.share) {
+      navigator.share({ title: titre, text: texte }).catch(function () { /* annulé */ });
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texte).then(
+        function () { window.alert("Liste copiée dans le presse-papiers."); },
+        function () { window.prompt("Copier la liste :", texte); });
+      return;
+    }
+    window.prompt("Copier la liste :", texte);
+  }
+
+  /* ============================================================
+     INITIALISATION / ÉVÉNEMENTS
+     ============================================================ */
+  function init() {
+    // À répartir : ouverture du formulaire + édition des lots.
+    var repBox = $("rep-bassin-liste");
+    if (repBox) {
+      repBox.addEventListener("click", function (ev) {
+        var t = ev.target;
+        var item = t.closest ? t.closest(".repb-item") : null;
+        if (!item) { return; }
+        var ref = item.getAttribute("data-ref");
+        var coulage = findCoulage(ref);
+        if (!coulage) { return; }
+
+        if (t.closest(".repb-revoir")) {
+          CAEKDB.getLotsByRef(ref).then(function (lots) { openRepartForm(item, coulage, lots); });
+          return;
+        }
+        if (t.closest(".repb-open")) { openRepartForm(item, coulage); return; }
+        if (t.closest(".lot-del")) {
+          var row = t.closest(".lot-row");
+          if (row) { row.parentNode.removeChild(row); updateSum(item.querySelector(".repb-form")); }
+          return;
+        }
+        if (t.closest(".repb-add")) {
+          var ed = item.querySelector(".lots-editor");
+          var info = specimenInfo(coulage);
+          if (ed) {
+            var tmp = document.createElement("div");
+            tmp.innerHTML = autreRowHtml(info);
+            var newRow = tmp.firstChild;
+            // Insère le lot manuel avant la ligne 28 j (qui reste en dernier).
+            var row28 = ed.querySelector(".lot-row[data-age='28j']");
+            if (row28) { ed.insertBefore(newRow, row28); } else { ed.appendChild(newRow); }
+            updateSum(item.querySelector(".repb-form"));
+          }
+          return;
+        }
+        if (t.closest(".repb-valider")) { validerRepartition(item.querySelector(".repb-form"), coulage); return; }
+      });
+      repBox.addEventListener("input", function (ev) {
+        var t = ev.target;
+        var form = t.closest ? t.closest(".repb-form") : null;
+        if (form && (t.classList.contains("lot-nb") || t.classList.contains("lot-jours"))) { updateSum(form); }
+      });
+    }
+
+    // Bassin virtuel : clic sur une forme -> détail.
+    var grid = $("bassin-grille");
+    if (grid) {
+      grid.addEventListener("click", function (ev) {
+        var b = ev.target.closest ? ev.target.closest(".bassin-shape") : null;
+        if (b) { openDetail(intOr0(b.getAttribute("data-id"))); }
+      });
+    }
+
+    // Overlay détail.
+    var overlay = $("bassin-detail");
+    if (overlay) {
+      overlay.addEventListener("click", function (ev) {
+        if (ev.target === overlay) { overlay.hidden = true; return; }
+        if (ev.target.closest && ev.target.closest("#bassin-detail-close")) { overlay.hidden = true; return; }
+        if (ev.target.closest && ev.target.closest("#sortie-valider")) { confirmSortie(); return; }
+        var rev = ev.target.closest ? ev.target.closest(".bassin-revoir") : null;
+        if (rev) {
+          overlay.hidden = true;
+          _pendingRevoirRef = rev.getAttribute("data-ref");
+          if (window.CAEKApp) { CAEKApp.navigate("screen-repartir"); }
+        }
+      });
+    }
+
+    // Archives : filtre + export.
+    ["arch-du", "arch-au"].forEach(function (idf) {
+      var el = $(idf);
+      if (el) { el.addEventListener("change", renderArchives); }
+    });
+    var expXls = $("arch-export-xls");
+    if (expXls) { expXls.addEventListener("click", exportArchivesXls); }
+    var share = $("arch-share");
+    if (share) { share.addEventListener("click", shareArchives); }
+  }
+
+  return {
+    init: init,
+    refreshRepartir: refreshRepartir,
+    refreshBassin: refreshBassin,
+    refreshArchives: refreshArchives
+  };
+})();

@@ -5,7 +5,7 @@
    Pour publier une mise a jour : incrementer CACHE_VERSION.
    ============================================================ */
 
-var CACHE_VERSION = "caek-coulage-v24";
+var CACHE_VERSION = "caek-coulage-v33";
 
 var APP_SHELL = [
   "./",
@@ -15,6 +15,8 @@ var APP_SHELL = [
   "./css/styles.css",
   "./js/app.js",
   "./js/db.js",
+  "./js/model.js",
+  "./js/profil.js",
   "./js/update.js",
   "./js/nouveau.js",
   "./js/fiche.js",
@@ -22,10 +24,19 @@ var APP_SHELL = [
   "./js/zip.js",
   "./js/export.js",
   "./js/repertoire.js",
+  "./js/bassin.js",
+  "./js/compression.js",
+  "./js/badges.js",
+  "./js/demo.js",
   "./vendor/xlsx.full.min.js",
   "./assets/logo-caek.png",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
+  "./assets/icons/menu/coulage-beton.png",
+  "./assets/icons/menu/bassin-conservation.png",
+  "./assets/icons/menu/test-compression.png",
+  "./assets/icons/menu/profil.png",
+  "./assets/icons/menu/mise-a-jour.png",
   "./assets/icons/ouvrages/fondation.png",
   "./assets/icons/ouvrages/superstructure.png",
   "./assets/icons/ouvrages/semelle.png",

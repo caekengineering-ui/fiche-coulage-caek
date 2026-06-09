@@ -22,11 +22,29 @@
     onScreenShown(id);
   }
 
+  // Ecrans qui affichent une barre de synthese / des pastilles a recalculer.
+  var SYNTH_SCREENS = {
+    "screen-accueil": 1, "screen-coulage": 1, "screen-repertoire": 1,
+    "screen-bassin": 1, "screen-repartir": 1, "screen-bassin-virtuel": 1,
+    "screen-compression": 1, "screen-comp-atester": 1, "screen-comp-historique": 1
+  };
+
   // Hook : rafraichit le contenu dynamique quand un ecran s'affiche
   function onScreenShown(id) {
+    if (SYNTH_SCREENS[id] && window.CAEKBadges) { CAEKBadges.refresh(); }
     if (id === "screen-nouveau" && window.CAEKNouveau) { CAEKNouveau.refresh(); }
     if (id === "screen-update") { refreshUpdateStatus(); }
     if (id === "screen-repertoire" && window.CAEKRepertoire) { CAEKRepertoire.refresh(); }
+    if (id === "screen-profil" && window.CAEKProfil) { CAEKProfil.fillForm(); }
+    if (window.CAEKBassin) {
+      if (id === "screen-bassin" || id === "screen-bassin-virtuel") { CAEKBassin.refreshBassin(); }
+      if (id === "screen-repartir") { CAEKBassin.refreshRepartir(); }
+      if (id === "screen-archives") { CAEKBassin.refreshArchives(); }
+    }
+    if (window.CAEKCompression) {
+      if (id === "screen-compression" || id === "screen-comp-atester" ||
+        id === "screen-comp-historique") { CAEKCompression.refresh(); }
+    }
   }
 
   // Navigation exposee aux autres modules
@@ -175,10 +193,53 @@
     }
     refreshUpdateStatus();
 
+    // --- Outil interne : donnees d'exemple V2.01 (prefixe DEMO-) ---
+    function showDemoResult(html, isError) {
+      var box = document.getElementById("demo-result");
+      if (!box) { return; }
+      box.hidden = false;
+      box.className = "result-card " + (isError ? "is-error" : "is-ok");
+      box.innerHTML = html;
+    }
+    var btnDemoLoad = document.getElementById("btn-demo-load");
+    if (btnDemoLoad) {
+      btnDemoLoad.addEventListener("click", function () {
+        if (!window.CAEKDemo) { showDemoResult("&#9888; Module exemple indisponible.", true); return; }
+        btnDemoLoad.disabled = true;
+        CAEKDemo.load().then(function (r) {
+          showDemoResult("&#10004; Données exemple chargées : <strong>" + r.coulages +
+            "</strong> coulage(s) + <strong>" + r.lots + "</strong> lot(s) « DEMO- ». " +
+            "Vérifiez les badges du menu, le bassin et le module Test de compression.", false);
+          if (window.CAEKBadges) { CAEKBadges.refresh(); }
+        }).catch(function (err) {
+          showDemoResult("&#9888; " + escapeHtml(err && err.message || err), true);
+        }).then(function () { btnDemoLoad.disabled = false; });
+      });
+    }
+    var btnDemoClear = document.getElementById("btn-demo-clear");
+    if (btnDemoClear) {
+      btnDemoClear.addEventListener("click", function () {
+        if (!window.CAEKDemo) { showDemoResult("&#9888; Module exemple indisponible.", true); return; }
+        if (!window.confirm("Supprimer uniquement les données exemple DEMO ?")) { return; }
+        btnDemoClear.disabled = true;
+        CAEKDemo.clear().then(function (r) {
+          showDemoResult("&#10004; " + (r.coulages + r.lots) + " enregistrement(s) « DEMO- » supprimé(s). " +
+            "Vos vraies fiches sont intactes.", false);
+          if (window.CAEKBadges) { CAEKBadges.refresh(); }
+        }).catch(function (err) {
+          showDemoResult("&#9888; " + escapeHtml(err && err.message || err), true);
+        }).then(function () { btnDemoClear.disabled = false; });
+      });
+    }
+
+    if (window.CAEKProfil) { CAEKProfil.init(); }
     if (window.CAEKNouveau) { CAEKNouveau.init(); }
     if (window.CAEKFiche) { CAEKFiche.init(); }
     if (window.CAEKPhotos) { CAEKPhotos.init(); }
     if (window.CAEKRepertoire) { CAEKRepertoire.init(); }
+    if (window.CAEKBassin) { CAEKBassin.init(); }
+    if (window.CAEKCompression) { CAEKCompression.init(); }
+    if (window.CAEKBadges) { CAEKBadges.refresh(); }
   });
 
   /* ---------- Service Worker (hors-ligne) ---------- */

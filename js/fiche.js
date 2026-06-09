@@ -34,6 +34,19 @@ var CAEKFiche = (function () {
   }
   function revokeThumbs() { thumbUrls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} }); thumbUrls = []; }
 
+  // Nom de l'operateur a utiliser par defaut : profil global s'il est renseigne.
+  function profilNom() {
+    return (window.CAEKProfil && CAEKProfil.isRenseigne()) ? CAEKProfil.get().nom : "";
+  }
+  // Affiche la qualification du profil sous le champ operateur (indicatif).
+  function refreshOperateurHint() {
+    var h = $("fc-operateur-hint"); if (!h) { return; }
+    var p = (window.CAEKProfil && CAEKProfil.isRenseigne()) ? CAEKProfil.get() : null;
+    if (p && p.qualification) { h.hidden = false; h.textContent = "Profil : " + p.qualification + " (pré-rempli, modifiable)."; }
+    else if (p) { h.hidden = false; h.textContent = "Pré-rempli depuis le profil opérateur (modifiable)."; }
+    else { h.hidden = false; h.textContent = "Astuce : renseignez votre profil pour pré-remplir ce champ."; }
+  }
+
   /* ---- Ouvrages (familles + items) ----
      Source de verite = icons_manifest.json (charge a l'init).
      Le tableau ci-dessous n'est qu'un FALLBACK minimal si le manifest
@@ -85,16 +98,7 @@ var CAEKFiche = (function () {
         OUVRAGE_FAMILIES = fams;
         if (step === "projet" && current) { renderOuvrages(); }
       }
-      var eb = {}; (m.eprouvettes || []).forEach(function (e) { eb[e.id] = e; });
-      setEprIcon("cube", eb.moule_cubique);
-      setEprIcon("cylindre", eb.moule_cylindrique);
     }).catch(function () {});
-  }
-
-  function setEprIcon(key, entry) {
-    if (!entry) { return; }
-    var img = document.querySelector(".epr-types [data-epr='" + key + "'] .epr-img");
-    if (img) { img.src = entry.thumb || entry.card; }
   }
 
   function ouvrageLabel(k) {
@@ -245,7 +249,7 @@ var CAEKFiche = (function () {
 
   function setStatut(s) {
     var el = $("fc-statut"); if (!el) { return; }
-    var lbl = ({ brouillon: "Brouillon", envoyee: "Envoyé" })[s] || s;
+    var lbl = ({ brouillon: "Brouillon", validee: "Validée", envoyee: "Envoyé" })[s] || s;
     el.textContent = lbl;
     el.className = "badge badge-" + s;
   }
@@ -285,7 +289,8 @@ var CAEKFiche = (function () {
     setVal("fc-etage", c.etage || "");
     setOptToggle("fc-bloc-on", "fc-bloc", !!c.bloc);
     setOptToggle("fc-etage-on", "fc-etage", !!c.etage);
-    setVal("fc-operateur", c.signatureOperateur || "");
+    setVal("fc-operateur", c.signatureOperateur || profilNom());
+    refreshOperateurHint();
   }
 
   function gatherProjetStep() {
@@ -307,7 +312,6 @@ var CAEKFiche = (function () {
     return {
       heure: nowTime(), quantite: "", affaissement: "", temperature: "",
       numCamion: "", numBL: "",
-      preleve: null, eprCube: false, eprCylindre: false, eprNombre: "",
       formulation: { reprise: false, mode: "structure", fournisseur: "", classe: "", ciment: "", dosage: "", dmax: "", adjuvant: "", photoId: null }
     };
   }
@@ -328,10 +332,6 @@ var CAEKFiche = (function () {
     var sw = $(switchId); if (!sw) { return; }
     var btns = sw.querySelectorAll(".seg");
     for (var i = 0; i < btns.length; i++) { btns[i].classList.toggle("is-active", btns[i].getAttribute("data-" + attr) === value); }
-  }
-  function setEprType(k, on) {
-    var b = document.querySelector(".epr-types [data-epr='" + k + "']");
-    if (b) { b.classList.toggle("is-selected", on); }
   }
   function setSelectOrAutre(selId, value, preset) {
     var s = $(selId); var a = $(selId + "-autre"); if (!s) { return; }
@@ -358,12 +358,6 @@ var CAEKFiche = (function () {
     setVal("fc-mal-bl", m.numBL);
     setOptToggle("fc-mal-camion-on", "fc-mal-camion", !!m.numCamion);
     setOptToggle("fc-mal-bl-on", "fc-mal-bl", !!m.numBL);
-
-    setSeg("fc-mal-prel-switch", "prel", m.preleve === true ? "oui" : (m.preleve === false ? "non" : ""));
-    show("fc-mal-epr", m.preleve === true);
-    setEprType("cube", !!m.eprCube);
-    setEprType("cylindre", !!m.eprCylindre);
-    setVal("fc-mal-epr-nb", m.eprNombre);
 
     var showReprise = (malaxeurIdx > 0);
     show("fc-mal-reprise", showReprise);
@@ -397,7 +391,6 @@ var CAEKFiche = (function () {
     m.temperature = val("fc-mal-temperature");
     m.numCamion = val("fc-mal-camion").trim();
     m.numBL = val("fc-mal-bl").trim();
-    m.eprNombre = val("fc-mal-epr-nb");
     if (m.formulation.reprise && malaxeurIdx > 0) {
       var prev = current.malaxeurs[malaxeurIdx - 1];
       if (prev) {
@@ -435,13 +428,10 @@ var CAEKFiche = (function () {
   }
 
   function computeTotals() {
-    var totQ = 0, totE = 0;
-    (current.malaxeurs || []).forEach(function (m) {
-      totQ += num(m.quantite);
-      if (m.preleve === true) { totE += intOr0(m.eprNombre); }
-    });
+    var totQ = 0;
+    (current.malaxeurs || []).forEach(function (m) { totQ += num(m.quantite); });
     current.totalQuantite = Math.round(totQ * 100) / 100;
-    current.totalEprouvettes = totE;
+    current.totalEprouvettes = window.CAEKModel ? CAEKModel.totalEprouvettes(current) : 0;
   }
 
   function renderMalFormPhotoPreview() {
@@ -490,9 +480,6 @@ var CAEKFiche = (function () {
       var f = m.formulation || {};
       var fdesc = f.reprise ? "Idem précédent"
         : [f.fournisseur, f.classe, f.ciment, (f.dosage ? f.dosage + " kg/m³" : ""), (f.dmax ? "Dmax " + f.dmax : ""), f.adjuvant].filter(Boolean).join(" · ");
-      var epr = (m.preleve === true)
-        ? ((m.eprCube ? "Cube " : "") + (m.eprCylindre ? "Cyl " : "") + (m.eprNombre || 0) + " éprouv.")
-        : "Pas de prélèvement";
       html += "<div class=\"recap-mal\">" +
         "<div class=\"recap-mal-head\"><strong>Malaxeur " + pad2(i + 1) + "</strong>" +
         (locked ? "" : " <button type=\"button\" class=\"btn-link recap-mal-edit\" data-idx=\"" + i + "\">Modifier</button>") +
@@ -505,20 +492,21 @@ var CAEKFiche = (function () {
         " · 🌡️ " + (m.temperature || 0) + "°C" +
         (m.numCamion ? " · 🚛 " + escapeHtml(m.numCamion) : "") +
         (m.numBL ? " · 📄 " + escapeHtml(m.numBL) : "") +
-        "<br>🧊 " + escapeHtml(epr) +
         "<br>📄 " + escapeHtml(fdesc || "—") +
         "</div></div>";
     });
     if (!(c.malaxeurs || []).length) { html += "<p class=\"hint\">Aucun malaxeur saisi.</p>"; }
 
     $("fc-recap").innerHTML = html;
+    renderPrelevements();
 
     show("fc-recap-add", !locked);
     setVal("fc-anomalie-texte", (c.anomalie && c.anomalie.texte) || "");
     renderAnomaliePhotos();
     renderAudioNotes();
     show("fc-audio-wrap", !locked);
-    setVal("fc-operateur", c.signatureOperateur || "");
+    setVal("fc-operateur", c.signatureOperateur || profilNom());
+    refreshOperateurHint();
 
     show("fc-export-box", true);
     show("fc-locked-note", locked);
@@ -543,6 +531,123 @@ var CAEKFiche = (function () {
         CAEKDB.updateCoulage(current).then(renderRecap);
       });
     });
+  }
+
+  /* ---- Prelevements d'eprouvettes (V2.01) ----
+     Source de verite = current.prelevements (Array). Codification auto
+     via CAEKModel : REF-01-Ei .. REF-NN-Ei. */
+  function typeLabel(t) {
+    if (t === "cylindre") { return "Cylindre"; }
+    if (t === "mixte") { return "Mixte"; }
+    return "Cube";
+  }
+
+  // Apercu de la codification d'un prelevement (Ei) de "nombre" eprouvettes.
+  function codifText(ei, nombre) {
+    var ref = (current && current.ref) || "";
+    var nb = intOr0(nombre);
+    if (!nb) { return "—"; }
+    if (nb <= 4) {
+      var arr = [];
+      for (var j = 1; j <= nb; j++) { arr.push(ref + "-" + pad2(j) + "-E" + ei); }
+      return arr.join(", ");
+    }
+    return ref + "-" + pad2(1) + "-E" + ei + " … " + ref + "-" + pad2(nb) + "-E" + ei + " (" + nb + ")";
+  }
+
+  // Garantit current.prelevements (migration douce depuis d'anciens malaxeurs).
+  function ensurePrelevements() {
+    if (!Array.isArray(current.prelevements)) {
+      current.prelevements = (window.CAEKModel ? CAEKModel.prelevements(current) : []).map(function (p) {
+        return { heure: p.heure || "", type: p.type || "cube", nombre: p.nombre || "", observation: p.observation || "" };
+      });
+    }
+    return current.prelevements;
+  }
+
+  function prelCardHtml(p, i, locked) {
+    var ei = i + 1;
+    var dis = locked ? " disabled" : "";
+    var typeSel = ["cube", "cylindre", "mixte"].map(function (t) {
+      return "<option value=\"" + t + "\"" + (((p.type || "cube") === t) ? " selected" : "") + ">" + typeLabel(t) + "</option>";
+    }).join("");
+    return "<div class=\"prel-card\" data-i=\"" + i + "\">" +
+      "<div class=\"prel-head\"><span class=\"prel-num\">E" + ei + "</span>" +
+      (locked ? "" : "<button type=\"button\" class=\"btn-link prel-del\" data-i=\"" + i + "\">Supprimer</button>") +
+      "</div>" +
+      "<div class=\"prel-grid\">" +
+      "<label class=\"prel-f\"><span>Heure</span><input class=\"field prel-heure\" type=\"time\" value=\"" + escapeHtml(p.heure || "") + "\"" + dis + "></label>" +
+      "<label class=\"prel-f\"><span>Type</span><select class=\"field prel-type\"" + dis + ">" + typeSel + "</select></label>" +
+      "<label class=\"prel-f\"><span>Nombre</span><input class=\"field prel-nb\" type=\"number\" min=\"0\" step=\"1\" inputmode=\"numeric\" value=\"" + escapeHtml(p.nombre == null ? "" : p.nombre) + "\"" + dis + "></label>" +
+      "</div>" +
+      "<label class=\"prel-f prel-obs-wrap\"><span>Observation</span><input class=\"field prel-obs\" type=\"text\" value=\"" + escapeHtml(p.observation || "") + "\"" + dis + "></label>" +
+      "<div class=\"prel-codif\">Codification : <strong>" + escapeHtml(codifText(ei, p.nombre)) + "</strong></div>" +
+      "</div>";
+  }
+
+  function renderPrelevements() {
+    var box = $("fc-prelevements"); if (!box) { return; }
+    var locked = (current.statut || "brouillon") !== "brouillon";
+    var list = ensurePrelevements();
+    var cards = list.map(function (p, i) { return prelCardHtml(p, i, locked); }).join("");
+    var total = window.CAEKModel ? CAEKModel.totalEprouvettes(current) : 0;
+    var html = (!list.length ? "<p class=\"hint\">Aucun prélèvement enregistré." + (locked ? "" : " Ajoutez-en un ci-dessous.") + "</p>" : "") +
+      cards +
+      "<div class=\"prel-total\">Total éprouvettes : <strong>" + total + "</strong></div>";
+    box.innerHTML = html;
+    show("fc-prel-add", !locked);
+  }
+
+  function gatherPrelevements() {
+    var box = $("fc-prelevements"); if (!box || !current) { return; }
+    var cards = box.querySelectorAll(".prel-card");
+    var out = [];
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      var heure = card.querySelector(".prel-heure");
+      var type = card.querySelector(".prel-type");
+      var nb = card.querySelector(".prel-nb");
+      var obs = card.querySelector(".prel-obs");
+      out.push({
+        heure: heure ? heure.value : "",
+        type: type ? type.value : "cube",
+        nombre: nb ? intOr0(nb.value) : 0,
+        observation: obs ? obs.value : ""
+      });
+    }
+    current.prelevements = out;
+  }
+
+  // Rafraichit codif + total en place, sans reconstruire (pas de perte de focus).
+  function updatePrelDisplay() {
+    var box = $("fc-prelevements"); if (!box) { return; }
+    var cards = box.querySelectorAll(".prel-card");
+    for (var i = 0; i < cards.length; i++) {
+      var nb = cards[i].querySelector(".prel-nb");
+      var codif = cards[i].querySelector(".prel-codif strong");
+      if (codif) { codif.textContent = codifText(i + 1, nb ? nb.value : 0); }
+    }
+    var tot = box.querySelector(".prel-total strong");
+    if (tot) { tot.textContent = window.CAEKModel ? CAEKModel.totalEprouvettes(current) : 0; }
+  }
+
+  function persistPrelevements() {
+    if (!current || !window.CAEKDB) { return; }
+    gatherPrelevements();
+    computeTotals();
+    current.dateModification = new Date().toISOString();
+    CAEKDB.updateCoulage(current).then(function () {
+      if (window.CAEKBadges) { CAEKBadges.refresh(); }
+    }).catch(function () {});
+  }
+
+  function addPrelevement() {
+    if (!current || (current.statut || "brouillon") !== "brouillon") { return; }
+    ensurePrelevements();
+    gatherPrelevements();
+    current.prelevements.push({ heure: nowTime(), type: "cube", nombre: "", observation: "" });
+    renderPrelevements();
+    persistPrelevements();
   }
 
   function renderAnomaliePhotos() {
@@ -668,18 +773,6 @@ var CAEKFiche = (function () {
     box.innerHTML = html;
   }
 
-  function ensureSign() {
-    var nom = val("fc-operateur").trim();
-    if (!nom) { alert("Saisissez le nom de l'opérateur avant d'envoyer."); return null; }
-    current.signatureOperateur = nom;
-    return nom;
-  }
-  function markEnvoyee() {
-    current.statut = "envoyee";
-    current.dateEnvoi = new Date().toISOString();
-    return CAEKDB.updateCoulage(current).then(function () { setStatut("envoyee"); renderRecap(); });
-  }
-
   function init() {
     loadIconsManifest();
 
@@ -692,24 +785,6 @@ var CAEKFiche = (function () {
     if (home) { home.addEventListener("click", gotoAccueil); }
     var arec = $("fc-audio-rec");
     if (arec) { arec.addEventListener("click", toggleAudioRec); }
-
-    bindSegSwitch("fc-mal-prel-switch", "prel", function (v) {
-      if (!malaxeurDraft) { return; }
-      if (v === "oui") { malaxeurDraft.preleve = true; show("fc-mal-epr", true); }
-      else { malaxeurDraft.preleve = false; show("fc-mal-epr", false); }
-    });
-
-    var etypes = document.querySelector(".epr-types");
-    if (etypes) {
-      etypes.addEventListener("click", function (ev) {
-        var b = ev.target.closest ? ev.target.closest(".epr-type") : null;
-        if (!b || !malaxeurDraft) { return; }
-        var k = b.getAttribute("data-epr");
-        var key = (k === "cube") ? "eprCube" : "eprCylindre";
-        malaxeurDraft[key] = !malaxeurDraft[key];
-        b.classList.toggle("is-selected", malaxeurDraft[key]);
-      });
-    }
 
     bindSegSwitch("fc-mal-reprise-switch", "reprise", function (v) {
       if (!malaxeurDraft) { return; }
@@ -777,6 +852,35 @@ var CAEKFiche = (function () {
     var add = $("fc-recap-add");
     if (add) { add.addEventListener("click", function () { goMalaxeur(); }); }
 
+    // Prelevements d'eprouvettes (editeur du recap).
+    var prelBox = $("fc-prelevements");
+    if (prelBox) {
+      prelBox.addEventListener("input", function (ev) {
+        var t = ev.target;
+        if (t.classList.contains("prel-nb") || t.classList.contains("prel-heure") || t.classList.contains("prel-obs")) {
+          gatherPrelevements();
+          updatePrelDisplay();
+        }
+      });
+      prelBox.addEventListener("change", function (ev) {
+        var t = ev.target;
+        if (t.classList.contains("prel-type")) { gatherPrelevements(); updatePrelDisplay(); persistPrelevements(); }
+        else if (t.classList.contains("prel-nb") || t.classList.contains("prel-heure") || t.classList.contains("prel-obs")) { persistPrelevements(); }
+      });
+      prelBox.addEventListener("click", function (ev) {
+        var del = ev.target.closest ? ev.target.closest(".prel-del") : null;
+        if (!del) { return; }
+        var i = parseInt(del.getAttribute("data-i"), 10);
+        if (!window.confirm("Supprimer le prélèvement E" + (i + 1) + " ?")) { return; }
+        gatherPrelevements();
+        current.prelevements.splice(i, 1);
+        renderPrelevements();
+        persistPrelevements();
+      });
+    }
+    var prelAdd = $("fc-prel-add");
+    if (prelAdd) { prelAdd.addEventListener("click", addPrelevement); }
+
     var apx = $("fc-anomalie-photo-input");
     if (apx) {
       apx.addEventListener("change", function () {
@@ -802,53 +906,18 @@ var CAEKFiche = (function () {
       sv.addEventListener("click", function () {
         if (!current) { return; }
         gatherProjetStep();
+        gatherPrelevements();
         current.signatureOperateur = val("fc-operateur").trim();
         current.statut = current.statut || "brouillon";
         computeTotals();
         CAEKDB.updateCoulage(current).then(function () {
           showResult("✔ Brouillon enregistré (" + current.ref + ").", false);
+          if (window.CAEKBadges) { CAEKBadges.refresh(); }
         }).catch(function (err) { showResult("⚠ " + (err && err.message || err), true); });
       });
     }
 
-    var msg = $("fc-copy-msg");
-    if (msg) {
-      msg.addEventListener("click", function () {
-        if (!window.CAEKExport) { return; }
-        var t = CAEKExport.buildMessage(current);
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(t).then(function () { showResult("✔ Message récap copié.", false); },
-            function () { prompt("Copier le message :", t); });
-        } else { prompt("Copier le message :", t); }
-      });
-    }
-    var zip = $("fc-zip");
-    if (zip) {
-      zip.addEventListener("click", function () {
-        if (!ensureSign()) { return; }
-        gatherProjetStep(); computeTotals();
-        CAEKExport.downloadZip(current).then(markEnvoyee)
-          .catch(function (err) { showResult("⚠ ZIP : " + (err && err.message || err), true); });
-      });
-    }
-    var exp = $("fc-exporter");
-    if (exp) {
-      exp.addEventListener("click", function () {
-        if (!ensureSign()) { return; }
-        gatherProjetStep(); computeTotals();
-        CAEKExport.share(current).then(function (res) { if (res.shared || res.downloaded) { return markEnvoyee(); } })
-          .catch(function (err) { showResult("⚠ " + (err && err.message || err), true); });
-      });
-    }
-    var dl = $("fc-telecharger");
-    if (dl) {
-      dl.addEventListener("click", function () {
-        if (!ensureSign()) { return; }
-        gatherProjetStep(); computeTotals();
-        try { CAEKExport.download(current); markEnvoyee(); }
-        catch (err) { showResult("⚠ " + (err && err.message || err), true); }
-      });
-    }
+    // Validation et partage au bureau : desormais geres depuis le Repertoire.
   }
 
   return { init: init, open: open };
