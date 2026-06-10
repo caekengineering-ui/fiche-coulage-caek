@@ -1510,6 +1510,55 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
 /* ---------- Historique : ligne d'écart ---------- */
 .comp-hist-ecart { font-size: 13px; color: var(--caek-red-dark); font-weight: 600; margin: 2px 0 4px; }
 
+/* ============================================================
+   V2.05 — connexion opérateur + gestion des opérateurs (local).
+   ============================================================ */
+
+/* ---------- Écran de connexion ---------- */
+.login-wrap {
+  max-width: 420px; margin: 10px auto; text-align: center;
+  background: #fff; border: 1px solid var(--gray-line); border-top: 5px solid var(--caek-red);
+  border-radius: var(--radius); padding: 22px 18px;
+}
+.login-logo { width: 84px; height: auto; margin-bottom: 8px; }
+.login-title { font-size: 20px; font-weight: 800; color: var(--caek-red-dark); margin: 0 0 6px; }
+.login-wrap .field-label { text-align: left; }
+#login-select { font-size: 16px; }
+#login-go { margin-top: 12px; }
+
+/* ---------- Carte opérateur actif (profil) ---------- */
+.profil-active-card {
+  display: flex; flex-direction: column; gap: 2px; text-align: center;
+  background: var(--gray-bg); border: 1px solid var(--gray-line);
+  border-left: 5px solid var(--caek-red); border-radius: var(--radius);
+  padding: 12px 14px; margin-bottom: 12px;
+}
+.profil-active-nom { font-size: 18px; font-weight: 800; color: var(--text-dark); }
+.profil-active-qualif { font-size: 14px; color: var(--text-muted); }
+.profil-active-user { font-size: 12px; color: var(--caek-red); font-weight: 600; }
+
+/* ---------- Liste des opérateurs (gestion) ---------- */
+#oper-liste { margin-bottom: 14px; }
+.oper-item {
+  background: #fff; border: 1px solid var(--gray-line); border-radius: var(--radius);
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.oper-item.is-current { border-left: 4px solid var(--caek-red); }
+.oper-item.is-inactive { opacity: .62; }
+.oper-info { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-bottom: 8px; }
+.oper-nom { font-size: 16px; font-weight: 700; color: var(--text-dark); }
+.oper-qualif { font-size: 13px; color: var(--text-muted); }
+.oper-username { font-size: 12px; color: var(--caek-red); font-weight: 600; }
+.oper-badge { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 8px; }
+.oper-badge.is-active { background: #e6f4ea; color: #1b7a36; border: 1px solid #b6e0c2; }
+.oper-badge.is-off { background: var(--gray-bg); color: var(--text-muted); border: 1px solid var(--gray-line); }
+.oper-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.oper-actions .btn-secondary,
+.oper-actions .btn-text,
+.oper-actions .btn-primary { width: auto; min-width: 0; margin: 0; padding: 6px 12px; }
+.oper-actions .oper-off { color: var(--caek-red); }
+.oper-item.is-editing .field { margin-bottom: 8px; }
+
 /* ---------- Larger screens ---------- */
 @media (min-width: 600px) {
   .app-main { padding: 28px 24px; }

@@ -5,7 +5,7 @@
    Pour publier une mise a jour : incrementer CACHE_VERSION.
    ============================================================ */
 
-var CACHE_VERSION = "caek-coulage-v36";
+var CACHE_VERSION = "caek-coulage-v37";
 
 var APP_SHELL = [
   "./",
@@ -17,6 +17,7 @@ var APP_SHELL = [
   "./js/db.js",
   "./js/model.js",
   "./js/profil.js",
+  "./js/operateurs.js",
   "./js/update.js",
   "./js/nouveau.js",
   "./js/fiche.js",

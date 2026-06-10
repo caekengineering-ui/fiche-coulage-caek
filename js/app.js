@@ -36,6 +36,9 @@
     if (id === "screen-update") { refreshUpdateStatus(); }
     if (id === "screen-repertoire" && window.CAEKRepertoire) { CAEKRepertoire.refresh(); }
     if (id === "screen-profil" && window.CAEKProfil) { CAEKProfil.fillForm(); }
+    if ((id === "screen-profil" || id === "screen-login" || id === "screen-operateurs") && window.CAEKOperateurs) {
+      CAEKOperateurs.renderAll();
+    }
     if (window.CAEKBassin) {
       if (id === "screen-bassin" || id === "screen-bassin-virtuel") { CAEKBassin.refreshBassin(); }
       if (id === "screen-repartir") { CAEKBassin.refreshRepartir(); }
@@ -233,6 +236,7 @@
     }
 
     if (window.CAEKProfil) { CAEKProfil.init(); }
+    if (window.CAEKOperateurs) { CAEKOperateurs.init(); }
     if (window.CAEKNouveau) { CAEKNouveau.init(); }
     if (window.CAEKFiche) { CAEKFiche.init(); }
     if (window.CAEKPhotos) { CAEKPhotos.init(); }

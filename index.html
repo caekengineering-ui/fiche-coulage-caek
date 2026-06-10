@@ -108,15 +108,44 @@
         <img class="profil-illus" src="assets/icons/menu/profil.png" alt="">
       </div>
 
-      <label class="field-label" for="profil-nom">Nom de l'opérateur</label>
-      <input id="profil-nom" class="field" type="text" placeholder="ex. CHAHID Ayoub" autocomplete="off">
-
-      <label class="field-label" for="profil-qualif">Qualification / fonction</label>
-      <input id="profil-qualif" class="field" type="text" placeholder="ex. Technicien laboratoire" autocomplete="off">
-
-      <button id="profil-save" class="btn-primary" type="button">&#128190; Enregistrer le profil</button>
-      <button id="profil-clear" class="btn-text" type="button">Effacer le profil</button>
+      <p class="hint">Opérateur actif — il signe toutes vos actions (fiches, répartition, sorties, essais, déchets) :</p>
+      <div id="profil-active"></div>
+      <button id="profil-changer" class="btn-primary" type="button">&#128260; Changer d'opérateur</button>
+      <button class="btn-secondary" data-goto="screen-operateurs" type="button">&#9881;&#65039; Gestion des opérateurs</button>
       <div id="profil-result" class="result-card" hidden></div>
+    </section>
+
+    <!-- ECRAN CONNEXION OPERATEUR -->
+    <section id="screen-login" class="screen">
+      <div class="login-wrap">
+        <img class="login-logo" src="assets/logo-caek.png" alt="CAEK ENGINEERING">
+        <h1 class="login-title">Connexion opérateur</h1>
+        <p class="hint">Sélectionnez votre nom pour commencer. Vos actions seront signées avec cet opérateur.</p>
+        <div id="login-empty" class="result-card is-error" hidden>&#9888; Aucun opérateur enregistré. Ajoutez-en un pour commencer.</div>
+        <label class="field-label" for="login-select">Opérateur</label>
+        <select id="login-select" class="field"></select>
+        <button id="login-go" class="btn-primary" type="button">&#128274; Se connecter</button>
+        <button class="btn-text" data-goto="screen-operateurs" type="button">&#9881;&#65039; Gérer les opérateurs</button>
+      </div>
+    </section>
+
+    <!-- GESTION DES OPERATEURS -->
+    <section id="screen-operateurs" class="screen">
+      <button class="btn-back" id="oper-back" type="button">&#8592; Retour</button>
+      <h1 class="screen-title">Gestion des opérateurs</h1>
+      <p class="hint">Liste des opérateurs autorisés. L'opérateur « Actif » signe les actions. Stockage local pour l'instant (synchronisation cloud prévue).</p>
+
+      <div id="oper-liste"></div>
+
+      <h3 class="block-subtitle">&#10133; Ajouter un opérateur</h3>
+      <label class="field-label" for="oper-add-nom">Nom affiché</label>
+      <input id="oper-add-nom" class="field" type="text" placeholder="ex. CHAHID Ayoub" autocomplete="off">
+      <label class="field-label" for="oper-add-username">Identifiant <span class="opt">(facultatif, auto si vide)</span></label>
+      <input id="oper-add-username" class="field" type="text" placeholder="ex. chahid" autocomplete="off">
+      <label class="field-label" for="oper-add-qualif">Qualification / fonction</label>
+      <input id="oper-add-qualif" class="field" type="text" placeholder="ex. Technicien laboratoire" autocomplete="off">
+      <button id="oper-add-btn" class="btn-primary" type="button">&#10133; Ajouter l'opérateur</button>
+      <div id="oper-result" class="result-card" hidden></div>
     </section>
 
     <!-- BASSIN > A REPARTIR -->
@@ -598,6 +627,8 @@
       <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
       <h1 class="screen-title">Mise à jour projet</h1>
 
+      <button class="btn-secondary" data-goto="screen-operateurs" type="button">&#128101; Gestion des opérateurs</button>
+
       <div id="update-status" class="status-card">
         <div class="status-line"><span class="status-label">Dernier import :</span> <span id="status-date">—</span></div>
         <div class="status-line"><span class="status-label">Clients chargés :</span> <span id="status-count-clients">0</span></div>
@@ -635,6 +666,7 @@
   <script src="js/db.js"></script>
   <script src="js/model.js"></script>
   <script src="js/profil.js"></script>
+  <script src="js/operateurs.js"></script>
   <script src="js/update.js"></script>
   <script src="js/nouveau.js"></script>
   <script src="js/fiche.js"></script>

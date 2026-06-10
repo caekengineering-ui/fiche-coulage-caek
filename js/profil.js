@@ -44,8 +44,9 @@ var CAEKProfil = (function () {
     return p.qualification ? (p.nom + " — " + p.qualification) : p.nom;
   }
 
-  function save(nom, qualification) {
+  function save(nom, qualification, username) {
     var p = { nom: (nom || "").trim(), qualification: (qualification || "").trim() };
+    if (username !== undefined) { p.username = (username || "").trim(); }
     _cache = p.nom ? p : null;
     writeLocal(_cache);
     refreshBar();
