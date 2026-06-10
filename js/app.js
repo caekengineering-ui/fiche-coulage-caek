@@ -39,7 +39,6 @@
     if (window.CAEKBassin) {
       if (id === "screen-bassin" || id === "screen-bassin-virtuel") { CAEKBassin.refreshBassin(); }
       if (id === "screen-repartir") { CAEKBassin.refreshRepartir(); }
-      if (id === "screen-archives") { CAEKBassin.refreshArchives(); }
     }
     if (window.CAEKCompression) {
       if (id === "screen-compression" || id === "screen-comp-atester" ||

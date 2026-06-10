@@ -13,6 +13,7 @@ var CAEKRepertoire = (function () {
 
   var _all = [];
   var _statut = "";
+  var _selected = {};
 
   function $(id) { return document.getElementById(id); }
 
@@ -127,18 +128,41 @@ var CAEKRepertoire = (function () {
     });
   }
 
-  function render() {
+  function filteredList() {
     var search = ($("rep-search") ? $("rep-search").value : "").trim().toLowerCase();
-    var box = $("rep-liste");
-    if (!box) { return; }
-
-    var filtered = _all.filter(function (c) {
+    return _all.filter(function (c) {
       if (_statut && (c.statut || "brouillon") !== _statut) { return false; }
       if (!search) { return true; }
       var hay = [c.ref, c.codeProjet, c.entreprise, c.client, c.nomProjet,
         fmtDate(c.dateCoulage), c.dateCoulage].join(" ").toLowerCase();
       return hay.indexOf(search) >= 0;
     });
+  }
+
+  // Coulages selectionnes ; si aucun coche -> toute la liste filtree.
+  function selectedCoulages() {
+    var filtered = filteredList();
+    var sel = filtered.filter(function (c) { return _selected[c.ref]; });
+    return sel.length ? sel : filtered;
+  }
+
+  function updateSelCount() {
+    var n = 0; for (var k in _selected) { if (_selected[k]) { n++; } }
+    var el = $("rep-sel-count");
+    if (el) { el.textContent = n ? (n + " sélectionnée(s)") : "Aucune sélection (export = liste filtrée)"; }
+    var all = $("rep-select-all");
+    if (all) {
+      var filtered = filteredList();
+      var allSel = filtered.length && filtered.every(function (c) { return _selected[c.ref]; });
+      all.checked = !!allSel;
+    }
+  }
+
+  function render() {
+    var box = $("rep-liste");
+    if (!box) { return; }
+
+    var filtered = filteredList();
 
     if ($("rep-count")) {
       $("rep-count").textContent = filtered.length + " fiche(s)";
@@ -180,8 +204,10 @@ var CAEKRepertoire = (function () {
         "<div class=\"rep-export-result\" hidden></div>" +
         "</div>";
 
+      var checked = _selected[c.ref] ? " checked" : "";
       return "<div class=\"rep-item\" data-ref=\"" + ref + "\">" +
         "<div class=\"rep-row\">" +
+        "<label class=\"rep-pick\" title=\"Sélectionner\"><input type=\"checkbox\" class=\"rep-check\" data-ref=\"" + ref + "\"" + checked + "></label>" +
         "<button type=\"button\" class=\"rep-open\" data-ref=\"" + ref + "\">" +
         "<div class=\"rep-top\"><span class=\"rep-ref\">" + ref + "</span>" +
         "<span class=\"badge badge-" + st + "\">" + (STATUT_LABEL[st] || st) + "</span></div>" +
@@ -198,6 +224,7 @@ var CAEKRepertoire = (function () {
         exportPanel +
         "</div>";
     }).join("");
+    updateSelCount();
   }
 
   /* ---------- Validation (brouillon -> validée) ---------- */
@@ -314,6 +341,38 @@ var CAEKRepertoire = (function () {
     });
   }
 
+  /* ---------- Export / partage de la liste des coulages ---------- */
+  function listResult(html, isError) {
+    var box = $("rep-list-result");
+    if (!box) { return; }
+    box.hidden = false;
+    box.className = "result-card " + (isError ? "is-error" : "is-ok");
+    box.innerHTML = html;
+  }
+
+  function doListExport() {
+    if (!window.CAEKExport) { return; }
+    var coulages = selectedCoulages();
+    if (!coulages.length) { listResult("&#9888; Aucune fiche à exporter.", true); return; }
+    var lotsP = (window.CAEKDB && CAEKDB.getAllLots) ? CAEKDB.getAllLots() : Promise.resolve([]);
+    lotsP.then(function (lots) {
+      CAEKExport.downloadList(coulages, lots);
+      listResult("&#10004; Liste exportée (" + coulages.length + " fiche(s)).", false);
+    }).catch(function (err) { listResult("&#9888; " + escapeHtml(err && err.message || err), true); });
+  }
+
+  function doListShare() {
+    if (!window.CAEKExport) { return; }
+    var coulages = selectedCoulages();
+    if (!coulages.length) { listResult("&#9888; Aucune fiche à partager.", true); return; }
+    var lotsP = (window.CAEKDB && CAEKDB.getAllLots) ? CAEKDB.getAllLots() : Promise.resolve([]);
+    lotsP.then(function (lots) {
+      return CAEKExport.shareList(coulages, lots).then(function (r) {
+        listResult(r && r.shared ? "&#10004; Liste partagée." : "&#10004; Liste exportée (" + coulages.length + " fiche(s)).", false);
+      });
+    }).catch(function (err) { listResult("&#9888; " + escapeHtml(err && err.message || err), true); });
+  }
+
   function init() {
     var s = $("rep-search");
     if (s) { s.addEventListener("input", render); }
@@ -330,6 +389,21 @@ var CAEKRepertoire = (function () {
         render();
       });
     }
+
+    var selAll = $("rep-select-all");
+    if (selAll) {
+      selAll.addEventListener("change", function () {
+        var filtered = filteredList();
+        filtered.forEach(function (c) {
+          if (selAll.checked) { _selected[c.ref] = true; } else { delete _selected[c.ref]; }
+        });
+        render();
+      });
+    }
+    var listXls = $("rep-list-xls");
+    if (listXls) { listXls.addEventListener("click", doListExport); }
+    var listShare = $("rep-list-share");
+    if (listShare) { listShare.addEventListener("click", doListShare); }
 
     var box = $("rep-liste");
     if (box) {
@@ -387,9 +461,16 @@ var CAEKRepertoire = (function () {
         }
       });
 
-      // Cases a cocher de recuperation : activer le bouton quand les 2 sont cochees.
       box.addEventListener("change", function (ev) {
         var chk = ev.target;
+        // Case de selection d'une fiche (export liste).
+        if (chk && chk.classList && chk.classList.contains("rep-check")) {
+          var r = chk.getAttribute("data-ref");
+          if (chk.checked) { _selected[r] = true; } else { delete _selected[r]; }
+          updateSelCount();
+          return;
+        }
+        // Cases a cocher de recuperation : activer le bouton quand les 2 sont cochees.
         if (!chk || !chk.classList ||
           !(chk.classList.contains("recup-c1") || chk.classList.contains("recup-c2"))) {
           return;

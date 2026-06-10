@@ -441,13 +441,15 @@ var CAEKBassin = (function () {
     if (!window.confirm(confirmMsg)) { return; }
 
     var now = new Date().toISOString();
-    // Codification individuelle (REF-01-Ei …) distribuée séquentiellement aux lots.
+    // Codification V2.02 (REF-Ei, code commun par prélèvement) distribuée
+    // séquentiellement aux lots ; on conserve le prélèvement, le n° interne
+    // et le malaxeur lié pour l'historique compression.
     var allCodes = window.CAEKModel ? CAEKModel.allCodes(coulage) : [];
     var offset = 0;
     var lots = kept.map(function (l) {
       var datePrevue = addDaysStr(coulage.dateCoulage || todayStr(), l.ageJours);
       var codes = allCodes.slice(offset, offset + l.nombre).map(function (x) {
-        return { code: x.code, type: x.type };
+        return { code: x.code, type: x.type, prel: x.prel, numInterne: x.numInterne, malaxeur: x.malaxeur };
       });
       offset += l.nombre;
       return {
@@ -455,8 +457,10 @@ var CAEKBassin = (function () {
         client: coulage.client || coulage.entreprise || "",
         nomProjet: coulage.nomProjet || "",
         ouvrage: coulage.ouvrageCoule || coulage.ouvrage || "",
+        ouvrageAutre: coulage.ouvrageAutre || "",
         bloc: coulage.bloc || "",
         etage: coulage.etage || "",
+        partie: coulage.partie || "",
         dateCoulage: coulage.dateCoulage || "",
         type: l.type,
         nombre: l.nombre,

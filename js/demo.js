@@ -1,14 +1,14 @@
 /* ============================================================
    Fiche de coulage terrain - CAEK
-   demo.js - V2.01 : jeu de donnees d'EXEMPLE pour controle.
+   demo.js - V2.02 : jeu de donnees d'EXEMPLE pour controle.
 
-   Cree des donnees fictives clairement identifiees par le prefixe
-   "DEMO-" couvrant tous les cas : recuperation d'eprouvettes,
-   retard de recuperation, a repartir, toutes les couleurs du bassin,
-   lots a tester / incomplet / historique de compression.
+   Donnees fictives prefixees "DEMO-" couvrant : recuperation,
+   retard de recuperation, codification a confirmer, brouillon,
+   ouvrage "Autres", Partie, prelevement porte par le malaxeur
+   (cube / cylindre / mixte / sans), toutes les couleurs du bassin,
+   lots a tester / incomplet / historique compression complet.
 
-   - Ne s'active JAMAIS automatiquement : l'utilisateur clique
-     volontairement sur « Charger donnees exemple V2.01 ».
+   - Ne s'active JAMAIS automatiquement.
    - La suppression ne touche QUE les enregistrements prefixes DEMO-.
    ============================================================ */
 
@@ -24,52 +24,77 @@ var CAEKDemo = (function () {
     return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
   }
   function nowIso() { return new Date().toISOString(); }
-
   function isDemoRef(ref) { return String(ref || "").indexOf(PREFIX) === 0; }
 
-  // Codes individuels REF-JJ-Ei pour un lot d'un seul prelevement.
-  function makeCodes(ref, nombre, type) {
-    var out = [];
-    for (var j = 1; j <= nombre; j++) {
-      out.push({ code: ref + "-" + pad2(j) + "-E1", type: type });
+  // Malaxeur d'exemple, avec ou sans prelevement (V2.02 : prelevement porte
+  // par le malaxeur). opts.prel = "cube"|"cylindre"|"mixte" ; opts.nombre.
+  function mal(opts) {
+    opts = opts || {};
+    var m = {
+      heure: opts.heure || "10:00", quantite: opts.quantite || 6,
+      affaissement: 8, temperature: 22, numCamion: opts.numCamion || "", numBL: opts.numBL || "",
+      preleve: false, prelType: "", prelNombre: "", prelObs: "",
+      formulation: { reprise: false, mode: "structure", fournisseur: "Centrale DEMO",
+        classe: "C25/30", ciment: "CPJ", dosage: "350", dmax: "25", adjuvant: "", photoId: null }
+    };
+    if (opts.prel) {
+      m.preleve = true; m.prelType = opts.prel; m.prelNombre = opts.nombre || 3;
+      m.prelObs = opts.prelObs || "";
     }
-    return out;
+    return m;
   }
 
-  // Coulage d'exemple (statut validee par defaut).
+  // Malaxeurs par defaut : M1 cube(3) preleve · M2 sans prelevement · M3 cylindre(2).
+  // -> demontre la numerotation E1 (M1) puis E2 (M3, pas E2 sur M2).
+  function defaultMalaxeurs() {
+    return [
+      mal({ prel: "cube", nombre: 3, heure: "10:30" }),
+      mal({ heure: "10:50" }),
+      mal({ prel: "cylindre", nombre: 2, heure: "11:10" })
+    ];
+  }
+
   function demoCoulage(ref, opts) {
     opts = opts || {};
-    var coulageDate = opts.dateCoulage || ymd(-1);
+    var brouillon = opts.statut === "brouillon";
+    var bloc = opts.bloc || "A", etage = opts.etage || "RDC", partie = opts.partie || "";
+    var zone = [bloc ? "Bloc " + bloc : "", etage, partie].filter(Boolean).join(" · ");
     return {
       ref: ref,
       statut: opts.statut || "validee",
       dateCreation: nowIso(),
-      dateValidation: nowIso(),
-      dateCoulage: coulageDate,
+      dateValidation: brouillon ? "" : nowIso(),
+      dateCoulage: opts.dateCoulage || ymd(-1),
       dateModification: nowIso(),
       estDemo: true,
       client: opts.client || "Client DEMO",
       entreprise: opts.client || "Client DEMO",
-      nomProjet: opts.nomProjet || "Projet exemple V2.01",
+      nomProjet: opts.nomProjet || "Projet exemple V2.02",
       codeProjet: "DEMO",
-      ouvrageCoule: opts.ouvrage || "Semelle",
-      ouvrageZonePartie: "Bloc DEMO / RDC",
+      ouvrageCoule: opts.ouvrageCoule || "Semelle isolée",
+      ouvrageAutre: opts.ouvrageAutre || "",
+      bloc: bloc, etage: etage, partie: partie,
+      ouvrageZonePartie: zone,
       signatureOperateur: "Op DEMO",
-      malaxeurs: [
-        { heure: "10:00", quantite: 6, affaissement: 8, temperature: 22, numCamion: "C1", numBL: "BL1",
-          formulation: { classe: "C25/30", fournisseur: "Centrale DEMO", dosage: 350 } }
-      ],
-      prelevements: opts.prelevements || [
-        { numero: "E1", heure: "10:30", type: "cube", nombre: 3, observation: "" },
-        { numero: "E2", heure: "11:00", type: "cylindre", nombre: 2, observation: "Exemple" }
-      ],
+      operateurValidation: brouillon ? "" : "Op DEMO",
+      qualificationValidation: brouillon ? "" : "Technicien",
+      malaxeurs: opts.malaxeurs || defaultMalaxeurs(),
       eprRecuperees: !!opts.eprRecuperees,
       codificationConfirmee: !!opts.codificationConfirmee,
       bassinReparti: !!opts.bassinReparti
     };
   }
 
-  // Lot d'exemple pour le bassin / la compression.
+  // Codes individuels d'un lot (V2.02 : 1 code commun REF-Ei par prelevement).
+  function lotCodes(ref, nombre, type, prel, malaxeur) {
+    var t = (type === "cylindre") ? "cylindre" : "cube";
+    var out = [];
+    for (var j = 1; j <= nombre; j++) {
+      out.push({ code: ref + "-E" + (prel || 1), type: t, prel: prel || 1, numInterne: j, malaxeur: malaxeur || 1 });
+    }
+    return out;
+  }
+
   function demoLot(ref, opts) {
     opts = opts || {};
     var type = opts.type || "cube";
@@ -78,16 +103,17 @@ var CAEKDemo = (function () {
       ref: ref,
       estDemo: true,
       client: opts.client || "Client DEMO",
-      nomProjet: opts.nomProjet || "Projet exemple V2.01",
-      ouvrage: opts.ouvrage || "Semelle",
-      bloc: "DEMO", etage: "RDC",
+      nomProjet: opts.nomProjet || "Projet exemple V2.02",
+      ouvrage: opts.ouvrage || "Semelle isolée",
+      ouvrageAutre: opts.ouvrageAutre || "",
+      bloc: opts.bloc || "A", etage: opts.etage || "RDC", partie: opts.partie || "",
       dateCoulage: opts.dateCoulage || ymd(-7),
       type: type,
       nombre: nombre,
       age: opts.age || "28j",
       ageJours: opts.ageJours || 28,
       datePrevue: opts.datePrevue || ymd(5),
-      codes: makeCodes(ref, nombre, type === "cylindre" ? "cylindre" : (type === "mixte" ? "cube" : "cube")),
+      codes: lotCodes(ref, nombre, type, opts.prel || 1, opts.malaxeur || 1),
       statut: opts.statut || "en_bassin",
       operateurRepartition: "Op DEMO",
       qualificationRepartition: "Technicien",
@@ -105,58 +131,60 @@ var CAEKDemo = (function () {
     };
   }
 
-  // Construit un tableau d'essais : nbFilled remplis, le reste vide.
+  // Tableau d'essais : nbFilled remplis, le reste vide. Codes REF-Ei + n° interne.
   function makeEssais(ref, nombre, type, nbFilled) {
-    var codes = makeCodes(ref, nombre, type);
     var dims = (type === "cylindre") ? { d1: 160, d2: 320 } : { d1: 150, d2: 150 };
-    var surface = (type === "cylindre")
-      ? Math.PI * (dims.d1 / 2) * (dims.d1 / 2)
-      : dims.d1 * dims.d2;
-    return codes.map(function (c, i) {
+    var surface = (type === "cylindre") ? Math.PI * (dims.d1 / 2) * (dims.d1 / 2) : dims.d1 * dims.d2;
+    var out = [];
+    for (var i = 0; i < nombre; i++) {
+      var base = {
+        code: ref + "-E1", prel: 1, numInterne: i + 1, prelInterne: i + 1, malaxeur: 1,
+        forme: type, dim1: dims.d1, dim2: dims.d2, surface: Math.round(surface), dateEssai: ymd(0)
+      };
       if (i < nbFilled) {
         var force = 450 + i * 20;
-        var rc = Math.round((force * 1000 / surface) * 100) / 100;
-        return {
-          code: c.code, forme: type, dim1: dims.d1, dim2: dims.d2,
-          surface: Math.round(surface), masse: 8 + i * 0.1,
-          dateEssai: ymd(0), force: force, rc: rc, observation: ""
-        };
+        base.masse = Math.round((8 + i * 0.1) * 100) / 100;
+        base.force = force;
+        base.rc = Math.round((force * 1000 / surface) * 100) / 100;
+        base.observation = "";
+      } else {
+        base.masse = ""; base.force = ""; base.rc = ""; base.observation = "";
       }
-      return {
-        code: c.code, forme: type, dim1: dims.d1, dim2: dims.d2,
-        surface: Math.round(surface), masse: "", dateEssai: ymd(0),
-        force: "", rc: "", observation: ""
-      };
-    });
+      out.push(base);
+    }
+    return out;
   }
 
   /* ---------- Chargement ---------- */
   function load() {
     if (!window.CAEKDB) { return Promise.reject(new Error("Base indisponible.")); }
 
-    // Coulages (cas A, B, C)
     var coulages = [
-      // A. Eprouvettes non recuperees -> badge Coulage
+      // A. Eprouvettes non recuperees -> badge / synthese Coulage
       demoCoulage(PREFIX + "RECUP", { nomProjet: "A. Eprouvettes a recuperer", dateCoulage: ymd(-1) }),
       // B. Retard de recuperation (> 3 jours)
       demoCoulage(PREFIX + "RETARD-RECUP", { nomProjet: "B. Retard recuperation", dateCoulage: ymd(-5) }),
       // C. Validee + recuperee + non repartie -> A repartir + badge Bassin
-      demoCoulage(PREFIX + "A-REPARTIR", {
-        nomProjet: "C. A repartir au bassin", dateCoulage: ymd(-1),
-        eprRecuperees: true, codificationConfirmee: true
-      }),
+      demoCoulage(PREFIX + "A-REPARTIR", { nomProjet: "C. A repartir au bassin", dateCoulage: ymd(-1),
+        eprRecuperees: true, codificationConfirmee: true }),
       // C2. Recuperee mais codification NON confirmee -> synthese Coulage
-      demoCoulage(PREFIX + "CODIF", {
-        nomProjet: "C2. Codification a confirmer", dateCoulage: ymd(-1),
-        eprRecuperees: true, codificationConfirmee: false
-      }),
-      // C3. Fiche brouillon (a valider) -> synthese Coulage
-      demoCoulage(PREFIX + "BROUILLON", {
-        nomProjet: "C3. Fiche a valider", dateCoulage: ymd(0), statut: "brouillon"
-      })
+      demoCoulage(PREFIX + "CODIF", { nomProjet: "C2. Codification a confirmer", dateCoulage: ymd(-1),
+        eprRecuperees: true, codificationConfirmee: false }),
+      // C3. Brouillon (a valider) -> synthese Coulage
+      demoCoulage(PREFIX + "BROUILLON", { nomProjet: "C3. Fiche a valider", dateCoulage: ymd(0), statut: "brouillon" }),
+      // H. Ouvrage "Autres" + Partie + malaxeur mixte (deja traitee : aucun badge)
+      demoCoulage(PREFIX + "OUVRAGE-AUTRE", {
+        nomProjet: "H. Ouvrage Autres + Partie", dateCoulage: ymd(-2),
+        ouvrageCoule: "Autres : Massif d'ancrage", ouvrageAutre: "Massif d'ancrage",
+        bloc: "B", etage: "2e étage", partie: "Partie 2",
+        malaxeurs: [
+          mal({ prel: "cube", nombre: 3, heure: "08:30" }),
+          mal({ heure: "08:50" }),
+          mal({ prel: "mixte", nombre: 4, heure: "09:10", prelObs: "Cube + cylindre" })
+        ],
+        eprRecuperees: true, codificationConfirmee: true, bassinReparti: true })
     ];
 
-    // Lots (cas D, E, F, G)
     var lots = [
       // D. Toutes les couleurs du bassin + formes (cube/cylindre/mixte)
       demoLot(PREFIX + "LOIN", { nomProjet: "D. Echeance loin", type: "cube",
@@ -183,19 +211,17 @@ var CAEKDemo = (function () {
         statut: "sorti", dateSortie: ymd(0), heureSortie: "09:15", operateurSortie: "Op DEMO",
         essais: makeEssais(PREFIX + "COMP-INCOMPLET", 4, "cube", 2) }),
 
-      // G. Historique : lot teste (toutes eprouvettes saisies)
-      demoLot(PREFIX + "HISTO", { nomProjet: "G. Historique", type: "cube",
+      // G. Historique complet : lot teste (contexte ouvrage/bloc/etage/partie)
+      demoLot(PREFIX + "HISTO", { nomProjet: "G. Historique complet", type: "cube",
+        ouvrage: "Voile", bloc: "B", etage: "2e étage", partie: "Partie 1",
         age: "28j", ageJours: 28, datePrevue: ymd(-2), nombre: 3,
         statut: "teste", dateEssai: ymd(0), heureEssai: "10:00",
         operateurEssai: "Op DEMO", qualificationEssai: "Technicien",
         essais: makeEssais(PREFIX + "HISTO", 3, "cube", 3) })
     ];
 
-    // Ecrit d'abord les coulages (sequentiellement), puis les lots.
     var chain = Promise.resolve();
-    coulages.forEach(function (c) {
-      chain = chain.then(function () { return CAEKDB.saveCoulage(c); });
-    });
+    coulages.forEach(function (c) { chain = chain.then(function () { return CAEKDB.saveCoulage(c); }); });
     return chain.then(function () { return CAEKDB.addLots(lots); })
       .then(function () { return { coulages: coulages.length, lots: lots.length }; });
   }

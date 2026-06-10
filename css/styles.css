@@ -1352,6 +1352,67 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
 .synth-chip.sev-green { color: #2e7d32; }
 .synth-chip.sev-neutral { color: var(--text-muted); }
 
+/* ============================================================
+   V2.02 — prelevement par malaxeur, recap lecture seule,
+   enregistrement brouillon (dirty), selection/export repertoire,
+   historique compression complet.
+   ============================================================ */
+
+/* ---------- Choix du moule (cube / cylindre / mixte) ---------- */
+.mold-choice { display: flex; gap: 12px; margin: 8px 0 4px; }
+.mold-btn {
+  position: relative; flex: 1 1 0; min-height: 96px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: var(--white); border: 2px solid var(--gray-line); border-radius: var(--radius);
+  cursor: pointer; padding: 10px;
+}
+.mold-btn .mold-img { width: 56px; height: 56px; object-fit: contain; pointer-events: none; }
+.mold-btn .mold-label { font-size: 14px; font-weight: 700; color: var(--text-dark); }
+.mold-btn .mold-check {
+  position: absolute; top: 6px; right: 8px; width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--gray-line); color: #fff; font-size: 13px; font-weight: 700;
+}
+.mold-btn.is-selected { border-color: var(--caek-red); background: #fff5f5; }
+.mold-btn.is-selected .mold-check { background: var(--caek-red); }
+
+/* ---------- Prelevements au recap (lecture seule) ---------- */
+.prel-ro {
+  background: var(--white); border: 1px solid var(--gray-line);
+  border-left: 4px solid var(--caek-red); border-radius: var(--radius);
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.prel-ro-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.prel-ro-code { font-weight: 700; color: var(--caek-red); font-variant-numeric: tabular-nums; }
+.prel-ro-body { font-size: 14px; color: var(--text-dark); }
+
+/* ---------- Enregistrement brouillon : indicateur dirty ---------- */
+.fc-save-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 12px 0 4px; }
+.btn-primary.fc-save-dirty { background: var(--caek-red); animation: caek-pulse 1.4s ease-in-out infinite; }
+@keyframes caek-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(204,0,0,.4); } 50% { box-shadow: 0 0 0 6px rgba(204,0,0,0); } }
+.fc-save-state { font-size: 14px; font-weight: 600; }
+.fc-save-state.is-dirty { color: var(--caek-red); }
+.fc-save-state.is-saved { color: #2e7d32; }
+
+/* ---------- Repertoire : selection + export liste ---------- */
+.rep-export-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; margin: 4px 0 10px;
+  background: var(--gray-bg); border: 1px solid var(--gray-line); border-radius: var(--radius);
+}
+.rep-selall { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.rep-selall input { width: 20px; height: 20px; }
+.rep-export-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.rep-export-bar #rep-sel-count { margin: 0; }
+.rep-export-bar .btn-secondary { width: auto; min-width: 0; padding: 8px 12px; margin: 0; }
+#rep-list-result { flex-basis: 100%; margin: 4px 0 0; }
+.rep-pick { display: flex; align-items: flex-start; padding: 4px 8px 0 2px; flex: 0 0 auto; }
+.rep-pick input { width: 22px; height: 22px; }
+
+/* ---------- Compression : n° interne + contexte historique ---------- */
+.comp-code .comp-num { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.comp-hist-ctx { font-size: 13px; color: var(--text-muted); margin: 2px 0 4px; }
+
 /* ---------- Larger screens ---------- */
 @media (min-width: 600px) {
   .app-main { padding: 28px 24px; }

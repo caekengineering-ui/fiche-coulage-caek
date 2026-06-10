@@ -1,21 +1,28 @@
 /* ============================================================
    Fiche de coulage terrain - CAEK
-   model.js - V2.01 : modele partage des prelevements d'eprouvettes
+   model.js - V2.02 : modele partage des prelevements d'eprouvettes
    et de la codification.
 
-   Source de verite des eprouvettes = coulage.prelevements (Array) :
-     [{ numero:"E1", heure:"10:30", type:"cube|cylindre|mixte",
-        nombre:6, observation:"" }, ...]
+   Source de verite (V2.02) = prelevement porte par CHAQUE malaxeur :
+     malaxeur.preleve   = true/false (prelevement effectue ?)
+     malaxeur.prelType  = "cube" | "cylindre" | "mixte"
+     malaxeur.prelNombre= nombre TOTAL d'eprouvettes prelevees
+     malaxeur.prelObs   = observation (facultatif)
 
-   Retro-compatibilite V2 : si un coulage n'a pas de tableau
-   prelevements, on le derive des anciens malaxeurs (champs preleve /
-   eprCube / eprCylindre / eprNombre).
+   Numerotation E1, E2, E3 : suit uniquement les malaxeurs AYANT
+   reellement effectue un prelevement (pas le numero du malaxeur).
+     Malaxeur 1 preleve -> E1 ; Malaxeur 2 sans -> rien ;
+     Malaxeur 3 preleve -> E2.
 
-   Codification d'une eprouvette : REF-JJ-Ei
-     REF = ref du coulage (ex. API031)
-     JJ  = numero de l'eprouvette dans le prelevement (01, 02, ...)
-     Ei  = numero du prelevement (E1, E2, E3, ...)
-   Exemple : API031-01-E1 ... API031-06-E1 (prelevement E1 de 6).
+   Codification (V2.02 simplifiee) : 1 prelevement = 1 code commun.
+     Code inscrit sur TOUTES les eprouvettes du prelevement Ei = REF-Ei
+     Ex. API031-E1 (6 eprouvettes), API031-E2 (3 eprouvettes).
+   Le numero interne d'eprouvette (1..N) reste dispo pour le module
+   compression mais n'est PAS inscrit sur l'eprouvette.
+
+   Retro-compatibilite :
+     - V2.01 : tableau coulage.prelevements[] (sans lien malaxeur) ;
+     - V2    : anciens champs malaxeur preleve/eprCube/eprCylindre/eprNombre.
    ============================================================ */
 
 var CAEKModel = (function () {
@@ -26,38 +33,69 @@ var CAEKModel = (function () {
 
   // Type d'eprouvette d'un ancien malaxeur (retro-compat V2).
   function malaxeurType(m) {
-    if (!m) { return ""; }
+    if (!m) { return "cube"; }
     var cube = !!m.eprCube, cyl = !!m.eprCylindre;
     if (cube && cyl) { return "mixte"; }
     if (cube) { return "cube"; }
     if (cyl) { return "cylindre"; }
-    return "cube"; // prelevement sans type explicite : cube par defaut
+    return "cube";
   }
 
-  // Reconstruit des prelevements a partir des anciens malaxeurs.
+  // Un malaxeur porte-t-il un prelevement V2.02 ?
+  function malaxeurHasPrel(m) {
+    return !!(m && m.preleve === true && (m.prelType || intOr0(m.prelNombre) > 0));
+  }
+
+  // Reconstruit des prelevements a partir des anciens malaxeurs V2.
   function derivePrelevements(c) {
     var out = [];
     var mals = (c && c.malaxeurs) || [];
+    var k = 0;
     for (var i = 0; i < mals.length; i++) {
       var m = mals[i];
       if (m && m.preleve === true) {
         var nb = intOr0(m.eprNombre);
         if (nb > 0) {
-          out.push({
-            heure: m.heure || "",
-            type: malaxeurType(m),
-            nombre: nb,
-            observation: ""
-          });
+          k++;
+          out.push({ numero: "E" + k, malaxeur: i + 1, heure: m.heure || "",
+            type: malaxeurType(m), nombre: nb, observation: "" });
         }
       }
     }
     return out;
   }
 
-  // Liste normalisee des prelevements du coulage.
+  // Liste normalisee des prelevements du coulage (E1, E2, ...).
   function prelevements(c) {
-    if (c && Array.isArray(c.prelevements)) { return c.prelevements; }
+    var mals = (c && c.malaxeurs) || [];
+    // Priorite 1 : prelevements portes par les malaxeurs (V2.02).
+    var anyMal = false;
+    for (var a = 0; a < mals.length; a++) { if (malaxeurHasPrel(mals[a])) { anyMal = true; break; } }
+    if (anyMal) {
+      var out = [], k = 0;
+      for (var i = 0; i < mals.length; i++) {
+        var m = mals[i];
+        if (malaxeurHasPrel(m)) {
+          k++;
+          out.push({
+            numero: "E" + k, malaxeur: i + 1, heure: m.heure || "",
+            type: m.prelType || "cube", nombre: intOr0(m.prelNombre),
+            observation: m.prelObs || ""
+          });
+        }
+      }
+      return out;
+    }
+    // Priorite 2 : tableau standalone V2.01.
+    if (c && Array.isArray(c.prelevements)) {
+      return c.prelevements.map(function (p, i) {
+        return {
+          numero: "E" + (i + 1), malaxeur: p.malaxeur || "", heure: p.heure || "",
+          type: p.type || "cube", nombre: intOr0(p.nombre), observation: p.observation || ""
+        };
+      });
+    }
+    // Priorite 3 : anciens malaxeurs V2.
     return derivePrelevements(c);
   }
 
@@ -69,11 +107,12 @@ var CAEKModel = (function () {
 
   function hasEprouvettes(c) { return totalEprouvettes(c) > 0; }
 
-  // Numero affiche d'un prelevement : "E" + (index 1-based).
-  function prelLabel(i) { return "E" + (i + 1); }
+  // Code commun d'un prelevement : REF-Ei (sans numero individuel).
+  function prelCode(ref, ei) { return (ref || "") + "-E" + ei; }
 
-  // Toutes les eprouvettes avec leur codification individuelle.
-  // -> [{ code, type, prel (1-based), index (1-based) }]
+  // Toutes les eprouvettes individuelles (pour repartition en lots).
+  // Toutes celles d'un meme prelevement partagent le meme code REF-Ei.
+  // -> [{ code, type, prel (1-based), numInterne (1..nombre), malaxeur }]
   function allCodes(c) {
     var ref = (c && c.ref) || "";
     var list = prelevements(c);
@@ -84,10 +123,11 @@ var CAEKModel = (function () {
       var ei = i + 1;
       for (var j = 1; j <= nb; j++) {
         out.push({
-          code: ref + "-" + pad2(j) + "-E" + ei,
+          code: prelCode(ref, ei),
           type: p.type || "cube",
           prel: ei,
-          index: j
+          numInterne: j,
+          malaxeur: p.malaxeur || ""
         });
       }
     }
@@ -95,28 +135,22 @@ var CAEKModel = (function () {
   }
 
   // Codification groupee par prelevement (pour les recaps / exports).
-  // -> [{ numero, type, heure, nombre, observation, premier, dernier, codes:[] }]
+  // -> [{ numero, malaxeur, type, heure, nombre, observation, code }]
   function codification(c) {
     var ref = (c && c.ref) || "";
     var list = prelevements(c);
     var out = [];
     for (var i = 0; i < list.length; i++) {
       var p = list[i];
-      var nb = intOr0(p.nombre);
       var ei = i + 1;
-      var codes = [];
-      for (var j = 1; j <= nb; j++) {
-        codes.push(ref + "-" + pad2(j) + "-E" + ei);
-      }
       out.push({
-        numero: prelLabel(i),
+        numero: p.numero || ("E" + ei),
+        malaxeur: p.malaxeur || "",
         type: p.type || "cube",
         heure: p.heure || "",
-        nombre: nb,
+        nombre: intOr0(p.nombre),
         observation: p.observation || "",
-        premier: codes.length ? codes[0] : "",
-        dernier: codes.length ? codes[codes.length - 1] : "",
-        codes: codes
+        code: prelCode(ref, ei)
       });
     }
     return out;
@@ -154,10 +188,12 @@ var CAEKModel = (function () {
     pad2: pad2,
     intOr0: intOr0,
     malaxeurType: malaxeurType,
+    malaxeurHasPrel: malaxeurHasPrel,
     derivePrelevements: derivePrelevements,
     prelevements: prelevements,
     totalEprouvettes: totalEprouvettes,
     hasEprouvettes: hasEprouvettes,
+    prelCode: prelCode,
     allCodes: allCodes,
     codification: codification,
     typesInfo: typesInfo,

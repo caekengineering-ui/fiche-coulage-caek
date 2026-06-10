@@ -89,7 +89,10 @@ var CAEKExport = (function () {
     aoa.push(["Référence dossier", c.referenceDossier || ""]);
     aoa.push([]);
     aoa.push(["Ouvrage(s) coulé(s)", c.ouvrageCoule || ""]);
-    aoa.push(["Bloc / Étage", c.ouvrageZonePartie || ""]);
+    if (c.ouvrageAutre) { aoa.push(["Ouvrage (autre)", c.ouvrageAutre]); }
+    aoa.push(["Bloc", c.bloc || ""]);
+    aoa.push(["Étage", c.etage || ""]);
+    aoa.push(["Partie", c.partie || ""]);
     aoa.push([]);
     aoa.push(["MALAXEURS"]);
     aoa.push(["N°", "Heure", "Quantité (m³)", "Affaiss. (cm)", "Temp. (°C)",
@@ -102,20 +105,19 @@ var CAEKExport = (function () {
     });
     aoa.push([]);
 
-    // --- Prelevements d'eprouvettes + codification (V2.01) ---
+    // --- Prelevements d'eprouvettes + codification (V2.02 : 1 code par prelevement) ---
     var codif = window.CAEKModel ? CAEKModel.codification(c) : [];
     aoa.push(["PRÉLÈVEMENTS D'ÉPROUVETTES"]);
-    aoa.push(["Prélèvement", "Heure", "Type", "Nombre", "Codification", "Observation"]);
+    aoa.push(["Prélèvement", "Malaxeur", "Heure", "Type", "Nombre", "Code éprouvettes", "Observation"]);
     if (codif.length) {
       codif.forEach(function (p) {
-        var plage = p.nombre > 1 ? (p.premier + " → " + p.dernier) : (p.premier || "");
         aoa.push([
-          p.numero, p.heure || "", TYPE_LABEL_XLS[p.type] || p.type || "",
-          p.nombre || "", plage, p.observation || ""
+          p.numero, p.malaxeur ? "Malaxeur " + p.malaxeur : "", p.heure || "",
+          TYPE_LABEL_XLS[p.type] || p.type || "", p.nombre || "", p.code || "", p.observation || ""
         ]);
       });
     } else {
-      aoa.push(["Aucun prélèvement", "", "", "", "", ""]);
+      aoa.push(["Aucun prélèvement", "", "", "", "", "", ""]);
     }
     aoa.push([]);
     aoa.push(["Quantité totale (m³)", t.quantite]);
@@ -128,8 +130,8 @@ var CAEKExport = (function () {
     aoa.push(["Opérateur (signature interne)", c.signatureOperateur || ""]);
 
     var ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = [{ wch: 13 }, { wch: 9 }, { wch: 13 }, { wch: 12 }, { wch: 22 },
-      { wch: 14 }, { wch: 12 }, { wch: 34 }];
+    ws["!cols"] = [{ wch: 13 }, { wch: 12 }, { wch: 9 }, { wch: 14 }, { wch: 10 },
+      { wch: 16 }, { wch: 30 }];
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Fiche coulage");
     appendCompatSheets(wb, c);
@@ -307,12 +309,129 @@ var CAEKExport = (function () {
     });
   }
 
+  /* ============================================================
+     LISTE DES COULAGES (export / partage depuis le Repertoire)
+     ============================================================ */
+
+  var LIST_HEADERS = ["Référence coulage", "Date coulage", "Client", "Projet", "Ouvrage",
+    "Ouvrage autre", "Bloc", "Étage", "Partie", "Nb malaxeurs", "Nb prélèvements",
+    "Nb éprouvettes", "Statut fiche", "Éprouvettes récupérées", "Codification confirmée",
+    "Statut bassin", "Statut compression", "Opérateur validation"];
+
+  function oui(b) { return b ? "Oui" : "Non"; }
+
+  // Statuts bassin / compression deduits des lots d'une reference.
+  function lotStatuts(lots) {
+    var st = { bassin: "—", compression: "—" };
+    if (!lots || !lots.length) { return st; }
+    var nb = lots.length, en = 0, sortis = 0, testes = 0;
+    lots.forEach(function (l) {
+      if (l.statut === "en_bassin") { en++; }
+      else if (l.statut === "sorti") { sortis++; }
+      else if (l.statut === "teste") { testes++; }
+    });
+    if (en) { st.bassin = "En bassin (" + en + "/" + nb + ")"; }
+    else if (sortis || testes) { st.bassin = "Sortis (" + (sortis + testes) + "/" + nb + ")"; }
+    else { st.bassin = "Réparti"; }
+    if (testes && sortis) { st.compression = "Partiel (" + testes + "/" + nb + " testés)"; }
+    else if (testes) { st.compression = "Testé (" + testes + "/" + nb + ")"; }
+    else if (sortis) { st.compression = "À tester (" + sortis + ")"; }
+    return st;
+  }
+
+  function listRow(c, lotsByRef) {
+    var prels = window.CAEKModel ? CAEKModel.codification(c) : [];
+    var nbEpr = window.CAEKModel ? CAEKModel.totalEprouvettes(c) : 0;
+    var st = lotStatuts(lotsByRef && lotsByRef[c.ref]);
+    var hasEpr = window.CAEKModel ? CAEKModel.hasEprouvettes(c) : false;
+    return [
+      c.ref || "", fmtDateFr(c.dateCoulage), c.client || c.entreprise || "", c.nomProjet || "",
+      c.ouvrageCoule || "", c.ouvrageAutre || "", c.bloc || "", c.etage || "", c.partie || "",
+      (c.malaxeurs || []).length, prels.length, nbEpr, statutLabel(c.statut),
+      hasEpr ? oui(!!c.eprRecuperees) : "—", hasEpr ? oui(!!c.codificationConfirmee) : "—",
+      st.bassin, st.compression, c.operateurValidation || c.signatureOperateur || ""
+    ];
+  }
+
+  // Construit un index lots par reference (a partir d'un tableau de lots).
+  function indexLots(lots) {
+    var by = {};
+    (lots || []).forEach(function (l) { (by[l.ref] = by[l.ref] || []).push(l); });
+    return by;
+  }
+
+  function buildListWorkbook(coulages, lots) {
+    var lotsByRef = indexLots(lots);
+    var aoa = [];
+    aoa.push(["CAEK ENGINEERING LAB — Liste des fiches de coulage"]);
+    aoa.push(["Édité le " + fmtDateFr(new Date().toISOString().slice(0, 10)) +
+      " · " + (coulages || []).length + " fiche(s)"]);
+    aoa.push([]);
+    aoa.push(LIST_HEADERS);
+    (coulages || []).forEach(function (c) { aoa.push(listRow(c, lotsByRef)); });
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [{ wch: 16 }, { wch: 12 }, { wch: 20 }, { wch: 22 }, { wch: 18 }, { wch: 16 },
+      { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 11 },
+      { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Coulages");
+    return wb;
+  }
+
+  function downloadList(coulages, lots) {
+    var wb = buildListWorkbook(coulages, lots);
+    var out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    var blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    triggerDownload(blob, "coulages_CAEK_" + new Date().toISOString().slice(0, 10) + ".xlsx");
+  }
+
+  function buildListMessage(coulages) {
+    var n = (coulages || []).length;
+    var lignes = (coulages || []).map(function (c) {
+      var nbEpr = window.CAEKModel ? CAEKModel.totalEprouvettes(c) : 0;
+      return "- " + (c.ref || "") + " | " + (c.client || c.entreprise || "—") +
+        " | " + (c.nomProjet || "—") + " | " + (fmtDateFr(c.dateCoulage) || "—") +
+        " | " + nbEpr + " épr. | " + statutLabel(c.statut);
+    });
+    return "CAEK — Liste des fiches de coulage (" + n + ")\n" +
+      lignes.join("\n") + "\nCAEK Engineering Lab.";
+  }
+
+  function shareList(coulages, lots) {
+    var titre = "Liste des coulages CAEK";
+    var texte = buildListMessage(coulages);
+    var wb = buildListWorkbook(coulages, lots);
+    var out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    var blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    var name = "coulages_CAEK_" + new Date().toISOString().slice(0, 10) + ".xlsx";
+    var file = null;
+    try { file = new File([blob], name, { type: blob.type }); } catch (e) { file = null; }
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      return navigator.share({ files: [file], title: titre, text: texte })
+        .then(function () { return { shared: true }; })
+        .catch(function (err) {
+          if (err && err.name === "AbortError") { return { shared: false }; }
+          triggerDownload(blob, name); return { shared: false, downloaded: true };
+        });
+    }
+    if (navigator.share) {
+      return navigator.share({ title: titre, text: texte })
+        .then(function () { triggerDownload(blob, name); return { shared: true, downloaded: true }; })
+        .catch(function () { triggerDownload(blob, name); return { shared: false, downloaded: true }; });
+    }
+    triggerDownload(blob, name);
+    return Promise.resolve({ shared: false, downloaded: true });
+  }
+
   return {
     buildMessage: buildMessage,
     toBlob: toBlob,
     fileName: xlsxName,
     download: download,
     downloadZip: downloadZip,
-    share: share
+    share: share,
+    downloadList: downloadList,
+    shareList: shareList,
+    buildListMessage: buildListMessage
   };
 })();

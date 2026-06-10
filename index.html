@@ -91,10 +91,6 @@
           <span class="tile-icon" aria-hidden="true">&#129518;</span>
           <span class="tile-label">Bassin virtuel</span>
         </button>
-        <button class="tile" data-goto="screen-archives">
-          <span class="tile-icon" aria-hidden="true">&#128230;</span>
-          <span class="tile-label">Archives</span>
-        </button>
       </div>
     </section>
 
@@ -151,24 +147,6 @@
     </section>
 
     <!-- BASSIN > ARCHIVES -->
-    <section id="screen-archives" class="screen">
-      <button class="btn-back" data-goto="screen-bassin">&#8592; Retour</button>
-      <h1 class="screen-title">Archives</h1>
-      <p class="hint">Historique permanent des écrasements. Jamais supprimé.</p>
-      <div class="archive-filtre">
-        <label class="field-label" for="arch-du">Du</label>
-        <input id="arch-du" class="field" type="date">
-        <label class="field-label" for="arch-au">au</label>
-        <input id="arch-au" class="field" type="date">
-      </div>
-      <div class="archive-actions">
-        <button id="arch-export-xls" class="btn-primary" type="button">&#11015; Exporter en Excel</button>
-        <button id="arch-share" class="btn-secondary" type="button">&#128228; Partager la liste</button>
-      </div>
-      <div id="arch-count" class="hint"></div>
-      <div id="arch-liste"></div>
-    </section>
-
     <!-- Overlay detail / ecrasement d'un lot -->
     <div id="bassin-detail" class="bassin-overlay" hidden>
       <div class="bassin-overlay-card">
@@ -232,7 +210,7 @@
 
     <!-- ECRAN NOUVEAU COULAGE (T3) -->
     <section id="screen-nouveau" class="screen">
-      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <button class="btn-back" data-goto="screen-coulage">&#8592; Retour</button>
       <h1 class="screen-title">Nouveau coulage</h1>
 
       <div class="seg-switch" id="nc-mode-switch">
@@ -317,7 +295,10 @@
         <div id="fc-ouvrages-resume" class="ouvrage-resume" hidden></div>
         <input id="fc-ouvrage-coule" type="hidden">
 
-        <h2 class="block-title">Bloc / Étage <span class="opt">(facultatif)</span></h2>
+        <label class="opt-toggle" for="fc-ouvrage-autre-on"><input type="checkbox" id="fc-ouvrage-autre-on"><span>&#10133; Autres (ouvrage non listé) <span class="opt">(à préciser)</span></span></label>
+        <input id="fc-ouvrage-autre" class="field opt-field" type="text" placeholder="Préciser l'ouvrage" autocomplete="off" hidden>
+
+        <h2 class="block-title">Bloc / Étage / Partie <span class="opt">(facultatif)</span></h2>
         <label class="opt-toggle" for="fc-bloc-on"><input type="checkbox" id="fc-bloc-on"><span>&#127970; Bloc / zone <span class="opt">(facultatif)</span></span></label>
         <input id="fc-bloc" class="field opt-field" type="text" placeholder="ex. A, B, Bloc 5, Zone 2" autocomplete="off" hidden>
 
@@ -349,9 +330,12 @@
           <option>Buanderie</option>
         </select>
 
+        <label class="opt-toggle" for="fc-partie-on"><input type="checkbox" id="fc-partie-on"><span>&#129521; Partie <span class="opt">(facultatif — coulage en plusieurs reprises)</span></span></label>
+        <input id="fc-partie" class="field opt-field" type="text" placeholder="ex. Partie 1, Partie 2, Partie 3" autocomplete="off" hidden>
+
         <div class="fc-go-wrap">
-          <img class="fc-go-illus" src="assets/icons/ouvrages/prelevement_beton.png" alt="Prélèvement de béton frais">
-          <button id="fc-go-malaxeur" class="btn-primary btn-xl" type="button">Saisir les malaxeurs</button>
+          <img class="fc-go-illus" src="assets/icons/ouvrages/prelevement_beton.png" alt="Début du coulage">
+          <button id="fc-go-malaxeur" class="btn-primary btn-xl" type="button">&#9654; Début coulage</button>
         </div>
       </div>
 
@@ -450,9 +434,36 @@
           </div>
         </div>
 
+        <h3 class="block-subtitle"><img class="subtitle-icon" src="assets/icons/ouvrages/echantillon_frais.png" alt=""> Prélèvement d'échantillons</h3>
+        <p class="hint">Avez-vous effectué un prélèvement d'échantillons de béton sur ce malaxeur / toupie ?</p>
+        <div class="seg-switch seg-yesno" id="fc-mal-prel-switch">
+          <button type="button" class="seg" data-prel="oui">Oui</button>
+          <button type="button" class="seg" data-prel="non">Non</button>
+        </div>
+        <div id="fc-mal-prel-detail" hidden>
+          <p class="hint">Type de moule — touchez <strong>Cube</strong>, <strong>Cylindre</strong>, ou les deux (= prélèvement mixte) :</p>
+          <div class="mold-choice" id="fc-mal-mold">
+            <button type="button" class="mold-btn" data-mold="cube">
+              <span class="mold-check">✓</span>
+              <img class="mold-img" src="assets/icons/ouvrages/moule_cubique.png" alt="">
+              <span class="mold-label">Cube</span>
+            </button>
+            <button type="button" class="mold-btn" data-mold="cylindre">
+              <span class="mold-check">✓</span>
+              <img class="mold-img" src="assets/icons/ouvrages/moule_cylindrique.png" alt="">
+              <span class="mold-label">Cylindre</span>
+            </button>
+          </div>
+          <label class="field-label" for="fc-mal-prel-nb">&#129514; Nombre total d'éprouvettes prélevées</label>
+          <input id="fc-mal-prel-nb" class="field" type="number" min="1" step="1" inputmode="numeric">
+          <label class="opt-toggle" for="fc-mal-prel-obs-on"><input type="checkbox" id="fc-mal-prel-obs-on"><span>&#128221; Observation prélèvement <span class="opt">(facultatif)</span></span></label>
+          <input id="fc-mal-prel-obs" class="field opt-field" type="text" autocomplete="off" hidden>
+          <div id="fc-mal-prel-codif" class="prel-codif" hidden></div>
+        </div>
+
         <div class="fc-mal-actions">
-          <button id="fc-mal-continuer" class="btn-secondary" type="button">&#10133; Continuer (malaxeur suivant)</button>
-          <button id="fc-mal-terminer" class="btn-primary" type="button">&#9989; Terminer</button>
+          <button id="fc-mal-continuer" class="btn-secondary" type="button">&#10133; Malaxeur suivant</button>
+          <button id="fc-mal-terminer" class="btn-primary" type="button">&#9989; Terminer le coulage</button>
         </div>
         <button id="fc-mal-annuler" class="btn-text" type="button">Annuler ce malaxeur</button>
       </div>
@@ -464,10 +475,9 @@
 
         <button id="fc-recap-add" class="btn-secondary" type="button">&#10133; Ajouter un malaxeur</button>
 
-        <h3 class="block-subtitle"><img class="subtitle-icon" src="assets/icons/ouvrages/echantillon_frais.png" alt=""> Prélèvements d'éprouvettes</h3>
-        <p class="hint">Indiquez chaque prélèvement (E1, E2, …) : heure, type, nombre. La codification est calculée automatiquement.</p>
+        <h3 class="block-subtitle"><img class="subtitle-icon" src="assets/icons/ouvrages/echantillon_frais.png" alt=""> Prélèvements réalisés</h3>
+        <p class="hint">Les prélèvements sont déclarés pendant la saisie de chaque malaxeur. Codification : <strong>RÉF-E1</strong>, <strong>RÉF-E2</strong>…</p>
         <div id="fc-prelevements" class="fc-prelevements"></div>
-        <button id="fc-prel-add" class="btn-secondary" type="button">&#10133; Ajouter un prélèvement</button>
 
         <h3 class="block-subtitle">&#9888;&#65039; Signaler un problème / anomalie</h3>
         <textarea id="fc-anomalie-texte" class="field" rows="2" placeholder="Décrire le problème (facultatif)"></textarea>
@@ -485,7 +495,10 @@
         <input id="fc-operateur" class="field" type="text" autocomplete="off">
         <p id="fc-operateur-hint" class="hint" hidden></p>
 
-        <button id="fc-save" class="btn-primary" type="button">&#128190; Enregistrer le coulage</button>
+        <div id="fc-save-bar" class="fc-save-bar" hidden>
+          <button id="fc-save" class="btn-primary fc-save-dirty" type="button">&#128190; Enregistrer les modifications</button>
+          <span id="fc-save-state" class="fc-save-state"></span>
+        </div>
         <p class="hint">La <strong>validation</strong> et le <strong>partage au bureau</strong> se font ensuite depuis le <strong>Répertoire des coulages</strong>.</p>
 
         <div id="fc-locked-note" class="locked-box" hidden>
@@ -500,7 +513,7 @@
 
     <!-- ECRAN REPERTOIRE (T5) -->
     <section id="screen-repertoire" class="screen">
-      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <button class="btn-back" data-goto="screen-coulage">&#8592; Retour</button>
       <h1 class="screen-title">Répertoire</h1>
       <div class="synthese-bar" data-synth="coulage"></div>
 
@@ -511,6 +524,17 @@
         <button type="button" class="chip" data-statut="brouillon">Brouillons</button>
         <button type="button" class="chip" data-statut="validee">Validées</button>
         <button type="button" class="chip" data-statut="envoyee">Envoyées</button>
+      </div>
+
+      <!-- Export / partage de la liste des coulages -->
+      <div class="rep-export-bar">
+        <label class="rep-selall"><input type="checkbox" id="rep-select-all"> Tout sélectionner</label>
+        <span id="rep-sel-count" class="hint"></span>
+        <div class="rep-export-actions">
+          <button id="rep-list-xls" class="btn-secondary" type="button">&#11015; Exporter liste (Excel)</button>
+          <button id="rep-list-share" class="btn-secondary" type="button">&#128228; Partager liste</button>
+        </div>
+        <div id="rep-list-result" class="result-card" hidden></div>
       </div>
 
       <div id="rep-count" class="hint"></div>

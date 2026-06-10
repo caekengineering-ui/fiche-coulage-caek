@@ -152,7 +152,8 @@ var CAEKCompression = (function () {
     var l1 = isCyl ? "Ø (mm)" : "Larg. (mm)";
     var l2 = isCyl ? "Haut. (mm)" : "Long. (mm)";
     return "<div class=\"comp-row\" data-code=\"" + escapeHtml(e.code) + "\" data-i=\"" + i + "\">" +
-      "<div class=\"comp-row-head\"><span class=\"comp-code\">" + escapeHtml(e.code) + "</span>" +
+      "<div class=\"comp-row-head\"><span class=\"comp-code\">" + escapeHtml(e.code) +
+        " <span class=\"comp-num\">n°" + (i + 1) + "</span></span>" +
         "<select class=\"field comp-forme\">" +
           "<option value=\"cube\"" + (isCyl ? "" : " selected") + ">Cube</option>" +
           "<option value=\"cylindre\"" + (isCyl ? " selected" : "") + ">Cylindre</option>" +
@@ -188,6 +189,10 @@ var CAEKCompression = (function () {
       var def = (forme === "cylindre") ? DEF_CYL : DEF_CUBE;
       return {
         code: c.code,
+        prel: (c.prel != null ? c.prel : prev.prel) || "",
+        numInterne: i + 1,                 // n° interne de l'éprouvette dans le lot
+        prelInterne: (c.numInterne != null ? c.numInterne : prev.prelInterne) || "",
+        malaxeur: (c.malaxeur != null ? c.malaxeur : prev.malaxeur) || "",
         forme: forme,
         dim1: (prev.dim1 != null && prev.dim1 !== "") ? prev.dim1 : def.d1,
         dim2: (prev.dim2 != null && prev.dim2 !== "") ? prev.dim2 : def.d2,
@@ -304,8 +309,13 @@ var CAEKCompression = (function () {
       var force = r.querySelector(".comp-force").value;
       var rc = r.querySelector(".comp-rc").value;
       var s = surfaceMm2(forme, d1, d2);
+      var ctx = _editEssais[i] || {};
       out.push({
         code: r.getAttribute("data-code"),
+        prel: ctx.prel || "",
+        numInterne: i + 1,
+        prelInterne: ctx.prelInterne || "",
+        malaxeur: ctx.malaxeur || "",
         forme: forme,
         dim1: d1 === "" ? "" : num(d1),
         dim2: d2 === "" ? "" : num(d2),
@@ -413,9 +423,12 @@ var CAEKCompression = (function () {
     }
     box.innerHTML = lots.map(function (l) {
       var essais = Array.isArray(l.essais) ? l.essais : [];
-      var lignes = essais.map(function (e) {
+      var lignes = essais.map(function (e, idx) {
         var age = diffDays(l.dateCoulage, e.dateEssai);
-        return "<tr><td>" + escapeHtml(e.code) + "</td>" +
+        var prelTxt = (e.prel ? "E" + e.prel : "—") + (e.malaxeur ? " (M" + e.malaxeur + ")" : "");
+        return "<tr><td>" + escapeHtml(prelTxt) + "</td>" +
+          "<td>" + (e.numInterne || (idx + 1)) + "</td>" +
+          "<td>" + escapeHtml(e.code || "") + "</td>" +
           "<td>" + escapeHtml(formeLabel(e.forme)) + "</td>" +
           "<td>" + dimsLabel(e) + "</td>" +
           "<td>" + (e.masse === "" || e.masse == null ? "—" : e.masse) + "</td>" +
@@ -424,15 +437,19 @@ var CAEKCompression = (function () {
           "<td>" + fmtDate(e.dateEssai) + (age === "" ? "" : " (" + age + "j)") + "</td>" +
           "<td>" + escapeHtml(e.observation || "") + "</td></tr>";
       }).join("");
+      var zone = [l.bloc ? "Bloc " + l.bloc : "", l.etage, l.partie].filter(Boolean).join(" · ");
       return "<div class=\"comp-hist-item\">" +
         "<div class=\"rep-top\"><span class=\"rep-ref\">&#10004; " + escapeHtml(l.ref) + "</span>" +
         "<span class=\"comp-type\">" + escapeHtml(l.age === "autre" ? l.ageJours + "j" : l.age) +
         " · essai le " + escapeHtml(fmtDate(l.dateEssai)) + "</span></div>" +
         "<div class=\"rep-ent\">" + escapeHtml(l.client || "—") + "</div>" +
         "<div class=\"rep-sub\">" + escapeHtml(l.nomProjet || "") +
-        (l.ouvrage ? " · " + escapeHtml(l.ouvrage) : "") + "</div>" +
+        (l.ouvrage ? " · " + escapeHtml(l.ouvrage) : "") +
+        (zone ? " · " + escapeHtml(zone) : "") + "</div>" +
+        "<div class=\"comp-hist-ctx\">Coulé le " + escapeHtml(fmtDate(l.dateCoulage)) +
+        (l.ouvrageAutre ? " · Autres : " + escapeHtml(l.ouvrageAutre) : "") + "</div>" +
         "<div class=\"comp-hist-table-wrap\"><table class=\"comp-hist-table\">" +
-        "<thead><tr><th>Code</th><th>Type</th><th>Dim.</th><th>Masse</th><th>F (kN)</th><th>Rc</th><th>Date (âge)</th><th>Obs.</th></tr></thead>" +
+        "<thead><tr><th>Prélèv</th><th>N°</th><th>Code</th><th>Type</th><th>Dim.</th><th>Masse</th><th>F (kN)</th><th>Rc</th><th>Date (âge)</th><th>Obs.</th></tr></thead>" +
         "<tbody>" + lignes + "</tbody></table></div>" +
         "<div class=\"comp-hist-meta\">Opérateur : " + escapeHtml(l.operateurEssai || "—") +
         (l.qualificationEssai ? " (" + escapeHtml(l.qualificationEssai) + ")" : "") + "</div>" +
@@ -440,8 +457,10 @@ var CAEKCompression = (function () {
     }).join("");
   }
 
-  var HIST_HEADERS = ["Référence", "Code éprouvette", "Client", "Projet", "Ouvrage", "Âge (j)",
-    "Type", "Dimensions (mm)", "Masse (kg)", "Force (kN)", "Rc (MPa)", "Date essai", "Opérateur", "Observation"];
+  var HIST_HEADERS = ["Client", "Projet", "Référence coulage", "Date coulage", "Ouvrage",
+    "Ouvrage autre", "Bloc", "Étage", "Partie", "Malaxeur/toupie", "Prélèvement",
+    "Code éprouvette", "N° interne lot", "Âge (j)", "Type", "Dimensions (mm)", "Masse (kg)",
+    "Force (kN)", "Rc (MPa)", "Date essai", "Opérateur", "Qualification", "Observation"];
 
   function dimsText(e) {
     if (e.forme === "cylindre") { return "Ø" + (e.dim1 || "?") + "×" + (e.dim2 || "?"); }
@@ -451,12 +470,15 @@ var CAEKCompression = (function () {
   function histRows() {
     var rows = [];
     filteredHistLots().forEach(function (l) {
-      (Array.isArray(l.essais) ? l.essais : []).forEach(function (e) {
+      (Array.isArray(l.essais) ? l.essais : []).forEach(function (e, idx) {
         rows.push([
-          l.ref, e.code, l.client || "", l.nomProjet || "", l.ouvrage || "",
+          l.client || "", l.nomProjet || "", l.ref, l.dateCoulage || "",
+          l.ouvrage || "", l.ouvrageAutre || "", l.bloc || "", l.etage || "", l.partie || "",
+          e.malaxeur || "", e.prel ? "E" + e.prel : "",
+          e.code || "", e.numInterne || (idx + 1),
           diffDays(l.dateCoulage, e.dateEssai), formeLabel(e.forme), dimsText(e),
           e.masse === "" ? "" : e.masse, e.force === "" ? "" : e.force, e.rc === "" ? "" : e.rc,
-          e.dateEssai || "", l.operateurEssai || "", e.observation || ""
+          e.dateEssai || "", l.operateurEssai || "", l.qualificationEssai || "", e.observation || ""
         ]);
       });
     });
@@ -484,22 +506,31 @@ var CAEKCompression = (function () {
 
   function buildHistMessage() {
     var lots = filteredHistLots();
-    var lignes = [];
+    var lignes = [], refs = {}, operateurs = {}, nbEpr = 0;
     lots.forEach(function (l) {
+      refs[l.ref] = true;
+      if (l.operateurEssai) { operateurs[l.operateurEssai] = true; }
       (Array.isArray(l.essais) ? l.essais : []).forEach(function (e) {
+        nbEpr++;
         var age = diffDays(l.dateCoulage, e.dateEssai);
-        lignes.push("- " + e.code +
+        lignes.push("- " + (e.code || l.ref) +
+          (e.prel ? " (E" + e.prel + (e.numInterne ? " n°" + e.numInterne : "") + ")" : "") +
           " | " + (age === "" ? (l.age === "autre" ? l.ageJours + "j" : l.age) : age + "j") +
           " | " + formeLabel(e.forme) +
           " | Rc = " + (e.rc === "" || e.rc == null ? "—" : e.rc) + " MPa" +
-          " | Force = " + (e.force === "" || e.force == null ? "—" : e.force) + " kN" +
-          " | Date essai " + fmtDate(e.dateEssai));
+          " | F = " + (e.force === "" || e.force == null ? "—" : e.force) + " kN" +
+          " | " + fmtDate(e.dateEssai));
       });
     });
     var per = periodeLabel();
-    var entete = "Historique des essais de compression" + (per ? " " + per : "");
-    var pied = lignes.length + " éprouvette(s) testée(s) — CAEK Engineering Lab.";
-    return entete + "\n" + (lignes.length ? lignes.join("\n") : "Aucun essai sur la période.") + "\n" + pied;
+    var refList = Object.keys(refs);
+    var opList = Object.keys(operateurs);
+    var entete = "CAEK — Historique des essais de compression" + (per ? " " + per : "");
+    var resume = nbEpr + " éprouvette(s) · " + lots.length + " lot(s) · " +
+      refList.length + " coulage(s)" + (refList.length ? " : " + refList.join(", ") : "");
+    var pied = "CAEK Engineering Lab" + (opList.length ? " · Opérateur(s) : " + opList.join(", ") : "") + ".";
+    return entete + "\n" + resume + "\n" +
+      (lignes.length ? lignes.join("\n") : "Aucun essai sur la période.") + "\n" + pied;
   }
 
   function histResult(html, isError) {
@@ -540,10 +571,19 @@ var CAEKCompression = (function () {
     var rows = histRows();
     if (!rows.length) { window.alert("Aucun essai à exporter."); return; }
     if (!window.XLSX) { window.alert("Module Excel indisponible."); return; }
-    var aoa = [HIST_HEADERS].concat(rows);
+    var per = periodeLabel();
+    var aoa = [];
+    aoa.push(["CAEK ENGINEERING LAB — Historique des essais de compression"]);
+    aoa.push([per ? "Période : " + per : "Tous les essais", "", "", "", "",
+      "Édité le " + fmtDate(todayStr()) + " · " + rows.length + " éprouvette(s)"]);
+    aoa.push([]);
+    aoa.push(HIST_HEADERS);
+    aoa = aoa.concat(rows);
     var ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = [{ wch: 12 }, { wch: 16 }, { wch: 20 }, { wch: 20 }, { wch: 16 }, { wch: 7 },
-      { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 12 }, { wch: 18 }, { wch: 24 }];
+    ws["!cols"] = [{ wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 12 }, { wch: 18 }, { wch: 16 },
+      { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 13 }, { wch: 11 }, { wch: 14 }, { wch: 12 },
+      { wch: 7 }, { wch: 9 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 12 },
+      { wch: 16 }, { wch: 16 }, { wch: 24 }];
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Essais compression");
     XLSX.writeFile(wb, "essais_compression.xlsx");
