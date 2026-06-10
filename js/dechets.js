@@ -103,6 +103,7 @@ var CAEKDechets = (function () {
   }
 
   function saveParams() {
+    if (window.CAEKOperateurs && !CAEKOperateurs.requireAdmin("modifier les paramètres déchets")) { return; }
     var seuil = intOr0($("dechets-seuil") ? $("dechets-seuil").value : 0);
     var pm = num($("dechets-poidsmoyen") ? $("dechets-poidsmoyen").value : 0);
     if (seuil <= 0) { result("&#9888; Le seuil doit être supérieur à 0.", true); return; }

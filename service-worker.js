@@ -5,7 +5,7 @@
    Pour publier une mise a jour : incrementer CACHE_VERSION.
    ============================================================ */
 
-var CACHE_VERSION = "caek-coulage-v37";
+var CACHE_VERSION = "caek-coulage-v38";
 
 var APP_SHELL = [
   "./",

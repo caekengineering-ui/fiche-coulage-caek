@@ -108,9 +108,10 @@
         <img class="profil-illus" src="assets/icons/menu/profil.png" alt="">
       </div>
 
-      <p class="hint">Opérateur actif — il signe toutes vos actions (fiches, répartition, sorties, essais, déchets) :</p>
+      <p class="hint">Opérateur connecté — il signe toutes vos actions (fiches, répartition, sorties, essais, déchets) :</p>
       <div id="profil-active"></div>
       <button id="profil-changer" class="btn-primary" type="button">&#128260; Changer d'opérateur</button>
+      <button id="profil-pin" class="btn-secondary" type="button">&#128273; Changer mon code PIN</button>
       <button class="btn-secondary" data-goto="screen-operateurs" type="button">&#9881;&#65039; Gestion des opérateurs</button>
       <div id="profil-result" class="result-card" hidden></div>
     </section>
@@ -120,12 +121,35 @@
       <div class="login-wrap">
         <img class="login-logo" src="assets/logo-caek.png" alt="CAEK ENGINEERING">
         <h1 class="login-title">Connexion opérateur</h1>
-        <p class="hint">Sélectionnez votre nom pour commencer. Vos actions seront signées avec cet opérateur.</p>
-        <div id="login-empty" class="result-card is-error" hidden>&#9888; Aucun opérateur enregistré. Ajoutez-en un pour commencer.</div>
-        <label class="field-label" for="login-select">Opérateur</label>
-        <select id="login-select" class="field"></select>
-        <button id="login-go" class="btn-primary" type="button">&#128274; Se connecter</button>
-        <button class="btn-text" data-goto="screen-operateurs" type="button">&#9881;&#65039; Gérer les opérateurs</button>
+
+        <!-- Première configuration : créer l'administrateur -->
+        <div id="login-setup" hidden>
+          <p class="hint">Première configuration : créez le compte <strong>administrateur</strong> du laboratoire.</p>
+          <label class="field-label" for="setup-nom">Nom affiché</label>
+          <input id="setup-nom" class="field" type="text" placeholder="ex. CHAHID Ayoub" autocomplete="off">
+          <label class="field-label" for="setup-qualif">Qualification / fonction</label>
+          <input id="setup-qualif" class="field" type="text" placeholder="ex. Chef de laboratoire" autocomplete="off">
+          <label class="field-label" for="setup-pin">Code PIN (4 à 6 chiffres)</label>
+          <input id="setup-pin" class="field" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" placeholder="••••">
+          <label class="field-label" for="setup-pin2">Confirmer le PIN</label>
+          <input id="setup-pin2" class="field" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" placeholder="••••">
+          <button id="setup-go" class="btn-primary" type="button">&#9989; Créer l'administrateur</button>
+          <div id="setup-msg" class="result-card" hidden></div>
+        </div>
+
+        <!-- Connexion normale -->
+        <div id="login-form" hidden>
+          <p class="hint">Sélectionnez votre nom et saisissez votre code PIN.</p>
+          <label class="field-label" for="login-select">Opérateur</label>
+          <select id="login-select" class="field"></select>
+          <div id="login-setpin-hint" class="hint" hidden>&#128275; Premier accès : définissez votre code PIN.</div>
+          <label class="field-label" for="login-pin" id="login-pin-label">Code PIN</label>
+          <input id="login-pin" class="field" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="••••">
+          <label class="field-label" for="login-pin2" id="login-pin2-label" hidden>Confirmer le PIN</label>
+          <input id="login-pin2" class="field" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="••••" hidden>
+          <button id="login-go" class="btn-primary" type="button">&#128274; Se connecter</button>
+          <div id="login-msg" class="result-card" hidden></div>
+        </div>
       </div>
     </section>
 
@@ -133,18 +157,25 @@
     <section id="screen-operateurs" class="screen">
       <button class="btn-back" id="oper-back" type="button">&#8592; Retour</button>
       <h1 class="screen-title">Gestion des opérateurs</h1>
-      <p class="hint">Liste des opérateurs autorisés. L'opérateur « Actif » signe les actions. Stockage local pour l'instant (synchronisation cloud prévue).</p>
+      <p class="hint">Liste des opérateurs autorisés et de leur rôle. L'opérateur connecté signe les actions. Stockage local pour l'instant (synchronisation cloud prévue).</p>
+      <div id="oper-admin-note" class="result-card is-error" hidden>&#128274; Consultation seule : la modification de la liste des opérateurs est réservée à l'administrateur.</div>
 
       <div id="oper-liste"></div>
 
-      <h3 class="block-subtitle">&#10133; Ajouter un opérateur</h3>
-      <label class="field-label" for="oper-add-nom">Nom affiché</label>
-      <input id="oper-add-nom" class="field" type="text" placeholder="ex. CHAHID Ayoub" autocomplete="off">
-      <label class="field-label" for="oper-add-username">Identifiant <span class="opt">(facultatif, auto si vide)</span></label>
-      <input id="oper-add-username" class="field" type="text" placeholder="ex. chahid" autocomplete="off">
-      <label class="field-label" for="oper-add-qualif">Qualification / fonction</label>
-      <input id="oper-add-qualif" class="field" type="text" placeholder="ex. Technicien laboratoire" autocomplete="off">
-      <button id="oper-add-btn" class="btn-primary" type="button">&#10133; Ajouter l'opérateur</button>
+      <div class="admin-only">
+        <h3 class="block-subtitle">&#10133; Ajouter un opérateur</h3>
+        <label class="field-label" for="oper-add-nom">Nom affiché</label>
+        <input id="oper-add-nom" class="field" type="text" placeholder="ex. CHAHID Ayoub" autocomplete="off">
+        <label class="field-label" for="oper-add-username">Identifiant <span class="opt">(facultatif, auto si vide)</span></label>
+        <input id="oper-add-username" class="field" type="text" placeholder="ex. chahid" autocomplete="off">
+        <label class="field-label" for="oper-add-qualif">Qualification / fonction</label>
+        <input id="oper-add-qualif" class="field" type="text" placeholder="ex. Technicien laboratoire" autocomplete="off">
+        <label class="field-label" for="oper-add-role">Rôle</label>
+        <select id="oper-add-role" class="field"></select>
+        <label class="field-label" for="oper-add-pin">Code PIN <span class="opt">(facultatif — défini au 1ᵉʳ accès si vide)</span></label>
+        <input id="oper-add-pin" class="field" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" placeholder="••••">
+        <button id="oper-add-btn" class="btn-primary" type="button">&#10133; Ajouter l'opérateur</button>
+      </div>
       <div id="oper-result" class="result-card" hidden></div>
     </section>
 
@@ -202,12 +233,14 @@
         <div class="dechets-stat"><span class="dechets-num" id="dechets-seuil-aff">300</span><span class="dechets-lbl">seuil d'alerte</span></div>
       </div>
 
-      <h3 class="block-subtitle">&#9881;&#65039; Paramètres</h3>
-      <label class="field-label" for="dechets-seuil">Seuil d'alerte (éprouvettes)</label>
-      <input id="dechets-seuil" class="field" type="number" min="1" step="1" inputmode="numeric">
-      <label class="field-label" for="dechets-poidsmoyen">Poids moyen (kg / éprouvette)</label>
-      <input id="dechets-poidsmoyen" class="field" type="number" min="0" step="any" inputmode="decimal">
-      <button id="dechets-params-save" class="btn-secondary" type="button">&#128190; Enregistrer les paramètres</button>
+      <div class="admin-only">
+        <h3 class="block-subtitle">&#9881;&#65039; Paramètres <span class="admin-tag">Admin</span></h3>
+        <label class="field-label" for="dechets-seuil">Seuil d'alerte (éprouvettes)</label>
+        <input id="dechets-seuil" class="field" type="number" min="1" step="1" inputmode="numeric">
+        <label class="field-label" for="dechets-poidsmoyen">Poids moyen (kg / éprouvette)</label>
+        <input id="dechets-poidsmoyen" class="field" type="number" min="0" step="any" inputmode="decimal">
+        <button id="dechets-params-save" class="btn-secondary" type="button">&#128190; Enregistrer les paramètres</button>
+      </div>
 
       <h3 class="block-subtitle">&#128667; Confirmer une évacuation</h3>
       <label class="field-label" for="dechets-evac-qte">Quantité évacuée (éprouvettes)</label>

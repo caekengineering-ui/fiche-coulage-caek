@@ -1559,6 +1559,34 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
 .oper-actions .oper-off { color: var(--caek-red); }
 .oper-item.is-editing .field { margin-bottom: 8px; }
 
+/* ============================================================
+   V2.06 — sécurité : PIN, rôles, permissions.
+   ============================================================ */
+.admin-only[hidden] { display: none !important; }
+
+/* Badges de rôle */
+.oper-role {
+  font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 8px;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.oper-role.role-admin { background: #fdecec; color: #b02020; border-color: #f3b9b9; }
+.oper-role.role-chef { background: #eef3fb; color: #2a5599; border-color: #c2d4ee; }
+.oper-role.role-operateur { background: var(--gray-bg); color: var(--text-muted); border-color: var(--gray-line); }
+.oper-badge.is-nopin { background: #fff4e5; color: #b26a00; border: 1px solid #ffd699; }
+.profil-active-card .oper-role { align-self: center; }
+
+/* Étiquette « Admin » sur les sections réservées */
+.admin-tag {
+  font-size: 10px; font-weight: 700; vertical-align: middle; margin-left: 6px;
+  background: #fdecec; color: #b02020; border: 1px solid #f3b9b9; border-radius: 999px; padding: 1px 7px;
+}
+
+/* Champs PIN : chiffres espacés, centrés */
+#setup-pin, #setup-pin2, #login-pin, #login-pin2, #oper-add-pin {
+  letter-spacing: 6px; font-size: 18px; text-align: center;
+}
+#login-setpin-hint { color: #b26a00; font-weight: 600; }
+
 /* ---------- Larger screens ---------- */
 @media (min-width: 600px) {
   .app-main { padding: 28px 24px; }
