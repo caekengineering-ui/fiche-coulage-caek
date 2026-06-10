@@ -24,6 +24,13 @@ var CAEKDemo = (function () {
     return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
   }
   function nowIso() { return new Date().toISOString(); }
+  // Horodatage ISO il y a (days) jours et (hours) heures.
+  function isoAgo(days, hours) {
+    var d = new Date();
+    if (days) { d.setDate(d.getDate() - days); }
+    if (hours) { d.setHours(d.getHours() - hours); }
+    return d.toISOString();
+  }
   function isDemoRef(ref) { return String(ref || "").indexOf(PREFIX) === 0; }
 
   // Malaxeur d'exemple, avec ou sans prelevement (V2.02 : prelevement porte
@@ -124,11 +131,19 @@ var CAEKDemo = (function () {
       operateurSortie: opts.operateurSortie,
       motifSortie: opts.motifSortie,
       observationSortie: opts.observationSortie,
+      sortiAt: opts.sortiAt,
+      forceTest: opts.forceTest,
       essais: opts.essais,
       dateEssai: opts.dateEssai,
       heureEssai: opts.heureEssai,
       operateurEssai: opts.operateurEssai,
-      qualificationEssai: opts.qualificationEssai
+      qualificationEssai: opts.qualificationEssai,
+      agePrevu: opts.agePrevu,
+      ageReelMin: opts.ageReelMin,
+      ageReelMax: opts.ageReelMax,
+      ecartEssai: opts.ecartEssai,
+      motifEcart: opts.motifEcart,
+      justificationEcart: opts.justificationEcart
     };
   }
 
@@ -209,7 +224,17 @@ var CAEKDemo = (function () {
       // B. Retard de recuperation (> 3 jours)
       demoCoulage(PREFIX + "RETARD-RECUP", { nomProjet: "B. Retard recuperation", dateCoulage: ymd(-5) }),
       // C. Validee + recuperee + non repartie -> A repartir + badge Bassin
-      demoCoulage(PREFIX + "A-REPARTIR", { nomProjet: "C. A repartir au bassin", dateCoulage: ymd(-1),
+      // Cas 3 : E1 = 6 cubes, E2 = 3 cylindres -> defaut 3@7j(E1) + 3@28j(E1) + 3@28j(E2).
+      demoCoulage(PREFIX + "A-REPARTIR", { nomProjet: "C. A repartir (E1=6, E2=3 - Cas 3)", dateCoulage: ymd(-1),
+        malaxeurs: [
+          mal({ prel: "cube", nombre: 6, heure: "10:30" }),
+          mal({ heure: "10:50" }),
+          mal({ prel: "cylindre", nombre: 3, heure: "11:10" })
+        ],
+        eprRecuperees: true, codificationConfirmee: true }),
+      // C1b. Cas 1 : un seul prelevement de 9 cubes -> defaut 3@7j + 6@28j.
+      demoCoulage(PREFIX + "REPART9", { nomProjet: "C. A repartir (1 prel. de 9 - Cas 1)", dateCoulage: ymd(-1),
+        malaxeurs: [ mal({ prel: "cube", nombre: 9, heure: "09:00" }) ],
         eprRecuperees: true, codificationConfirmee: true }),
       // C2. Recuperee mais codification NON confirmee -> synthese Coulage
       demoCoulage(PREFIX + "CODIF", { nomProjet: "C2. Codification a confirmer", dateCoulage: ymd(-1),
@@ -241,27 +266,42 @@ var CAEKDemo = (function () {
         age: "7j", ageJours: 7, datePrevue: ymd(-1), nombre: 3 }),
       demoLot(PREFIX + "SORTI", { nomProjet: "D. Sorti pour essai", type: "cylindre",
         age: "7j", ageJours: 7, datePrevue: ymd(0), nombre: 2,
-        statut: "sorti", dateSortie: ymd(0), heureSortie: "09:30",
+        statut: "sorti", dateSortie: ymd(-2), heureSortie: "09:30", sortiAt: isoAgo(2),
         operateurSortie: "Op DEMO", motifSortie: "Accord client", observationSortie: "Exemple" }),
 
-      // E. Sorti pour essai mais non teste -> A tester + badge Compression
-      demoLot(PREFIX + "COMP-A-TESTER", { nomProjet: "E. A tester", type: "cube",
+      // E. Sorti depuis > 24 h -> PRET a tester + badge Compression
+      demoLot(PREFIX + "COMP-A-TESTER", { nomProjet: "E. A tester (sorti > 24 h)", type: "cube",
         age: "7j", ageJours: 7, datePrevue: ymd(0), nombre: 3,
-        statut: "sorti", dateSortie: ymd(0), heureSortie: "09:00", operateurSortie: "Op DEMO" }),
+        statut: "sorti", dateSortie: ymd(-2), heureSortie: "09:00", sortiAt: isoAgo(2), operateurSortie: "Op DEMO" }),
+
+      // E2. Sorti il y a 2 h -> EN SECHAGE (delai 24 h) -> demontre le forçage
+      demoLot(PREFIX + "SECHAGE", { nomProjet: "E2. En sechage (24 h)", type: "cube",
+        age: "7j", ageJours: 7, datePrevue: ymd(1), nombre: 3,
+        statut: "sorti", dateSortie: ymd(0), heureSortie: "08:00", sortiAt: isoAgo(0, 2), operateurSortie: "Op DEMO" }),
 
       // F. Partiellement teste -> alerte essai incomplet (2/4 saisies)
       demoLot(PREFIX + "COMP-INCOMPLET", { nomProjet: "F. Essai incomplet", type: "cube",
         age: "7j", ageJours: 7, datePrevue: ymd(0), nombre: 4,
-        statut: "sorti", dateSortie: ymd(0), heureSortie: "09:15", operateurSortie: "Op DEMO",
+        statut: "sorti", dateSortie: ymd(-2), heureSortie: "09:15", sortiAt: isoAgo(2), operateurSortie: "Op DEMO",
         essais: makeEssais(PREFIX + "COMP-INCOMPLET", 4, "cube", 2) }),
 
-      // G. Historique complet : lot teste (contexte ouvrage/bloc/etage/partie)
+      // G. Historique complet : lot teste a l'echeance prevue (aucun ecart)
       demoLot(PREFIX + "HISTO", { nomProjet: "G. Historique complet", type: "cube",
         ouvrage: "Voile", bloc: "B", etage: "2e étage", partie: "Partie 1",
-        age: "28j", ageJours: 28, datePrevue: ymd(-2), nombre: 3,
-        statut: "teste", dateEssai: ymd(0), heureEssai: "10:00",
+        age: "28j", ageJours: 28, dateCoulage: ymd(-28), datePrevue: ymd(0), nombre: 3,
+        statut: "teste", dateEssai: ymd(0), heureEssai: "10:00", agePrevu: 28, ecartEssai: false,
         operateurEssai: "Op DEMO", qualificationEssai: "Technicien",
-        essais: makeEssais(PREFIX + "HISTO", 3, "cube", 3) })
+        essais: makeEssais(PREFIX + "HISTO", 3, "cube", 3) }),
+
+      // G2. Historique avec ECART : essai realise hors date prevue + justification
+      demoLot(PREFIX + "HISTO-ECART", { nomProjet: "G2. Historique - essai hors date prevue", type: "cube",
+        ouvrage: "Poteau", bloc: "C", etage: "RDC", partie: "",
+        age: "7j", ageJours: 7, dateCoulage: ymd(-8), datePrevue: ymd(-1), nombre: 3,
+        statut: "teste", dateEssai: ymd(0), heureEssai: "11:00",
+        agePrevu: 7, ageReelMin: 8, ageReelMax: 8, ecartEssai: true,
+        motifEcart: "Jour férié / non ouvrable", justificationEcart: "Presse fermée le jour prévu (férié).",
+        operateurEssai: "Op DEMO", qualificationEssai: "Technicien",
+        essais: makeEssais(PREFIX + "HISTO-ECART", 3, "cube", 3) })
     ];
 
     var chain = Promise.resolve();

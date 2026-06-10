@@ -149,6 +149,13 @@
         <span class="leg"><span class="leg-shape leg-form shape-mixte"></span> Hexagone = Mixte</span>
       </div>
       <div id="bassin-grille" class="bassin-grille"></div>
+
+      <div id="bassin-sortis-section" hidden>
+        <h3 class="block-subtitle bassin-sortis-titre">&#128229; Lots sortis du bassin — en attente d'essai</h3>
+        <p class="hint">Ces lots ne sont plus dans le bassin : ils sèchent / sont préparés avant l'essai (délai 24 h conseillé).</p>
+        <div id="bassin-sortis-count" class="hint"></div>
+        <div id="bassin-sortis" class="bassin-grille bassin-grille-sortis"></div>
+      </div>
     </section>
 
     <!-- BASSIN > ARCHIVES -->
@@ -218,6 +225,12 @@
       <p class="hint">Lots sortis du bassin pour essai. Saisissez les résultats d'écrasement.</p>
       <div id="comp-atester-count" class="hint"></div>
       <div id="comp-atester-liste"></div>
+
+      <div id="comp-sechage-section" hidden>
+        <h3 class="block-subtitle">&#9203; En séchage (délai 24 h hors bassin)</h3>
+        <p class="hint">Ces lots viennent de sortir du bassin. Ils doivent rester 24 h hors bassin avant l'essai. Le passage anticipé est possible mais exceptionnel (motif obligatoire).</p>
+        <div id="comp-sechage-liste"></div>
+      </div>
     </section>
 
     <!-- COMPRESSION > HISTORIQUE -->

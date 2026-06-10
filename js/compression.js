@@ -76,16 +76,43 @@ var CAEKCompression = (function () {
      CHARGEMENT / RAFRAICHISSEMENT
      ============================================================ */
   var _aTester = [];
+  var _enSechage = [];
   var _historique = [];
+
+  // Délai conseillé hors bassin avant essai (24 h).
+  var DELAI_SECHAGE_MS = 24 * 60 * 60 * 1000;
+
+  function sortiAtMs(l) {
+    var t = l && l.sortiAt ? Date.parse(l.sortiAt) : NaN;
+    return isNaN(t) ? null : t;
+  }
+  // Un lot sorti est PRÊT à tester : s'il a été forcé, s'il n'a pas d'horodatage
+  // de sortie (ancienne donnée), ou si 24 h se sont écoulées depuis la sortie.
+  function pretATester(l) {
+    if (l.forceTest) { return true; }
+    var t = sortiAtMs(l);
+    if (t == null) { return true; }
+    return (Date.now() - t) >= DELAI_SECHAGE_MS;
+  }
+  function heuresRestantes(l) {
+    var t = sortiAtMs(l);
+    if (t == null) { return 0; }
+    var ms = DELAI_SECHAGE_MS - (Date.now() - t);
+    return ms > 0 ? Math.ceil(ms / 3600000) : 0;
+  }
 
   function refresh() {
     if (!window.CAEKDB) { return; }
     CAEKDB.getAllLots().then(function (lots) {
-      _aTester = (lots || []).filter(function (l) { return l.statut === "sorti"; });
+      var sortis = (lots || []).filter(function (l) { return l.statut === "sorti"; });
+      _aTester = sortis.filter(pretATester);
+      _enSechage = sortis.filter(function (l) { return !pretATester(l); });
       _historique = (lots || []).filter(function (l) { return l.statut === "teste"; });
       _aTester.sort(function (a, b) { return String(a.datePrevue).localeCompare(String(b.datePrevue)); });
+      _enSechage.sort(function (a, b) { return String(a.sortiAt || "").localeCompare(String(b.sortiAt || "")); });
       _historique.sort(function (a, b) { return String(b.dateEssai || "").localeCompare(String(a.dateEssai || "")); });
       renderAtester();
+      renderSechage();
       renderHistorique();
     });
   }
@@ -137,6 +164,68 @@ var CAEKCompression = (function () {
     box.innerHTML = _aTester.map(function (l) {
       return "<button type=\"button\" class=\"comp-lot-card\" data-id=\"" + l.id + "\">" + lotCardInner(l) + "</button>";
     }).join("");
+  }
+
+  /* ---------- Lots en séchage (délai 24 h hors bassin) ---------- */
+  var MOTIFS_FORCE = ["Éprouvette ayant dépassé son séjour", "Jour férié",
+    "Problème machine / presse", "Contrainte exceptionnelle du laboratoire", "Autre"];
+
+  function sechageCardInner(l) {
+    var h = heuresRestantes(l);
+    return "<div class=\"rep-top\"><span class=\"rep-ref\">" + escapeHtml(l.ref) + "</span>" +
+      "<span class=\"comp-type\">" + escapeHtml(formeLabel(defaultForme(l.type))) + " · " +
+      escapeHtml(l.age === "autre" ? l.ageJours + "j" : l.age) + "</span></div>" +
+      "<div class=\"rep-ent\">" + escapeHtml(l.client || "—") + "</div>" +
+      "<div class=\"rep-tot\">" + intOr0(l.nombre) + " éprouvette(s) · sortie le " +
+      escapeHtml(fmtDate(l.dateSortie)) + (l.heureSortie ? " à " + escapeHtml(l.heureSortie) : "") + "</div>" +
+      "<div class=\"comp-sechage-reste\">&#9203; Disponible pour essai dans ~<strong>" + h + " h</strong></div>" +
+      "<button type=\"button\" class=\"btn-text comp-forcer\" data-id=\"" + l.id + "\">&#9888; Forcer le passage maintenant</button>";
+  }
+
+  function renderSechage() {
+    var section = $("comp-sechage-section");
+    var box = $("comp-sechage-liste");
+    if (!section || !box) { return; }
+    if (!_enSechage.length) { section.hidden = true; box.innerHTML = ""; return; }
+    section.hidden = false;
+    box.innerHTML = _enSechage.map(function (l) {
+      return "<div class=\"comp-sechage-card\">" + sechageCardInner(l) + "</div>";
+    }).join("");
+  }
+
+  // Passage anticipé (avant 24 h) : exceptionnel, motif obligatoire + confirmation.
+  function forcer(id) {
+    var lot = findLot(_enSechage, id);
+    if (!lot) { return; }
+    var prof = window.CAEKProfil
+      ? CAEKProfil.require("Profil opérateur requis pour forcer le passage avant 24 h.")
+      : { nom: "", qualification: "" };
+    if (!prof) { return; }
+    var liste = MOTIFS_FORCE.map(function (m, i) { return (i + 1) + ". " + m; }).join("\n");
+    var rep = window.prompt("Passage anticipé (moins de 24 h hors bassin) — action exceptionnelle.\n\n" +
+      "Indiquez le motif (numéro ou texte libre) :\n" + liste);
+    if (rep == null) { return; }
+    rep = String(rep).trim();
+    if (!rep) { window.alert("Le motif est obligatoire pour forcer le passage."); return; }
+    var n = parseInt(rep, 10);
+    var motif = (!isNaN(n) && n >= 1 && n <= MOTIFS_FORCE.length) ? MOTIFS_FORCE[n - 1] : rep;
+    if (motif === "Autre") {
+      var autre = window.prompt("Précisez le motif :");
+      if (autre == null || !String(autre).trim()) { window.alert("Motif obligatoire."); return; }
+      motif = String(autre).trim();
+    }
+    if (!window.confirm("Confirmer le passage anticipé de ce lot en « À tester » ?\nMotif : " + motif)) { return; }
+    lot.forceTest = true;
+    lot.forceMotif = motif;
+    lot.forceAt = new Date().toISOString();
+    lot.forceOperateur = prof.nom || "";
+    CAEKDB.updateLot(lot).then(function () {
+      return CAEKDB.addJournal({ type: "forcage_essai", ref: lot.ref, lotId: lot.id,
+        operateur: prof.nom || "", qualification: prof.qualification || "", motif: motif });
+    }).then(function () {
+      refresh();
+      if (window.CAEKBadges) { CAEKBadges.refresh(); }
+    }).catch(function (err) { window.alert("Erreur : " + (err && err.message || err)); });
   }
 
   /* ============================================================
@@ -346,13 +435,29 @@ var CAEKCompression = (function () {
     }).catch(function (err) { compResult("&#9888; " + escapeHtml(err && err.message || err), true); });
   }
 
+  // Âges réels (j) + dates d'essai distinctes des éprouvettes du lot.
+  function essaiAges(essais) {
+    var ages = [], dates = {};
+    essais.forEach(function (e) {
+      ages.push(diffDays(_editLot.dateCoulage, e.dateEssai));
+      if (e.dateEssai) { dates[e.dateEssai] = true; }
+    });
+    return { ages: ages, dates: Object.keys(dates) };
+  }
+
+  function confLine(label, val, warn) {
+    return "<div class=\"comp-confirm-line" + (warn ? " is-warn" : "") + "\"><span>" +
+      escapeHtml(label) + "</span><strong>" + escapeHtml(val) + "</strong></div>";
+  }
+
+  var MOTIFS_ECART = ["Jour férié / non ouvrable", "Presse indisponible",
+    "Éprouvette ayant dépassé son séjour", "Contrainte planning", "Demande client", "Autre"];
+
+  var _pendingEssais = null;
+
+  // Confirmation avant essai : date/âge prévus vs réels ; justification si écart.
   function validate() {
     if (!_editLot) { return; }
-    var prof = window.CAEKProfil
-      ? CAEKProfil.require("Profil opérateur requis pour valider un essai de compression.")
-      : { nom: "", qualification: "" };
-    if (!prof) { return; }
-
     var essais = gatherEssais();
     var bad = "";
     for (var i = 0; i < essais.length; i++) {
@@ -362,25 +467,103 @@ var CAEKCompression = (function () {
       if (!(num(e.force) > 0) && !(num(e.rc) > 0)) { bad = "Force ou Rc manquant pour " + e.code + "."; break; }
     }
     if (bad) { compResult("&#9888; " + escapeHtml(bad), true); return; }
-    if (!window.confirm("Valider l'essai de ce lot (" + essais.length + " éprouvette(s)) ?\nLe lot rejoindra l'historique des essais.")) { return; }
+    showConfirm(essais);
+  }
+
+  function showConfirm(essais) {
+    _pendingEssais = essais;
+    var agePrevu = intOr0(_editLot.ageJours);
+    var info = essaiAges(essais);
+    var ageMin = Math.min.apply(null, info.ages), ageMax = Math.max.apply(null, info.ages);
+    var ageReelTxt = (ageMin === ageMax) ? (ageMin + " j") : (ageMin + " à " + ageMax + " j");
+    var dateReelleTxt = (info.dates.length === 1) ? fmtDate(info.dates[0]) : (info.dates.length + " dates différentes");
+    var ecart = info.ages.some(function (a) { return a !== agePrevu; });
+
+    var html = "<div class=\"comp-confirm\">" +
+      "<h3 class=\"comp-confirm-titre\">Vérification avant validation</h3>" +
+      "<div class=\"comp-confirm-grid\">" +
+        confLine("Date prévue d'essai", fmtDate(_editLot.datePrevue)) +
+        confLine("Âge prévu", agePrevu + " j") +
+        confLine("Date réelle d'essai", dateReelleTxt, ecart) +
+        confLine("Âge réel", ageReelTxt, ecart) +
+      "</div>";
+    if (ecart) {
+      html += "<div class=\"comp-confirm-ecart\">&#9888; Essai réalisé <strong>hors de la date prévue</strong> " +
+        "(prévu " + agePrevu + " j, réel " + escapeHtml(ageReelTxt) + "). Justification obligatoire.</div>" +
+        "<label class=\"field-label\" for=\"comp-justif-motif\">Motif de l'écart</label>" +
+        "<select id=\"comp-justif-motif\" class=\"field\"><option value=\"\">— Choisir —</option>" +
+        MOTIFS_ECART.map(function (m) { return "<option>" + m + "</option>"; }).join("") + "</select>" +
+        "<label class=\"field-label\" for=\"comp-justif\">Justification (obligatoire)</label>" +
+        "<textarea id=\"comp-justif\" class=\"field\" rows=\"2\" placeholder=\"Pourquoi l'essai n'a pas eu lieu à la date prévue\"></textarea>";
+    }
+    html += "<div class=\"comp-confirm-actions\">" +
+      "<button type=\"button\" class=\"btn-text\" id=\"comp-confirm-annuler\">Annuler</button>" +
+      "<button type=\"button\" class=\"btn-primary\" id=\"comp-confirm-final\"" + (ecart ? " disabled" : "") +
+      ">&#10004; Confirmer et valider l'essai</button></div></div>";
+
+    var box = $("comp-detail-result");
+    if (!box) { return; }
+    box.hidden = false;
+    box.className = "result-card";
+    box.innerHTML = html;
+    box.setAttribute("data-ecart", ecart ? "1" : "0");
+    box.scrollIntoView({ block: "center" });
+  }
+
+  function updateConfirmBtn() {
+    var box = $("comp-detail-result");
+    if (!box || box.getAttribute("data-ecart") !== "1") { return; }
+    var motif = $("comp-justif-motif"), justif = $("comp-justif"), btn = $("comp-confirm-final");
+    if (!btn) { return; }
+    btn.disabled = !(motif && motif.value && justif && justif.value.trim().length > 0);
+  }
+
+  function doValidate() {
+    var essais = _pendingEssais;
+    if (!_editLot || !essais) { return; }
+    var prof = window.CAEKProfil
+      ? CAEKProfil.require("Profil opérateur requis pour valider un essai de compression.")
+      : { nom: "", qualification: "" };
+    if (!prof) { return; }
+
+    var agePrevu = intOr0(_editLot.ageJours);
+    var info = essaiAges(essais);
+    var ageMin = Math.min.apply(null, info.ages), ageMax = Math.max.apply(null, info.ages);
+    var ecart = info.ages.some(function (a) { return a !== agePrevu; });
+
+    var justif = "", motifEcart = "";
+    if (ecart) {
+      var mEl = $("comp-justif-motif"), jEl = $("comp-justif");
+      motifEcart = mEl ? mEl.value : "";
+      justif = jEl ? jEl.value.trim() : "";
+      if (!motifEcart || !justif) { window.alert("Justification obligatoire (essai hors date prévue)."); return; }
+    }
+    var dateReelle = info.dates.length ? info.dates.slice().sort()[info.dates.length - 1] : todayStr();
 
     _editLot.essais = essais;
     _editLot.statut = "teste";
-    _editLot.dateEssai = todayStr();
+    _editLot.dateEssai = dateReelle;
     _editLot.heureEssai = nowTime();
     _editLot.operateurEssai = prof.nom || "";
     _editLot.qualificationEssai = prof.qualification || "";
+    _editLot.agePrevu = agePrevu;
+    _editLot.ageReelMin = ageMin;
+    _editLot.ageReelMax = ageMax;
+    _editLot.ecartEssai = ecart;
+    _editLot.motifEcart = motifEcart;
+    _editLot.justificationEcart = justif;
 
     CAEKDB.updateLot(_editLot).then(function () {
       return CAEKDB.addJournal({
         type: "essai", ref: _editLot.ref, lotId: _editLot.id,
         operateur: prof.nom || "", qualification: prof.qualification || "",
-        nbEprouvettes: essais.length
+        nbEprouvettes: essais.length, ecart: ecart, justification: justif
       });
     }).then(function () {
       // Les eprouvettes testees deviennent des dechets beton (compteur).
       return window.CAEKDechets ? CAEKDechets.addCasse(essais.length) : null;
     }).then(function () {
+      _pendingEssais = null;
       $("comp-detail").hidden = true;
       refresh();
       if (window.CAEKBadges) { CAEKBadges.refresh(); }
@@ -449,6 +632,10 @@ var CAEKCompression = (function () {
         (zone ? " · " + escapeHtml(zone) : "") + "</div>" +
         "<div class=\"comp-hist-ctx\">Coulé le " + escapeHtml(fmtDate(l.dateCoulage)) +
         (l.ouvrageAutre ? " · Autres : " + escapeHtml(l.ouvrageAutre) : "") + "</div>" +
+        (l.ecartEssai ? "<div class=\"comp-hist-ecart\">&#9888; Essai hors date prévue (prévu " +
+          intOr0(l.agePrevu) + " j" + (l.datePrevue ? ", le " + escapeHtml(fmtDate(l.datePrevue)) : "") + ")" +
+          (l.motifEcart ? " — " + escapeHtml(l.motifEcart) : "") +
+          (l.justificationEcart ? " : " + escapeHtml(l.justificationEcart) : "") + "</div>" : "") +
         "<div class=\"comp-hist-table-wrap\"><table class=\"comp-hist-table\">" +
         "<thead><tr><th>N°</th><th>Code</th><th>Type</th><th>Dim.</th><th>Masse</th><th>F (kN)</th><th>Rc</th><th>Date (âge)</th><th>Obs.</th></tr></thead>" +
         "<tbody>" + lignes + "</tbody></table></div>" +
@@ -460,8 +647,9 @@ var CAEKCompression = (function () {
 
   var HIST_HEADERS = ["Client", "Projet", "Référence coulage", "Date coulage", "Ouvrage",
     "Ouvrage autre", "Bloc", "Étage", "Partie", "Malaxeur/toupie",
-    "Code éprouvette", "N° interne lot", "Âge (j)", "Type", "Dimensions (mm)", "Masse (kg)",
-    "Force (kN)", "Rc (MPa)", "Date essai", "Opérateur", "Qualification", "Observation"];
+    "Code éprouvette", "N° interne lot", "Âge prévu (j)", "Âge réel (j)", "Type", "Dimensions (mm)", "Masse (kg)",
+    "Force (kN)", "Rc (MPa)", "Date prévue", "Date essai", "Motif écart", "Justification écart",
+    "Opérateur", "Qualification", "Observation"];
 
   function dimsText(e) {
     if (e.forme === "cylindre") { return "Ø" + (e.dim1 || "?") + "×" + (e.dim2 || "?"); }
@@ -476,9 +664,11 @@ var CAEKCompression = (function () {
           l.client || "", l.nomProjet || "", l.ref, l.dateCoulage || "",
           l.ouvrage || "", l.ouvrageAutre || "", l.bloc || "", l.etage || "", l.partie || "",
           e.malaxeur || "", e.code || "", e.numInterne || (idx + 1),
-          diffDays(l.dateCoulage, e.dateEssai), formeLabel(e.forme), dimsText(e),
+          (l.agePrevu != null ? l.agePrevu : l.ageJours) || "", diffDays(l.dateCoulage, e.dateEssai),
+          formeLabel(e.forme), dimsText(e),
           e.masse === "" ? "" : e.masse, e.force === "" ? "" : e.force, e.rc === "" ? "" : e.rc,
-          e.dateEssai || "", l.operateurEssai || "", l.qualificationEssai || "", e.observation || ""
+          l.datePrevue || "", e.dateEssai || "", l.motifEcart || "", l.justificationEcart || "",
+          l.operateurEssai || "", l.qualificationEssai || "", e.observation || ""
         ]);
       });
     });
@@ -600,6 +790,15 @@ var CAEKCompression = (function () {
       });
     }
 
+    // Lots en séchage : bouton « forcer le passage ».
+    var sBox = $("comp-sechage-liste");
+    if (sBox) {
+      sBox.addEventListener("click", function (ev) {
+        var f = ev.target.closest ? ev.target.closest(".comp-forcer") : null;
+        if (f) { forcer(intOr0(f.getAttribute("data-id"))); }
+      });
+    }
+
     var overlay = $("comp-detail");
     if (overlay) {
       overlay.addEventListener("click", function (ev) {
@@ -608,18 +807,25 @@ var CAEKCompression = (function () {
         if (ev.target.closest && ev.target.closest("#comp-apply-all")) { applyDefaultsAll(); return; }
         if (ev.target.closest && ev.target.closest("#comp-save-draft")) { saveDraft(); return; }
         if (ev.target.closest && ev.target.closest("#comp-valider")) { validate(); return; }
+        if (ev.target.closest && ev.target.closest("#comp-confirm-final")) { doValidate(); return; }
+        if (ev.target.closest && ev.target.closest("#comp-confirm-annuler")) {
+          var box = $("comp-detail-result"); if (box) { box.hidden = true; } _pendingEssais = null; return;
+        }
       });
       overlay.addEventListener("input", function (ev) {
-        var row = ev.target.closest ? ev.target.closest(".comp-row") : null;
-        if (!row) { return; }
         var t = ev.target;
+        if (t.id === "comp-justif") { updateConfirmBtn(); return; }
+        var row = t.closest ? t.closest(".comp-row") : null;
+        if (!row) { return; }
         if (t.classList.contains("comp-force")) { recalcRow(row, "force"); }
         else if (t.classList.contains("comp-rc")) { recalcRow(row, "rc"); }
         else if (t.classList.contains("comp-d1") || t.classList.contains("comp-d2")) { recalcRow(row, "dim"); }
       });
       overlay.addEventListener("change", function (ev) {
-        var row = ev.target.closest ? ev.target.closest(".comp-row") : null;
-        if (row && ev.target.classList.contains("comp-forme")) { relabelRow(row); recalcRow(row, "dim"); }
+        var t = ev.target;
+        if (t.id === "comp-justif-motif") { updateConfirmBtn(); return; }
+        var row = t.closest ? t.closest(".comp-row") : null;
+        if (row && t.classList.contains("comp-forme")) { relabelRow(row); recalcRow(row, "dim"); }
       });
     }
 

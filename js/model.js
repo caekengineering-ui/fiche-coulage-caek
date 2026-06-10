@@ -165,6 +165,53 @@ var CAEKModel = (function () {
     return out;
   }
 
+  // Repartition par defaut des eprouvettes en LOTS d'essai (V2.04).
+  // Regles :
+  //   - ne pas melanger plusieurs prelevements dans un meme lot d'essai ;
+  //   - garder au moins 3 eprouvettes du meme prelevement ensemble (si possible) ;
+  //   - par defaut : 3 eprouvettes a 7 jours (depuis le plus gros prelevement
+  //     ayant au moins 3 eprouvettes), le reste a 28 jours, regroupe par prelevement.
+  // Exemples : 1 prel. de 9 -> 3@7j + 6@28j ; deux prel. de 3 -> 3@7j(E1) + 3@28j(E2) ;
+  //   E1=6,E2=3 -> 3@7j(E1) + 3@28j(E1) + 3@28j(E2).
+  // -> [{ prel, type, codes:[{code,type,prel,numInterne,malaxeur}], nombre, age, ageJours }]
+  function repLot(prel, group, age, jours) {
+    return {
+      prel: prel,
+      type: group.length ? group[0].type : "cube",
+      codes: group.map(function (x) {
+        return { code: x.code, type: x.type, prel: x.prel, numInterne: x.numInterne, malaxeur: x.malaxeur };
+      }),
+      nombre: group.length,
+      age: age,
+      ageJours: jours
+    };
+  }
+
+  function proposeRepartition(c) {
+    var codes = allCodes(c);
+    var byPrel = {}, order = [];
+    codes.forEach(function (x) {
+      if (!byPrel[x.prel]) { byPrel[x.prel] = []; order.push(x.prel); }
+      byPrel[x.prel].push(x);
+    });
+    // Prelevement portant le test 7 jours = le plus gros ayant >= 3 eprouvettes.
+    var sevenPrel = 0, best = 2;
+    order.forEach(function (p) {
+      if (byPrel[p].length > best) { best = byPrel[p].length; sevenPrel = p; }
+    });
+    var lots = [];
+    order.forEach(function (p) {
+      var g = byPrel[p];
+      if (p === sevenPrel) {
+        lots.push(repLot(p, g.slice(0, 3), "7j", 7));
+        if (g.length > 3) { lots.push(repLot(p, g.slice(3), "28j", 28)); }
+      } else {
+        lots.push(repLot(p, g, "28j", 28));
+      }
+    });
+    return lots;
+  }
+
   // Synthese des types presents (pour le bassin : formes carre/cercle/hexagone).
   function typesInfo(c) {
     var list = prelevements(c);
@@ -206,6 +253,7 @@ var CAEKModel = (function () {
     eproCode: eproCode,
     allCodes: allCodes,
     codification: codification,
+    proposeRepartition: proposeRepartition,
     typesInfo: typesInfo,
     recuperationOk: recuperationOk
   };

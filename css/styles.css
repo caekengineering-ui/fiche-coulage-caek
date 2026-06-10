@@ -1466,6 +1466,50 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
   padding: 8px 12px; margin-bottom: 8px; font-size: 14px;
 }
 
+/* ============================================================
+   V2.04 — lots sortis (zone séparée), séchage 24 h, confirmation
+   d'essai (âge prévu/réel + justification).
+   ============================================================ */
+
+/* ---------- Zone « Lots sortis du bassin » ---------- */
+#bassin-sortis-section { margin-top: 18px; padding-top: 12px; border-top: 2px dashed var(--gray-line); }
+.bassin-sortis-titre { color: var(--caek-red-dark); }
+.bassin-grille-sortis { background: #f1f8f2; border: 1px solid #cfe8d4; border-radius: var(--radius); padding: 10px; }
+
+/* ---------- Lots en séchage (24 h) ---------- */
+#comp-sechage-section { margin-top: 18px; padding-top: 12px; border-top: 2px dashed var(--gray-line); }
+.comp-sechage-card {
+  background: var(--white); border: 1px solid var(--gray-line);
+  border-left: 4px solid #ff9800; border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px;
+}
+.comp-sechage-reste { font-size: 14px; color: #b26a00; margin: 4px 0 6px; }
+.comp-forcer { color: var(--caek-red); font-weight: 600; padding: 0; }
+
+/* ---------- Confirmation avant essai ---------- */
+.comp-confirm { text-align: left; }
+.comp-confirm-titre { margin: 0 0 8px; font-size: 15px; color: var(--text-dark); }
+.comp-confirm-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-bottom: 10px;
+}
+.comp-confirm-line {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--gray-bg); border: 1px solid var(--gray-line); border-radius: 8px; padding: 6px 10px;
+}
+.comp-confirm-line span { font-size: 12px; color: var(--text-muted); }
+.comp-confirm-line strong { font-size: 15px; color: var(--text-dark); font-variant-numeric: tabular-nums; }
+.comp-confirm-line.is-warn { border-color: var(--caek-red); background: #fff5f5; }
+.comp-confirm-line.is-warn strong { color: var(--caek-red-dark); }
+.comp-confirm-ecart {
+  background: #fff5f5; border: 1px solid var(--caek-red); border-radius: 8px;
+  padding: 8px 10px; margin-bottom: 8px; font-size: 13px; color: var(--caek-red-dark);
+}
+.comp-confirm-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.comp-confirm-actions .btn-primary { flex: 1 1 auto; margin: 0; }
+.comp-confirm-actions .btn-text { flex: 0 0 auto; }
+
+/* ---------- Historique : ligne d'écart ---------- */
+.comp-hist-ecart { font-size: 13px; color: var(--caek-red-dark); font-weight: 600; margin: 2px 0 4px; }
+
 /* ---------- Larger screens ---------- */
 @media (min-width: 600px) {
   .app-main { padding: 28px 24px; }
