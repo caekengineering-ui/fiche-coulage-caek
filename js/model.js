@@ -14,11 +14,11 @@
      Malaxeur 1 preleve -> E1 ; Malaxeur 2 sans -> rien ;
      Malaxeur 3 preleve -> E2.
 
-   Codification (V2.02 simplifiee) : 1 prelevement = 1 code commun.
-     Code inscrit sur TOUTES les eprouvettes du prelevement Ei = REF-Ei
-     Ex. API031-E1 (6 eprouvettes), API031-E2 (3 eprouvettes).
-   Le numero interne d'eprouvette (1..N) reste dispo pour le module
-   compression mais n'est PAS inscrit sur l'eprouvette.
+   Codification (V2.03) : codification individuelle par eprouvette, au
+   format REF-Echantillon-NumeroEprouvette :
+     REF-E1-01, REF-E1-02 ... (prelevement E1)
+     REF-E2-01, REF-E2-02 ... (prelevement E2)
+   Ex. ABA001-E1-01 .. ABA001-E1-06 (prelevement E1 de 6 eprouvettes).
 
    Retro-compatibilite :
      - V2.01 : tableau coulage.prelevements[] (sans lien malaxeur) ;
@@ -107,12 +107,14 @@ var CAEKModel = (function () {
 
   function hasEprouvettes(c) { return totalEprouvettes(c) > 0; }
 
-  // Code commun d'un prelevement : REF-Ei (sans numero individuel).
+  // Prefixe d'un prelevement : REF-Ei (sert d'etiquette de groupe).
   function prelCode(ref, ei) { return (ref || "") + "-E" + ei; }
+  // Code individuel d'une eprouvette : REF-Ei-JJ (JJ = n° dans le prelevement).
+  function eproCode(ref, ei, j) { return (ref || "") + "-E" + ei + "-" + pad2(j); }
 
   // Toutes les eprouvettes individuelles (pour repartition en lots).
-  // Toutes celles d'un meme prelevement partagent le meme code REF-Ei.
-  // -> [{ code, type, prel (1-based), numInterne (1..nombre), malaxeur }]
+  // Chaque eprouvette a son code REF-Ei-JJ.
+  // -> [{ code, type, prel (1-based), numInterne (1..nombre du prelevement), malaxeur }]
   function allCodes(c) {
     var ref = (c && c.ref) || "";
     var list = prelevements(c);
@@ -123,7 +125,7 @@ var CAEKModel = (function () {
       var ei = i + 1;
       for (var j = 1; j <= nb; j++) {
         out.push({
-          code: prelCode(ref, ei),
+          code: eproCode(ref, ei, j),
           type: p.type || "cube",
           prel: ei,
           numInterne: j,
@@ -134,8 +136,9 @@ var CAEKModel = (function () {
     return out;
   }
 
-  // Codification groupee par prelevement (pour les recaps / exports).
-  // -> [{ numero, malaxeur, type, heure, nombre, observation, code }]
+  // Codification groupee par prelevement (pour les recaps / exports / etiquettes).
+  // -> [{ numero, malaxeur, type, heure, nombre, observation,
+  //        prefixe (REF-Ei), codes:[REF-Ei-01 ...], premier, dernier }]
   function codification(c) {
     var ref = (c && c.ref) || "";
     var list = prelevements(c);
@@ -143,14 +146,20 @@ var CAEKModel = (function () {
     for (var i = 0; i < list.length; i++) {
       var p = list[i];
       var ei = i + 1;
+      var nb = intOr0(p.nombre);
+      var codes = [];
+      for (var j = 1; j <= nb; j++) { codes.push(eproCode(ref, ei, j)); }
       out.push({
         numero: p.numero || ("E" + ei),
         malaxeur: p.malaxeur || "",
         type: p.type || "cube",
         heure: p.heure || "",
-        nombre: intOr0(p.nombre),
+        nombre: nb,
         observation: p.observation || "",
-        code: prelCode(ref, ei)
+        prefixe: prelCode(ref, ei),
+        codes: codes,
+        premier: codes.length ? codes[0] : "",
+        dernier: codes.length ? codes[codes.length - 1] : ""
       });
     }
     return out;
@@ -194,6 +203,7 @@ var CAEKModel = (function () {
     totalEprouvettes: totalEprouvettes,
     hasEprouvettes: hasEprouvettes,
     prelCode: prelCode,
+    eproCode: eproCode,
     allCodes: allCodes,
     codification: codification,
     typesInfo: typesInfo,

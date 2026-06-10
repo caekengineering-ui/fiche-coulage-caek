@@ -1413,6 +1413,59 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
 .comp-code .comp-num { font-size: 12px; font-weight: 600; color: var(--text-muted); }
 .comp-hist-ctx { font-size: 13px; color: var(--text-muted); margin: 2px 0 4px; }
 
+/* ============================================================
+   V2.03 — etiquettes recuperation, repartition par prelevement,
+   gestion dechets.
+   ============================================================ */
+
+/* ---------- Etiquettes a inscrire (recuperation) ---------- */
+.recup-etiquettes {
+  background: #fff; border: 2px solid var(--caek-red); border-radius: var(--radius);
+  padding: 10px 12px; margin-bottom: 10px;
+}
+.recup-etiq-titre { font-size: 14px; font-weight: 800; color: var(--caek-red-dark); margin-bottom: 8px; letter-spacing: .3px; }
+.recup-prel { background: var(--white); border: 1px solid var(--gray-line); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+.recup-prel-head { font-size: 13px; font-weight: 700; color: var(--text-dark); margin-bottom: 4px; }
+.recup-prel-codes { display: flex; flex-wrap: wrap; gap: 6px; }
+.recup-code {
+  font-weight: 700; font-size: 14px; color: var(--text-dark);
+  background: var(--gray-bg); border: 1px solid var(--gray-line); border-radius: 6px;
+  padding: 4px 8px; font-variant-numeric: tabular-nums; user-select: all;
+}
+
+/* ---------- Repartition par prelevement ---------- */
+.rep-prels { font-size: 13px; color: var(--caek-red-dark); font-weight: 600; margin-top: 4px; }
+.prel-rep-editor { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
+.prel-rep-row {
+  background: var(--white); border: 1px solid var(--gray-line);
+  border-left: 4px solid var(--caek-red); border-radius: var(--radius); padding: 10px 12px;
+}
+.prel-rep-head { font-size: 14px; color: var(--text-dark); }
+.prel-rep-head .prel-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 30px; height: 24px; padding: 0 8px; margin-right: 4px;
+  background: var(--caek-red); color: #fff; font-weight: 700; border-radius: 999px;
+}
+.prel-rep-codes { font-size: 13px; color: var(--text-muted); margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+.prel-rep-age { display: flex; flex-direction: column; gap: 4px; }
+.prel-rep-age > span { font-size: 13px; font-weight: 600; color: var(--text-dark); }
+.prel-rep-age .prel-jours { margin-top: 6px; }
+
+/* ---------- Gestion dechets ---------- */
+.dechets-stats { display: flex; gap: 10px; margin: 12px 0; }
+.dechets-stat {
+  flex: 1 1 0; text-align: center; padding: 14px 8px;
+  background: var(--white); border: 1px solid var(--gray-line);
+  border-top: 4px solid var(--caek-red); border-radius: var(--radius);
+}
+.dechets-num { display: block; font-size: 26px; font-weight: 800; color: var(--caek-red); font-variant-numeric: tabular-nums; }
+.dechets-lbl { display: block; font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.dechets-evac-item {
+  background: var(--white); border: 1px solid var(--gray-line);
+  border-left: 4px solid #4caf50; border-radius: var(--radius);
+  padding: 8px 12px; margin-bottom: 8px; font-size: 14px;
+}
+
 /* ---------- Larger screens ---------- */
 @media (min-width: 600px) {
   .app-main { padding: 28px 24px; }

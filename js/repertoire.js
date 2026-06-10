@@ -64,14 +64,17 @@ var CAEKRepertoire = (function () {
     var codif = window.CAEKModel ? CAEKModel.codification(c) : [];
     var total = window.CAEKModel ? CAEKModel.totalEprouvettes(c) : 0;
 
+    // Etiquettes a inscrire sur les eprouvettes : tous les codes, en gras,
+    // groupes par prelevement, recopiables directement.
     var rows = codif.map(function (p) {
-      var plage = p.nombre > 1 ? (p.premier + " &rarr; " + p.dernier)
-        : (p.premier || "—");
+      var codesHtml = (p.codes || []).map(function (code) {
+        return "<div class=\"recup-code\">" + escapeHtml(code) + "</div>";
+      }).join("");
       return "<div class=\"recup-prel\">" +
         "<div class=\"recup-prel-head\"><strong>" + escapeHtml(p.numero) + "</strong> · " +
         escapeHtml(TYPE_LABEL[p.type] || p.type) + " · " + p.nombre + " épr." +
-        (p.heure ? " · " + escapeHtml(p.heure) : "") + "</div>" +
-        "<div class=\"recup-prel-codes\">" + plage + "</div>" +
+        (p.malaxeur ? " · Malaxeur " + p.malaxeur : "") + " :</div>" +
+        "<div class=\"recup-prel-codes\">" + codesHtml + "</div>" +
         "</div>";
     }).join("");
 
@@ -91,7 +94,10 @@ var CAEKRepertoire = (function () {
     return "<div class=\"rep-recup\" hidden>" +
       "<p class=\"recup-title\">Récupération des éprouvettes — <strong>" + total + "</strong> au total</p>" +
       delaiHtml +
+      "<div class=\"recup-etiquettes\">" +
+      "<div class=\"recup-etiq-titre\">🏷️ ÉTIQUETTES À INSCRIRE SUR LES ÉPROUVETTES</div>" +
       "<div class=\"recup-liste\">" + rows + "</div>" +
+      "</div>" +
       "<label class=\"recup-check\"><input type=\"checkbox\" class=\"recup-c1\" data-ref=\"" + ref + "\"> " +
       "Les éprouvettes ont été récupérées du chantier.</label>" +
       "<label class=\"recup-check\"><input type=\"checkbox\" class=\"recup-c2\" data-ref=\"" + ref + "\"> " +

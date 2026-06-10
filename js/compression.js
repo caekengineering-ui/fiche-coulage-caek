@@ -378,6 +378,9 @@ var CAEKCompression = (function () {
         nbEprouvettes: essais.length
       });
     }).then(function () {
+      // Les eprouvettes testees deviennent des dechets beton (compteur).
+      return window.CAEKDechets ? CAEKDechets.addCasse(essais.length) : null;
+    }).then(function () {
       $("comp-detail").hidden = true;
       refresh();
       if (window.CAEKBadges) { CAEKBadges.refresh(); }
@@ -425,9 +428,7 @@ var CAEKCompression = (function () {
       var essais = Array.isArray(l.essais) ? l.essais : [];
       var lignes = essais.map(function (e, idx) {
         var age = diffDays(l.dateCoulage, e.dateEssai);
-        var prelTxt = (e.prel ? "E" + e.prel : "—") + (e.malaxeur ? " (M" + e.malaxeur + ")" : "");
-        return "<tr><td>" + escapeHtml(prelTxt) + "</td>" +
-          "<td>" + (e.numInterne || (idx + 1)) + "</td>" +
+        return "<tr><td>" + (e.numInterne || (idx + 1)) + "</td>" +
           "<td>" + escapeHtml(e.code || "") + "</td>" +
           "<td>" + escapeHtml(formeLabel(e.forme)) + "</td>" +
           "<td>" + dimsLabel(e) + "</td>" +
@@ -449,7 +450,7 @@ var CAEKCompression = (function () {
         "<div class=\"comp-hist-ctx\">Coulé le " + escapeHtml(fmtDate(l.dateCoulage)) +
         (l.ouvrageAutre ? " · Autres : " + escapeHtml(l.ouvrageAutre) : "") + "</div>" +
         "<div class=\"comp-hist-table-wrap\"><table class=\"comp-hist-table\">" +
-        "<thead><tr><th>Prélèv</th><th>N°</th><th>Code</th><th>Type</th><th>Dim.</th><th>Masse</th><th>F (kN)</th><th>Rc</th><th>Date (âge)</th><th>Obs.</th></tr></thead>" +
+        "<thead><tr><th>N°</th><th>Code</th><th>Type</th><th>Dim.</th><th>Masse</th><th>F (kN)</th><th>Rc</th><th>Date (âge)</th><th>Obs.</th></tr></thead>" +
         "<tbody>" + lignes + "</tbody></table></div>" +
         "<div class=\"comp-hist-meta\">Opérateur : " + escapeHtml(l.operateurEssai || "—") +
         (l.qualificationEssai ? " (" + escapeHtml(l.qualificationEssai) + ")" : "") + "</div>" +
@@ -458,7 +459,7 @@ var CAEKCompression = (function () {
   }
 
   var HIST_HEADERS = ["Client", "Projet", "Référence coulage", "Date coulage", "Ouvrage",
-    "Ouvrage autre", "Bloc", "Étage", "Partie", "Malaxeur/toupie", "Prélèvement",
+    "Ouvrage autre", "Bloc", "Étage", "Partie", "Malaxeur/toupie",
     "Code éprouvette", "N° interne lot", "Âge (j)", "Type", "Dimensions (mm)", "Masse (kg)",
     "Force (kN)", "Rc (MPa)", "Date essai", "Opérateur", "Qualification", "Observation"];
 
@@ -474,8 +475,7 @@ var CAEKCompression = (function () {
         rows.push([
           l.client || "", l.nomProjet || "", l.ref, l.dateCoulage || "",
           l.ouvrage || "", l.ouvrageAutre || "", l.bloc || "", l.etage || "", l.partie || "",
-          e.malaxeur || "", e.prel ? "E" + e.prel : "",
-          e.code || "", e.numInterne || (idx + 1),
+          e.malaxeur || "", e.code || "", e.numInterne || (idx + 1),
           diffDays(l.dateCoulage, e.dateEssai), formeLabel(e.forme), dimsText(e),
           e.masse === "" ? "" : e.masse, e.force === "" ? "" : e.force, e.rc === "" ? "" : e.rc,
           e.dateEssai || "", l.operateurEssai || "", l.qualificationEssai || "", e.observation || ""
@@ -514,7 +514,6 @@ var CAEKCompression = (function () {
         nbEpr++;
         var age = diffDays(l.dateCoulage, e.dateEssai);
         lignes.push("- " + (e.code || l.ref) +
-          (e.prel ? " (E" + e.prel + (e.numInterne ? " n°" + e.numInterne : "") + ")" : "") +
           " | " + (age === "" ? (l.age === "autre" ? l.ageJours + "j" : l.age) : age + "j") +
           " | " + formeLabel(e.forme) +
           " | Rc = " + (e.rc === "" || e.rc == null ? "—" : e.rc) + " MPa" +
@@ -581,7 +580,7 @@ var CAEKCompression = (function () {
     aoa = aoa.concat(rows);
     var ws = XLSX.utils.aoa_to_sheet(aoa);
     ws["!cols"] = [{ wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 12 }, { wch: 18 }, { wch: 16 },
-      { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 13 }, { wch: 11 }, { wch: 14 }, { wch: 12 },
+      { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 13 }, { wch: 16 }, { wch: 12 },
       { wch: 7 }, { wch: 9 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 12 },
       { wch: 16 }, { wch: 16 }, { wch: 24 }];
     var wb = XLSX.utils.book_new();

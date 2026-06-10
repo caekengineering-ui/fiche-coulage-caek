@@ -191,12 +191,16 @@ var CAEKBassin = (function () {
   function repCardInner(c) {
     var info = specimenInfo(c);
     var ref = escapeHtml(c.ref);
-    var typesTxt = info.availableTypes.map(typeLabel).join(" / ");
+    var codif = window.CAEKModel ? CAEKModel.codification(c) : [];
+    var prelsTxt = codif.map(function (p) {
+      return "<strong>" + escapeHtml(p.numero) + "</strong> " + escapeHtml(typeLabel(p.type)) + " ×" + p.nombre;
+    }).join(" · ");
     return "<div class=\"rep-top\"><span class=\"rep-ref\">" + ref + "</span></div>" +
       "<div class=\"rep-ent\">" + escapeHtml(c.client || c.entreprise || "—") + "</div>" +
       "<div class=\"rep-sub\">" + escapeHtml(c.nomProjet || "") +
       (c.dateCoulage ? " · coulé le " + escapeHtml(fmtDate(c.dateCoulage)) : "") + "</div>" +
-      "<div class=\"rep-tot\">" + info.total + " éprouvette(s) · " + escapeHtml(typesTxt) + "</div>";
+      "<div class=\"rep-tot\">" + info.total + " éprouvette(s)</div>" +
+      (prelsTxt ? "<div class=\"rep-prels\">🧪 " + prelsTxt + "</div>" : "");
   }
 
   function renderRepartir() {
@@ -254,47 +258,52 @@ var CAEKBassin = (function () {
     }
   }
 
-  // Sélecteur de type : figé si un seul type disponible (cube ou cylindre seuls).
-  function typeSelectHtml(selected, availableTypes) {
-    var locked = availableTypes.length <= 1;
-    var opts = availableTypes.map(function (t) {
-      return "<option value=\"" + t + "\"" + (selected === t ? " selected" : "") + ">" + typeLabel(t) + "</option>";
-    }).join("");
-    return "<select class=\"field lot-type\"" + (locked ? " disabled data-locked=\"1\"" : "") + ">" + opts + "</select>";
+  /* ---- Répartition par PRÉLÈVEMENT (V2.03) ----
+     Chaque prélèvement (E1, E2 …) est gardé ENTIER et affecté à une échéance
+     d'essai (7j / 28j / autre). Un prélèvement = un lot : on écrase un
+     prélèvement ensemble. Proposition : E1 à 7 j, les autres à 28 j. */
+
+  // Liste des prélèvements (codification) avec un index 1-based.
+  function prelList(coulage) {
+    var codif = window.CAEKModel ? CAEKModel.codification(coulage) : [];
+    codif.forEach(function (p, i) { p.index = i + 1; });
+    return codif;
   }
 
-  // Lot d'âge fixe (7j ou 28j). Le 28j a un nombre recalculé, non éditable.
-  // vals (optionnel) pré-remplit lors d'une révision : { nb, type }.
-  function fixedRowHtml(age, info, vals) {
-    vals = vals || {};
-    var selType = vals.type || info.defaultType;
-    var label = age === "7j" ? "7 jours" : "28 jours";
-    var ts = typeSelectHtml(selType, info.availableTypes);
-    if (age === "7j") {
-      var def = (vals.nb != null) ? vals.nb : Math.min(3, info.total);
-      return "<div class=\"lot-row lot-fixe\" data-age=\"7j\">" + ts +
-        "<span class=\"lot-age-fixed\">" + label + "</span>" +
-        "<input class=\"field lot-nb\" type=\"number\" min=\"0\" step=\"1\" inputmode=\"numeric\" value=\"" + def + "\">" +
-        "<span class=\"lot-del-spacer\"></span></div>";
+  function ageSelectHtml(sel) {
+    function opt(v, lbl) { return "<option value=\"" + v + "\"" + (sel === v ? " selected" : "") + ">" + lbl + "</option>"; }
+    return "<select class=\"field prel-age\">" + opt("7j", "7 jours") + opt("28j", "28 jours") + opt("autre", "Autre…") + "</select>";
+  }
+
+  // Échéance par défaut d'un prélèvement : révision -> depuis les lots existants ;
+  // sinon E1 -> 7 j, les autres -> 28 j.
+  function defaultAgeFor(prelIndex, existingLots) {
+    if (existingLots && existingLots.length) {
+      for (var i = 0; i < existingLots.length; i++) {
+        var l = existingLots[i];
+        var has = (l.codes || []).some(function (x) { return x.prel === prelIndex; });
+        if (has) {
+          if (l.age === "7j") { return { age: "7j", jours: 7 }; }
+          if (l.age === "28j") { return { age: "28j", jours: 28 }; }
+          return { age: "autre", jours: l.ageJours };
+        }
+      }
     }
-    return "<div class=\"lot-row lot-fixe lot-28\" data-age=\"28j\">" + ts +
-      "<span class=\"lot-age-fixed\">" + label + " <span class=\"opt\">(reste)</span></span>" +
-      "<span class=\"lot-28-nb\">0</span>" +
-      "<span class=\"lot-del-spacer\"></span></div>";
+    return prelIndex === 1 ? { age: "7j", jours: 7 } : { age: "28j", jours: 28 };
   }
 
-  // Lot ajouté manuellement : âge libre en jours.
-  // vals (optionnel) pré-remplit lors d'une révision : { jours, nb, type }.
-  function autreRowHtml(info, vals) {
-    vals = vals || {};
-    var selType = vals.type || info.defaultType;
-    var vj = (vals.jours != null) ? " value=\"" + vals.jours + "\"" : "";
-    var vn = (vals.nb != null) ? " value=\"" + vals.nb + "\"" : "";
-    return "<div class=\"lot-row lot-autre\" data-age=\"autre\">" +
-      typeSelectHtml(selType, info.availableTypes) +
-      "<input class=\"field lot-jours\" type=\"number\" min=\"1\" step=\"1\" inputmode=\"numeric\" placeholder=\"jours\"" + vj + ">" +
-      "<input class=\"field lot-nb\" type=\"number\" min=\"1\" step=\"1\" inputmode=\"numeric\" placeholder=\"nb\"" + vn + ">" +
-      "<button type=\"button\" class=\"lot-del\" aria-label=\"Supprimer le lot\">&#10005;</button></div>";
+  function prelRepRowHtml(p, def) {
+    var plage = p.nombre > 1 ? (escapeHtml(p.premier) + " → " + escapeHtml(p.dernier)) : escapeHtml(p.premier || p.prefixe);
+    var joursVal = (def.age === "autre" && def.jours) ? (" value=\"" + def.jours + "\"") : "";
+    return "<div class=\"prel-rep-row\" data-prel=\"" + p.index + "\">" +
+      "<div class=\"prel-rep-head\"><span class=\"prel-num\">" + escapeHtml(p.numero) + "</span> " +
+      escapeHtml(typeLabel(p.type)) + " · <strong>" + p.nombre + "</strong> épr." +
+      (p.malaxeur ? " · Malaxeur " + p.malaxeur : "") + "</div>" +
+      "<div class=\"prel-rep-codes\">" + plage + "</div>" +
+      "<label class=\"prel-rep-age\"><span>Échéance d'essai</span>" + ageSelectHtml(def.age) +
+      "<input class=\"field prel-jours\" type=\"number\" min=\"1\" step=\"1\" inputmode=\"numeric\" placeholder=\"jours\"" +
+      joursVal + (def.age === "autre" ? "" : " hidden") + "></label>" +
+      "</div>";
   }
 
   function openRepartForm(itemEl, coulage, existingLots) {
@@ -303,36 +312,18 @@ var CAEKBassin = (function () {
     if (!form.hidden) { form.hidden = true; form.innerHTML = ""; return; }
     var info = specimenInfo(coulage);
     var isEdit = !!(existingLots && existingLots.length);
+    var prels = prelList(coulage);
 
-    // Pré-remplissage à partir des lots existants (révision).
-    var lot7 = null, lot28 = null, autres = [];
-    if (isEdit) {
-      existingLots.forEach(function (l) {
-        if (l.age === "7j") { lot7 = l; }
-        else if (l.age === "28j") { lot28 = l; }
-        else { autres.push(l); }
-      });
-    }
-    var vals7 = lot7 ? { nb: lot7.nombre, type: lot7.type } : null;
-    var vals28 = lot28 ? { type: lot28.type } : null;
-    var autresHtml = autres.map(function (l) {
-      return autreRowHtml(info, { jours: l.ageJours, nb: l.nombre, type: l.type });
+    var rows = prels.map(function (p) {
+      return prelRepRowHtml(p, defaultAgeFor(p.index, existingLots));
     }).join("");
 
-    var titre = isEdit
-      ? "<p class=\"hint\">Révision de la répartition. Total prélevé : <strong>" + info.total +
-        "</strong> éprouvette(s). Le lot <strong>28 jours</strong> = reste (recalculé automatiquement).</p>"
-      : "<p class=\"hint\">Total prélevé : <strong>" + info.total + "</strong> éprouvette(s). " +
-        "Le lot <strong>7 jours</strong> est proposé à 3 ; le lot <strong>28 jours</strong> = reste (calculé automatiquement).</p>";
+    var titre = "<p class=\"hint\">Affectez chaque <strong>prélèvement</strong> à une échéance d'essai. " +
+      "Chaque prélèvement reste <strong>entier</strong> dans un même lot (écrasé ensemble). " +
+      "Proposition : E1 à 7 jours, les autres à 28 jours.</p>";
 
-    form.innerHTML =
-      titre +
-      "<div class=\"lots-editor\">" +
-        fixedRowHtml("7j", info, vals7) +
-        autresHtml +
-        fixedRowHtml("28j", info, vals28) +
-      "</div>" +
-      "<button type=\"button\" class=\"btn-text repb-add\">&#10133; Ajouter un lot (âge manuel)</button>" +
+    form.innerHTML = titre +
+      "<div class=\"prel-rep-editor\">" + rows + "</div>" +
       "<div class=\"repb-sum\"></div>" +
       "<button type=\"button\" class=\"btn-primary repb-valider\">&#10004; " +
         (isEdit ? "Enregistrer les corrections" : "Confirmer la répartition") + "</button>" +
@@ -342,52 +333,44 @@ var CAEKBassin = (function () {
     updateSum(form);
   }
 
-  // Lit les lots : 7j (nombre saisi), autres (jours + nombre saisis), 28j (reste).
-  function readRows(form) {
-    var total = intOr0(form.getAttribute("data-total"));
+  // Lit l'affectation d'âge de chaque prélèvement.
+  function readPrelRows(form, coulage) {
+    var prels = prelList(coulage);
+    var rowsEls = form.querySelectorAll(".prel-rep-row");
     var out = [];
-    var sumNon28 = 0;
-    var row7 = form.querySelector(".lot-row[data-age='7j']");
-    if (row7) {
-      var n7 = intOr0(row7.querySelector(".lot-nb").value);
-      sumNon28 += n7;
-      out.push({ kind: "7j", type: row7.querySelector(".lot-type").value, age: "7j", ageJours: 7, nombre: n7 });
+    for (var i = 0; i < rowsEls.length; i++) {
+      var r = rowsEls[i];
+      var idx = intOr0(r.getAttribute("data-prel"));
+      var p = prels[idx - 1];
+      if (!p) { continue; }
+      var ageSel = r.querySelector(".prel-age").value;
+      var ageJours = ageSel === "7j" ? 7 : (ageSel === "28j" ? 28 : intOr0(r.querySelector(".prel-jours").value));
+      out.push({ prel: idx, age: ageSel, ageJours: ageJours, type: p.type, nombre: p.nombre });
     }
-    var autres = form.querySelectorAll(".lot-row.lot-autre");
-    for (var i = 0; i < autres.length; i++) {
-      var r = autres[i];
-      var j = intOr0(r.querySelector(".lot-jours").value);
-      var nb = intOr0(r.querySelector(".lot-nb").value);
-      sumNon28 += nb;
-      out.push({ kind: "autre", type: r.querySelector(".lot-type").value, age: "autre", ageJours: j, nombre: nb });
-    }
-    var reste = total - sumNon28;
-    var row28 = form.querySelector(".lot-row[data-age='28j']");
-    out.push({ kind: "28j", type: row28 ? row28.querySelector(".lot-type").value : "cube", age: "28j", ageJours: 28, nombre: reste });
     return out;
   }
 
+  // Affiche/masque les champs « jours » et valide le formulaire.
   function updateSum(form) {
-    var total = intOr0(form.getAttribute("data-total"));
-    var rows = readRows(form);
-    var reste = 0;
-    rows.forEach(function (l) { if (l.kind === "28j") { reste = l.nombre; } });
-    // Affiche le reste calculé sur la ligne 28j.
-    var nb28 = form.querySelector(".lot-28-nb");
-    if (nb28) {
-      nb28.textContent = reste;
-      nb28.className = "lot-28-nb" + (reste < 0 ? " is-neg" : "");
-    }
     var box = form.querySelector(".repb-sum");
-    var ok = reste >= 0;
-    if (box) {
-      box.className = "repb-sum " + (ok ? "is-ok" : "is-warn");
-      box.innerHTML = ok
-        ? "Réparti : <strong>" + total + "</strong> / " + total + " &#10004;"
-        : "&#9888; Le reste (28 j) est négatif. Réduisez les autres lots.";
-    }
     var btn = form.querySelector(".repb-valider");
-    if (btn) { btn.disabled = !ok; }
+    var rows = form.querySelectorAll(".prel-rep-row");
+    var bad = false;
+    for (var i = 0; i < rows.length; i++) {
+      var ageSel = rows[i].querySelector(".prel-age").value;
+      var jInput = rows[i].querySelector(".prel-jours");
+      if (ageSel === "autre") {
+        jInput.hidden = false;
+        if (intOr0(jInput.value) <= 0) { bad = true; }
+      } else { jInput.hidden = true; }
+    }
+    if (box) {
+      box.className = "repb-sum " + (bad ? "is-warn" : "is-ok");
+      box.innerHTML = bad
+        ? "&#9888; Indiquez l'âge (jours) pour chaque prélèvement « Autre… »."
+        : rows.length + " prélèvement(s) → " + rows.length + " lot(s) (chaque prélèvement écrasé ensemble).";
+    }
+    if (btn) { btn.disabled = bad || rows.length === 0; }
   }
 
   function validerRepartition(form, coulage) {
@@ -396,41 +379,25 @@ var CAEKBassin = (function () {
       : { nom: "", qualification: "" };
     if (!prof) { return; }
     var total = intOr0(form.getAttribute("data-total"));
-    var rows = readRows(form);
+    var kept = readPrelRows(form, coulage);
+    if (!kept.length) { window.alert("Aucun prélèvement à répartir."); return; }
 
-    var reste = 0;
-    rows.forEach(function (l) { if (l.kind === "28j") { reste = l.nombre; } });
-    if (reste < 0) {
-      window.alert("Le reste pour le lot 28 jours est négatif (" + reste + "). Réduisez les nombres des autres lots.");
-      return;
-    }
-    // Validations : valeurs négatives, âge vide, doublon d'âge.
-    var ages = {}, bad = "";
-    rows.forEach(function (l) {
-      if (l.nombre < 0) { bad = "Un nombre d'éprouvettes est négatif."; }
-      if (l.kind === "autre") {
-        if (l.ageJours <= 0) { bad = "Chaque lot ajouté doit avoir un âge (en jours) valide."; }
-        if (l.nombre <= 0) { bad = "Chaque lot ajouté doit avoir un nombre d'éprouvettes."; }
-      }
-      if (l.nombre > 0) {
-        if (ages[l.ageJours]) { bad = "Deux lots ont le même âge (" + l.ageJours + " j). Fusionnez-les ou changez l'âge."; }
-        ages[l.ageJours] = true;
-      }
+    // Validations : âge valide pour chaque prélèvement.
+    var bad = "";
+    kept.forEach(function (l) {
+      if (l.ageJours <= 0) { bad = "Indiquez un âge (jours) valide pour chaque prélèvement."; }
+      if (!l.nombre) { bad = "Un prélèvement est vide."; }
     });
     if (bad) { window.alert(bad); return; }
 
-    // Ne garde que les lots non vides.
-    var kept = rows.filter(function (l) { return l.nombre > 0; });
-    if (!kept.length) { window.alert("Aucune éprouvette à répartir."); return; }
-
-    // Blocage : aucune date prévue d'écrasement ne doit être déjà dépassée.
+    // Blocage : aucune date prévue d'essai ne doit être déjà dépassée.
     var today = todayStr();
     var dc = coulage.dateCoulage || today;
     for (var k = 0; k < kept.length; k++) {
       var dp = addDaysStr(dc, kept[k].ageJours);
       if (dp < today) {
-        window.alert("Impossible de créer un lot à " + kept[k].ageJours +
-          " jours : la date prévue d'écrasement (" + fmtDate(dp) + ") est déjà dépassée.");
+        window.alert("Impossible de créer le lot du prélèvement E" + kept[k].prel + " à " + kept[k].ageJours +
+          " jours : la date prévue d'essai (" + fmtDate(dp) + ") est déjà dépassée.");
         return;
       }
     }
@@ -441,17 +408,16 @@ var CAEKBassin = (function () {
     if (!window.confirm(confirmMsg)) { return; }
 
     var now = new Date().toISOString();
-    // Codification V2.02 (REF-Ei, code commun par prélèvement) distribuée
-    // séquentiellement aux lots ; on conserve le prélèvement, le n° interne
-    // et le malaxeur lié pour l'historique compression.
+    // Codification V2.03 (REF-Ei-JJ) : on regroupe les codes par prélèvement,
+    // chaque prélèvement formant UN lot (écrasé ensemble).
     var allCodes = window.CAEKModel ? CAEKModel.allCodes(coulage) : [];
-    var offset = 0;
+    var byPrel = {};
+    allCodes.forEach(function (x) { (byPrel[x.prel] = byPrel[x.prel] || []).push(x); });
     var lots = kept.map(function (l) {
       var datePrevue = addDaysStr(coulage.dateCoulage || todayStr(), l.ageJours);
-      var codes = allCodes.slice(offset, offset + l.nombre).map(function (x) {
+      var codes = (byPrel[l.prel] || []).map(function (x) {
         return { code: x.code, type: x.type, prel: x.prel, numInterne: x.numInterne, malaxeur: x.malaxeur };
       });
-      offset += l.nombre;
       return {
         ref: coulage.ref,
         client: coulage.client || coulage.entreprise || "",
@@ -464,6 +430,7 @@ var CAEKBassin = (function () {
         dateCoulage: coulage.dateCoulage || "",
         type: l.type,
         nombre: l.nombre,
+        prel: l.prel,
         age: l.age,
         ageJours: l.ageJours,
         datePrevue: datePrevue,
@@ -641,6 +608,14 @@ var CAEKBassin = (function () {
   var MOTIFS_ACCORD = ["Accord client", "Accord chef labo", "Contrainte planning", "Jour férié", "Autre"];
   var MOTIFS_RETARD = ["Presse indisponible", "Oubli", "Demande client", "Jour non ouvrable", "Autre"];
 
+  // Texte des codes d'un lot : liste si <=4, sinon premier -> dernier.
+  function lotCodesText(lot) {
+    var codes = (lot && lot.codes) || [];
+    if (!codes.length) { return "—"; }
+    if (codes.length <= 4) { return codes.map(function (x) { return x.code; }).join(", "); }
+    return codes[0].code + " → " + codes[codes.length - 1].code + " (" + codes.length + ")";
+  }
+
   function openDetail(id) {
     var lot = null;
     for (var i = 0; i < _lots.length; i++) { if (_lots[i].id === id) { lot = _lots[i]; break; } }
@@ -659,10 +634,12 @@ var CAEKBassin = (function () {
       detRow("Client", lot.client) +
       detRow("Projet", lot.nomProjet) +
       detRow("Ouvrage", lot.ouvrage) +
-      detRow("Bloc / Étage", [lot.bloc, lot.etage].filter(Boolean).join(" / ")) +
+      detRow("Bloc / Étage / Partie", [lot.bloc ? "Bloc " + lot.bloc : "", lot.etage, lot.partie].filter(Boolean).join(" · ")) +
       detRow("Date de coulage", fmtDate(lot.dateCoulage)) +
+      detRow("Prélèvement", lot.prel ? "E" + lot.prel : "—") +
       detRow("Type", typeLabel(lot.type)) +
       detRow("Nombre", lot.nombre + " éprouvette(s)") +
+      detRow("Codification", lotCodesText(lot)) +
       detRow("Âge", lot.age === "autre" ? lot.ageJours + " jours" : lot.age) +
       detRow("Date prévue d'essai", fmtDate(lot.datePrevue)) +
       detRow("Statut", stLabel) +
@@ -918,31 +895,18 @@ var CAEKBassin = (function () {
           return;
         }
         if (t.closest(".repb-open")) { openRepartForm(item, coulage); return; }
-        if (t.closest(".lot-del")) {
-          var row = t.closest(".lot-row");
-          if (row) { row.parentNode.removeChild(row); updateSum(item.querySelector(".repb-form")); }
-          return;
-        }
-        if (t.closest(".repb-add")) {
-          var ed = item.querySelector(".lots-editor");
-          var info = specimenInfo(coulage);
-          if (ed) {
-            var tmp = document.createElement("div");
-            tmp.innerHTML = autreRowHtml(info);
-            var newRow = tmp.firstChild;
-            // Insère le lot manuel avant la ligne 28 j (qui reste en dernier).
-            var row28 = ed.querySelector(".lot-row[data-age='28j']");
-            if (row28) { ed.insertBefore(newRow, row28); } else { ed.appendChild(newRow); }
-            updateSum(item.querySelector(".repb-form"));
-          }
-          return;
-        }
         if (t.closest(".repb-valider")) { validerRepartition(item.querySelector(".repb-form"), coulage); return; }
+      });
+      // Changement d'échéance d'un prélèvement : révèle « jours » + revalide.
+      repBox.addEventListener("change", function (ev) {
+        var t = ev.target;
+        var form = t.closest ? t.closest(".repb-form") : null;
+        if (form && t.classList.contains("prel-age")) { updateSum(form); }
       });
       repBox.addEventListener("input", function (ev) {
         var t = ev.target;
         var form = t.closest ? t.closest(".repb-form") : null;
-        if (form && (t.classList.contains("lot-nb") || t.classList.contains("lot-jours"))) { updateSum(form); }
+        if (form && t.classList.contains("prel-jours")) { updateSum(form); }
       });
     }
 

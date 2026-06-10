@@ -388,8 +388,10 @@ var CAEKFiche = (function () {
       if (window.CAEKModel ? CAEKModel.malaxeurHasPrel(m) : (m && m.preleve)) { rang++; }
     }
     var ref = current.ref || "";
+    var prem = window.CAEKModel ? CAEKModel.eproCode(ref, rang, 1) : (ref + "-E" + rang + "-01");
+    var dern = window.CAEKModel ? CAEKModel.eproCode(ref, rang, nb) : (ref + "-E" + rang + "-" + pad2(nb));
     box.hidden = false;
-    box.innerHTML = "Code éprouvettes : <strong>" + escapeHtml(ref + "-E" + rang) +
+    box.innerHTML = "Codification : <strong>" + escapeHtml(nb > 1 ? (prem + " → " + dern) : prem) +
       "</strong> · " + escapeHtml(typeLabelLong(type)) + " · " + nb + " éprouvette(s)";
   }
 
@@ -646,13 +648,16 @@ var CAEKFiche = (function () {
       return;
     }
     var rows = codif.map(function (p) {
+      var plage = p.nombre > 1 ? (escapeHtml(p.premier) + " → " + escapeHtml(p.dernier))
+        : escapeHtml(p.premier || p.prefixe);
       return "<div class=\"prel-ro\">" +
         "<div class=\"prel-ro-head\"><span class=\"prel-num\">" + escapeHtml(p.numero) + "</span>" +
-        "<span class=\"prel-ro-code\">" + escapeHtml(p.code) + "</span></div>" +
+        "<span class=\"prel-ro-code\">" + escapeHtml(p.prefixe) + "</span></div>" +
         "<div class=\"prel-ro-body\">" +
         (p.malaxeur ? "Malaxeur " + pad2(p.malaxeur) + " · " : "") +
         escapeHtml(typeLabel(p.type)) + " · <strong>" + p.nombre + "</strong> éprouvette(s)" +
         (p.heure ? " · ⏰ " + escapeHtml(p.heure) : "") +
+        "<br>🏷️ <strong>" + plage + "</strong>" +
         (p.observation ? "<br>📝 " + escapeHtml(p.observation) : "") +
         "</div></div>";
     }).join("");

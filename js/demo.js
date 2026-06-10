@@ -85,12 +85,13 @@ var CAEKDemo = (function () {
     };
   }
 
-  // Codes individuels d'un lot (V2.02 : 1 code commun REF-Ei par prelevement).
+  // Codes individuels d'un lot (V2.03 : REF-Ei-JJ).
   function lotCodes(ref, nombre, type, prel, malaxeur) {
     var t = (type === "cylindre") ? "cylindre" : "cube";
+    var e = prel || 1;
     var out = [];
     for (var j = 1; j <= nombre; j++) {
-      out.push({ code: ref + "-E" + (prel || 1), type: t, prel: prel || 1, numInterne: j, malaxeur: malaxeur || 1 });
+      out.push({ code: ref + "-E" + e + "-" + pad2(j), type: t, prel: e, numInterne: j, malaxeur: malaxeur || 1 });
     }
     return out;
   }
@@ -138,7 +139,7 @@ var CAEKDemo = (function () {
     var out = [];
     for (var i = 0; i < nombre; i++) {
       var base = {
-        code: ref + "-E1", prel: 1, numInterne: i + 1, prelInterne: i + 1, malaxeur: 1,
+        code: ref + "-E1-" + pad2(i + 1), prel: 1, numInterne: i + 1, prelInterne: i + 1, malaxeur: 1,
         forme: type, dim1: dims.d1, dim2: dims.d2, surface: Math.round(surface), dateEssai: ymd(0)
       };
       if (i < nbFilled) {
@@ -153,6 +154,49 @@ var CAEKDemo = (function () {
       out.push(base);
     }
     return out;
+  }
+
+  // Sauvegarde les valeurs reelles de dechets (1 fois) puis pose des valeurs
+  // DEMO (stock 320 > seuil 300 -> alerte + 1 evacuation partielle d'historique).
+  function setupDechetsDemo() {
+    if (!window.CAEKDB) { return Promise.resolve(); }
+    return CAEKDB.getMeta("dechetsDemoBackup").then(function (bak) {
+      var save = bak ? Promise.resolve() : Promise.all([
+        CAEKDB.getMeta("dechetsStock"), CAEKDB.getMeta("dechetsSeuil"),
+        CAEKDB.getMeta("dechetsPoidsMoyen"), CAEKDB.getMeta("dechetsEvacuations")
+      ]).then(function (o) {
+        return CAEKDB.setMeta("dechetsDemoBackup", {
+          stock: (o[0] == null) ? null : o[0], seuil: (o[1] == null) ? null : o[1],
+          poidsMoyen: (o[2] == null) ? null : o[2], evacuations: Array.isArray(o[3]) ? o[3] : null
+        });
+      });
+      return save.then(function () {
+        var evac = [{ date: ymd(-3), heure: "14:00", quantite: 300,
+          observation: "Évacuation partielle (camion)", operateur: "Op DEMO",
+          qualification: "Technicien", resteApres: 320, at: nowIso() }];
+        return Promise.all([
+          CAEKDB.setMeta("dechetsStock", 320),
+          CAEKDB.setMeta("dechetsSeuil", 300),
+          CAEKDB.setMeta("dechetsPoidsMoyen", 8),
+          CAEKDB.setMeta("dechetsEvacuations", evac)
+        ]);
+      });
+    });
+  }
+
+  // Restaure les valeurs reelles de dechets sauvegardees au chargement DEMO.
+  function restoreDechetsDemo() {
+    if (!window.CAEKDB) { return Promise.resolve(); }
+    return CAEKDB.getMeta("dechetsDemoBackup").then(function (bak) {
+      if (!bak) { return null; }
+      return Promise.all([
+        CAEKDB.setMeta("dechetsStock", bak.stock == null ? 0 : bak.stock),
+        CAEKDB.setMeta("dechetsSeuil", bak.seuil == null ? 300 : bak.seuil),
+        CAEKDB.setMeta("dechetsPoidsMoyen", bak.poidsMoyen == null ? 8 : bak.poidsMoyen),
+        CAEKDB.setMeta("dechetsEvacuations", bak.evacuations == null ? [] : bak.evacuations),
+        CAEKDB.setMeta("dechetsDemoBackup", null)
+      ]);
+    });
   }
 
   /* ---------- Chargement ---------- */
@@ -223,6 +267,7 @@ var CAEKDemo = (function () {
     var chain = Promise.resolve();
     coulages.forEach(function (c) { chain = chain.then(function () { return CAEKDB.saveCoulage(c); }); });
     return chain.then(function () { return CAEKDB.addLots(lots); })
+      .then(function () { return setupDechetsDemo(); })
       .then(function () { return { coulages: coulages.length, lots: lots.length }; });
   }
 
@@ -235,7 +280,8 @@ var CAEKDemo = (function () {
       var chain = Promise.resolve();
       coulages.forEach(function (c) { chain = chain.then(function () { return CAEKDB.deleteCoulage(c.ref); }); });
       lots.forEach(function (l) { chain = chain.then(function () { return CAEKDB.deleteLot(l.id); }); });
-      return chain.then(function () { return { coulages: coulages.length, lots: lots.length }; });
+      return chain.then(function () { return restoreDechetsDemo(); })
+        .then(function () { return { coulages: coulages.length, lots: lots.length }; });
     });
   }
 

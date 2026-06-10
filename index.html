@@ -91,6 +91,11 @@
           <span class="tile-icon" aria-hidden="true">&#129518;</span>
           <span class="tile-label">Bassin virtuel</span>
         </button>
+        <button class="tile" data-goto="screen-dechets">
+          <span class="tile-icon" aria-hidden="true">&#9851;</span>
+          <span class="tile-label">Gestion déchets</span>
+          <span class="menu-badge" id="badge-dechets" hidden></span>
+        </button>
       </div>
     </section>
 
@@ -147,6 +152,39 @@
     </section>
 
     <!-- BASSIN > ARCHIVES -->
+    <!-- BASSIN > GESTION DECHETS -->
+    <section id="screen-dechets" class="screen">
+      <button class="btn-back" data-goto="screen-bassin">&#8592; Retour</button>
+      <h1 class="screen-title">Gestion déchets</h1>
+      <p class="hint">Éprouvettes cassées après essai de compression. L'historique des essais n'est pas affecté.</p>
+
+      <div id="dechets-alerte" class="bassin-alerte" hidden></div>
+
+      <div class="dechets-stats">
+        <div class="dechets-stat"><span class="dechets-num" id="dechets-stock">0</span><span class="dechets-lbl">éprouvettes cassées</span></div>
+        <div class="dechets-stat"><span class="dechets-num" id="dechets-poids">0</span><span class="dechets-lbl">kg estimés</span></div>
+        <div class="dechets-stat"><span class="dechets-num" id="dechets-seuil-aff">300</span><span class="dechets-lbl">seuil d'alerte</span></div>
+      </div>
+
+      <h3 class="block-subtitle">&#9881;&#65039; Paramètres</h3>
+      <label class="field-label" for="dechets-seuil">Seuil d'alerte (éprouvettes)</label>
+      <input id="dechets-seuil" class="field" type="number" min="1" step="1" inputmode="numeric">
+      <label class="field-label" for="dechets-poidsmoyen">Poids moyen (kg / éprouvette)</label>
+      <input id="dechets-poidsmoyen" class="field" type="number" min="0" step="any" inputmode="decimal">
+      <button id="dechets-params-save" class="btn-secondary" type="button">&#128190; Enregistrer les paramètres</button>
+
+      <h3 class="block-subtitle">&#128667; Confirmer une évacuation</h3>
+      <label class="field-label" for="dechets-evac-qte">Quantité évacuée (éprouvettes)</label>
+      <input id="dechets-evac-qte" class="field" type="number" min="1" step="1" inputmode="numeric">
+      <label class="field-label" for="dechets-evac-obs">Observation <span class="opt">(facultatif)</span></label>
+      <input id="dechets-evac-obs" class="field" type="text" autocomplete="off">
+      <button id="dechets-evac-valider" class="btn-primary" type="button">&#10004; Confirmer évacuation</button>
+      <div id="dechets-result" class="result-card" hidden></div>
+
+      <h3 class="block-subtitle">&#128220; Historique des évacuations</h3>
+      <div id="dechets-evac-liste"></div>
+    </section>
+
     <!-- Overlay detail / ecrasement d'un lot -->
     <div id="bassin-detail" class="bassin-overlay" hidden>
       <div class="bassin-overlay-card">
@@ -343,6 +381,34 @@
       <div id="fc-step-malaxeur" class="fc-step" hidden>
         <h2 class="block-title" id="fc-mal-titre">Malaxeur 01</h2>
 
+        <h3 class="block-subtitle"><img class="subtitle-icon" src="assets/icons/ouvrages/echantillon_frais.png" alt=""> Prélèvement d'échantillons</h3>
+        <p class="hint">Avez-vous effectué un prélèvement d'échantillons de béton sur ce malaxeur / toupie ?</p>
+        <div class="seg-switch seg-yesno" id="fc-mal-prel-switch">
+          <button type="button" class="seg" data-prel="oui">Oui</button>
+          <button type="button" class="seg" data-prel="non">Non</button>
+        </div>
+        <div id="fc-mal-prel-detail" hidden>
+          <p class="hint">Type de moule — touchez <strong>Cube</strong>, <strong>Cylindre</strong>, ou les deux (= prélèvement mixte) :</p>
+          <div class="mold-choice" id="fc-mal-mold">
+            <button type="button" class="mold-btn" data-mold="cube">
+              <span class="mold-check">✓</span>
+              <img class="mold-img" src="assets/icons/ouvrages/moule_cubique.png" alt="">
+              <span class="mold-label">Cube</span>
+            </button>
+            <button type="button" class="mold-btn" data-mold="cylindre">
+              <span class="mold-check">✓</span>
+              <img class="mold-img" src="assets/icons/ouvrages/moule_cylindrique.png" alt="">
+              <span class="mold-label">Cylindre</span>
+            </button>
+          </div>
+          <label class="field-label" for="fc-mal-prel-nb">&#129514; Nombre total d'éprouvettes prélevées</label>
+          <input id="fc-mal-prel-nb" class="field" type="number" min="1" step="1" inputmode="numeric">
+          <label class="opt-toggle" for="fc-mal-prel-obs-on"><input type="checkbox" id="fc-mal-prel-obs-on"><span>&#128221; Observation prélèvement <span class="opt">(facultatif)</span></span></label>
+          <input id="fc-mal-prel-obs" class="field opt-field" type="text" autocomplete="off" hidden>
+          <div id="fc-mal-prel-codif" class="prel-codif" hidden></div>
+        </div>
+
+        <h3 class="block-subtitle">&#128202; Données du malaxeur / toupie</h3>
         <label class="field-label" for="fc-mal-heure">&#9200; Heure de prélèvement</label>
         <input id="fc-mal-heure" class="field" type="time">
 
@@ -432,33 +498,6 @@
             <div id="fc-mal-form-photo-preview" class="photos-grid"></div>
             <p class="hint">La photo est compressée et stockée localement.</p>
           </div>
-        </div>
-
-        <h3 class="block-subtitle"><img class="subtitle-icon" src="assets/icons/ouvrages/echantillon_frais.png" alt=""> Prélèvement d'échantillons</h3>
-        <p class="hint">Avez-vous effectué un prélèvement d'échantillons de béton sur ce malaxeur / toupie ?</p>
-        <div class="seg-switch seg-yesno" id="fc-mal-prel-switch">
-          <button type="button" class="seg" data-prel="oui">Oui</button>
-          <button type="button" class="seg" data-prel="non">Non</button>
-        </div>
-        <div id="fc-mal-prel-detail" hidden>
-          <p class="hint">Type de moule — touchez <strong>Cube</strong>, <strong>Cylindre</strong>, ou les deux (= prélèvement mixte) :</p>
-          <div class="mold-choice" id="fc-mal-mold">
-            <button type="button" class="mold-btn" data-mold="cube">
-              <span class="mold-check">✓</span>
-              <img class="mold-img" src="assets/icons/ouvrages/moule_cubique.png" alt="">
-              <span class="mold-label">Cube</span>
-            </button>
-            <button type="button" class="mold-btn" data-mold="cylindre">
-              <span class="mold-check">✓</span>
-              <img class="mold-img" src="assets/icons/ouvrages/moule_cylindrique.png" alt="">
-              <span class="mold-label">Cylindre</span>
-            </button>
-          </div>
-          <label class="field-label" for="fc-mal-prel-nb">&#129514; Nombre total d'éprouvettes prélevées</label>
-          <input id="fc-mal-prel-nb" class="field" type="number" min="1" step="1" inputmode="numeric">
-          <label class="opt-toggle" for="fc-mal-prel-obs-on"><input type="checkbox" id="fc-mal-prel-obs-on"><span>&#128221; Observation prélèvement <span class="opt">(facultatif)</span></span></label>
-          <input id="fc-mal-prel-obs" class="field opt-field" type="text" autocomplete="off" hidden>
-          <div id="fc-mal-prel-codif" class="prel-codif" hidden></div>
         </div>
 
         <div class="fc-mal-actions">
@@ -591,6 +630,7 @@
   <script src="js/export.js"></script>
   <script src="js/repertoire.js"></script>
   <script src="js/bassin.js"></script>
+  <script src="js/dechets.js"></script>
   <script src="js/compression.js"></script>
   <script src="js/badges.js"></script>
   <script src="js/demo.js"></script>

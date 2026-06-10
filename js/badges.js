@@ -83,16 +83,23 @@ var CAEKBadges = (function () {
   }
 
   // Synthese chiffree de toutes les alertes, par module.
-  function computeStats(coulages, lots) {
+  function computeStats(coulages, lots, dechets) {
     var today = todayStr();
     var s = {
       // Coulage
       recup: 0, retardRecup: 0, codif: 0, brouillon: 0,
       // Bassin
       aRepartir: 0, j2: 0, j1: 0, retard: 0, sorti: 0,
+      // Dechets
+      dechetsStock: 0, dechetsSeuil: 0, dechetsAlerte: 0,
       // Compression
       aTester: 0, incomplet: 0, eprRestantes: 0, testeAuj: 0
     };
+    if (dechets) {
+      s.dechetsStock = intOr0(dechets.stock);
+      s.dechetsSeuil = intOr0(dechets.seuil);
+      if (s.dechetsSeuil > 0 && s.dechetsStock >= s.dechetsSeuil) { s.dechetsAlerte = 1; }
+    }
     (coulages || []).forEach(function (c) {
       var st = (c && c.statut) || "brouillon";
       if (st === "brouillon") { s.brouillon++; return; }
@@ -157,6 +164,7 @@ var CAEKBadges = (function () {
     if (s.j1) { c.push(chip(s.j1, "à sortir aujourd'hui (J-1)", "red")); }
     if (s.retard) { c.push(chip(s.retard, "en retard", "red")); }
     if (s.sorti) { c.push(chip(s.sorti, s.sorti > 1 ? "sortis pour essai" : "sorti pour essai", "green")); }
+    if (s.dechetsAlerte) { c.push(chip(s.dechetsStock, "déchets à évacuer", "red")); }
     return c;
   }
   function compressionChips(s) {
@@ -183,6 +191,7 @@ var CAEKBadges = (function () {
     setBadge("badge-coulage", 0);
     setBadge("badge-bassin", 0);
     setBadge("badge-compression", 0);
+    setBadge("badge-dechets", 0);
     renderSyntheses(computeStats([], []));
   }
 
@@ -196,12 +205,16 @@ var CAEKBadges = (function () {
 
     Promise.all([
       CAEKDB.getAllCoulages(),
-      CAEKDB.getAllLots()
+      CAEKDB.getAllLots(),
+      CAEKDB.getMeta("dechetsStock"),
+      CAEKDB.getMeta("dechetsSeuil")
     ]).then(function (out) {
-      var s = computeStats(out[0] || [], out[1] || []);
+      var dechets = { stock: out[2], seuil: (out[3] == null) ? 300 : out[3] };
+      var s = computeStats(out[0] || [], out[1] || [], dechets);
       setBadge("badge-coulage", s.recup + s.codif);
-      setBadge("badge-bassin", s.aRepartir + s.j2 + s.j1 + s.retard);
+      setBadge("badge-bassin", s.aRepartir + s.j2 + s.j1 + s.retard + s.dechetsAlerte);
       setBadge("badge-compression", s.aTester);
+      setBadge("badge-dechets", s.dechetsAlerte);
       renderSyntheses(s);
     }).catch(function () {
       clearAll();

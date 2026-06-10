@@ -40,6 +40,7 @@
       if (id === "screen-bassin" || id === "screen-bassin-virtuel") { CAEKBassin.refreshBassin(); }
       if (id === "screen-repartir") { CAEKBassin.refreshRepartir(); }
     }
+    if (id === "screen-dechets" && window.CAEKDechets) { CAEKDechets.refresh(); }
     if (window.CAEKCompression) {
       if (id === "screen-compression" || id === "screen-comp-atester" ||
         id === "screen-comp-historique") { CAEKCompression.refresh(); }
@@ -237,6 +238,7 @@
     if (window.CAEKPhotos) { CAEKPhotos.init(); }
     if (window.CAEKRepertoire) { CAEKRepertoire.init(); }
     if (window.CAEKBassin) { CAEKBassin.init(); }
+    if (window.CAEKDechets) { CAEKDechets.init(); }
     if (window.CAEKCompression) { CAEKCompression.init(); }
     if (window.CAEKBadges) { CAEKBadges.refresh(); }
   });

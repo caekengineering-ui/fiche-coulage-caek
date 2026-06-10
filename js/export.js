@@ -108,12 +108,13 @@ var CAEKExport = (function () {
     // --- Prelevements d'eprouvettes + codification (V2.02 : 1 code par prelevement) ---
     var codif = window.CAEKModel ? CAEKModel.codification(c) : [];
     aoa.push(["PRÉLÈVEMENTS D'ÉPROUVETTES"]);
-    aoa.push(["Prélèvement", "Malaxeur", "Heure", "Type", "Nombre", "Code éprouvettes", "Observation"]);
+    aoa.push(["Prélèvement", "Malaxeur", "Heure", "Type", "Nombre", "Codification", "Observation"]);
     if (codif.length) {
       codif.forEach(function (p) {
+        var plage = p.nombre > 1 ? (p.premier + " → " + p.dernier) : (p.premier || "");
         aoa.push([
           p.numero, p.malaxeur ? "Malaxeur " + p.malaxeur : "", p.heure || "",
-          TYPE_LABEL_XLS[p.type] || p.type || "", p.nombre || "", p.code || "", p.observation || ""
+          TYPE_LABEL_XLS[p.type] || p.type || "", p.nombre || "", plage, p.observation || ""
         ]);
       });
     } else {
