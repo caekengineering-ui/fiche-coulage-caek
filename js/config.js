@@ -11,7 +11,7 @@
    bureau / Python).
    ============================================================ */
 var CAEK_CONFIG = {
-  SUPABASE_URL: "https://VOTRE-PROJET.supabase.co",
-  SUPABASE_ANON: "sb_publishable_VOTRE_CLE",
+  SUPABASE_URL: "https://lraxccgckyuxvotliify.supabase.co",
+  SUPABASE_ANON: "sb_publishable_iHgKDbThut5dkpkDJz4GlQ_zBhEOUfJ",
   APP_VERSION: "3.0"
 };

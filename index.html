@@ -116,67 +116,69 @@
       <div id="profil-result" class="result-card" hidden></div>
     </section>
 
-    <!-- ECRAN CONNEXION OPERATEUR -->
+    <!-- ECRAN CONNEXION OPERATEUR (serveur) -->
     <section id="screen-login" class="screen">
       <div class="login-wrap">
         <img class="login-logo" src="assets/logo-caek.png" alt="CAEK ENGINEERING">
         <h1 class="login-title">Connexion opérateur</h1>
 
-        <!-- Première configuration : créer l'administrateur -->
-        <div id="login-setup" hidden>
-          <p class="hint">Première configuration : créez le compte <strong>administrateur</strong> du laboratoire.</p>
-          <label class="field-label" for="setup-nom">Nom affiché</label>
-          <input id="setup-nom" class="field" type="text" placeholder="ex. CHAHID Ayoub" autocomplete="off">
-          <label class="field-label" for="setup-qualif">Qualification / fonction</label>
-          <input id="setup-qualif" class="field" type="text" placeholder="ex. Chef de laboratoire" autocomplete="off">
-          <label class="field-label" for="setup-pin">Code PIN (4 à 6 chiffres)</label>
-          <input id="setup-pin" class="field" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" placeholder="••••">
-          <label class="field-label" for="setup-pin2">Confirmer le PIN</label>
-          <input id="setup-pin2" class="field" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" placeholder="••••">
-          <button id="setup-go" class="btn-primary" type="button">&#9989; Créer l'administrateur</button>
-          <div id="setup-msg" class="result-card" hidden></div>
-        </div>
-
-        <!-- Connexion normale -->
-        <div id="login-form" hidden>
-          <p class="hint">Sélectionnez votre nom et saisissez votre code PIN.</p>
-          <label class="field-label" for="login-select">Opérateur</label>
-          <select id="login-select" class="field"></select>
-          <div id="login-setpin-hint" class="hint" hidden>&#128275; Premier accès : définissez votre code PIN.</div>
-          <label class="field-label" for="login-pin" id="login-pin-label">Code PIN</label>
-          <input id="login-pin" class="field" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="••••">
-          <label class="field-label" for="login-pin2" id="login-pin2-label" hidden>Confirmer le PIN</label>
-          <input id="login-pin2" class="field" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="••••" hidden>
+        <div id="login-form">
+          <p class="hint">Saisissez l'identifiant et le code PIN fournis par l'administrateur.</p>
+          <label class="field-label" for="login-user">Identifiant</label>
+          <input id="login-user" class="field" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="ex. mounir">
+          <label class="field-label" for="login-pin">Code PIN</label>
+          <input id="login-pin" class="field" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" placeholder="••••">
           <button id="login-go" class="btn-primary" type="button">&#128274; Se connecter</button>
           <div id="login-msg" class="result-card" hidden></div>
+          <p class="hint">&#128246; La connexion nécessite du réseau. Une fois connecté, l'application fonctionne aussi hors-ligne.</p>
         </div>
       </div>
     </section>
 
-    <!-- GESTION DES OPERATEURS -->
+    <!-- ADMINISTRATION : OPERATEURS & LABORATOIRES (serveur) -->
     <section id="screen-operateurs" class="screen">
       <button class="btn-back" id="oper-back" type="button">&#8592; Retour</button>
-      <h1 class="screen-title">Gestion des opérateurs</h1>
-      <p class="hint">Liste des opérateurs autorisés et de leur rôle. L'opérateur connecté signe les actions. Stockage local pour l'instant (synchronisation cloud prévue).</p>
-      <div id="oper-admin-note" class="result-card is-error" hidden>&#128274; Consultation seule : la modification de la liste des opérateurs est réservée à l'administrateur.</div>
-
-      <div id="oper-liste"></div>
+      <h1 class="screen-title">Administration</h1>
+      <p class="hint">Opérateurs et laboratoires — gérés en ligne. Chaque opérateur est affecté à un laboratoire (bassin + machine d'écrasement) : il ne voit que les éprouvettes de son labo.</p>
+      <div id="oper-admin-note" class="result-card is-error" hidden>&#128274; Écran réservé à l'administrateur.</div>
 
       <div class="admin-only">
+        <h3 class="block-subtitle">&#128101; Opérateurs</h3>
+        <div id="oper-liste"><p class="hint">Chargement…</p></div>
+
         <h3 class="block-subtitle">&#10133; Ajouter un opérateur</h3>
         <label class="field-label" for="oper-add-nom">Nom affiché</label>
-        <input id="oper-add-nom" class="field" type="text" placeholder="ex. CHAHID Ayoub" autocomplete="off">
-        <label class="field-label" for="oper-add-username">Identifiant <span class="opt">(facultatif, auto si vide)</span></label>
-        <input id="oper-add-username" class="field" type="text" placeholder="ex. chahid" autocomplete="off">
+        <input id="oper-add-nom" class="field" type="text" placeholder="ex. CHAHID Mounir" autocomplete="off">
+        <label class="field-label" for="oper-add-username">Identifiant (pour la connexion)</label>
+        <input id="oper-add-username" class="field" type="text" placeholder="ex. mounir" autocomplete="off" autocapitalize="none" spellcheck="false">
         <label class="field-label" for="oper-add-qualif">Qualification / fonction</label>
         <input id="oper-add-qualif" class="field" type="text" placeholder="ex. Technicien laboratoire" autocomplete="off">
         <label class="field-label" for="oper-add-role">Rôle</label>
-        <select id="oper-add-role" class="field"></select>
-        <label class="field-label" for="oper-add-pin">Code PIN <span class="opt">(facultatif — défini au 1ᵉʳ accès si vide)</span></label>
+        <select id="oper-add-role" class="field">
+          <option value="operateur" selected>Opérateur</option>
+          <option value="admin">Administrateur</option>
+        </select>
+        <label class="field-label" for="oper-add-labo">Laboratoire d'affectation</label>
+        <select id="oper-add-labo" class="field"></select>
+        <label class="field-label" for="oper-add-pin">Code PIN (4 à 6 chiffres)</label>
         <input id="oper-add-pin" class="field" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" placeholder="••••">
         <button id="oper-add-btn" class="btn-primary" type="button">&#10133; Ajouter l'opérateur</button>
+        <div id="oper-result" class="result-card" hidden></div>
+
+        <h3 class="block-subtitle">&#127970; Laboratoires</h3>
+        <p class="hint">Un laboratoire = un bassin de conservation + une machine d'écrasement (ex. Laboratoire central, Annexe Béchar).</p>
+        <div id="labo-liste"><p class="hint">Chargement…</p></div>
+
+        <h3 class="block-subtitle">&#10133; Ajouter un laboratoire</h3>
+        <label class="field-label" for="labo-add-nom">Nom</label>
+        <input id="labo-add-nom" class="field" type="text" placeholder="ex. Annexe Béchar" autocomplete="off">
+        <label class="field-label" for="labo-add-loc">Localisation <span class="opt">(facultatif)</span></label>
+        <input id="labo-add-loc" class="field" type="text" placeholder="ex. Béchar" autocomplete="off">
+        <label class="field-label" for="labo-add-seuil">Seuil d'alerte déchets (éprouvettes écrasées)</label>
+        <input id="labo-add-seuil" class="field" type="number" min="10" step="10" value="100">
+        <button id="labo-add-btn" class="btn-primary" type="button">&#10133; Ajouter le laboratoire</button>
+        <div id="labo-result" class="result-card" hidden></div>
       </div>
-      <div id="oper-result" class="result-card" hidden></div>
     </section>
 
     <!-- BASSIN > A REPARTIR -->
@@ -696,6 +698,8 @@
   </footer>
 
   <script src="vendor/xlsx.full.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/server.js"></script>
   <script src="js/db.js"></script>
   <script src="js/model.js"></script>
   <script src="js/profil.js"></script>
