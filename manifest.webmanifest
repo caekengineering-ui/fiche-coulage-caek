@@ -1,7 +1,7 @@
 {
-  "name": "Fiche de coulage terrain - CAEK",
-  "short_name": "Coulage CAEK",
-  "description": "Outil terrain pour le suivi de coulage de béton - CAEK Engineering Lab",
+  "name": "Module Béton - CAEK",
+  "short_name": "Béton CAEK",
+  "description": "Module Béton en ligne : coulages, éprouvettes, bassins et écrasements - CAEK Engineering Lab",
   "lang": "fr",
   "start_url": "./index.html",
   "scope": "./",
