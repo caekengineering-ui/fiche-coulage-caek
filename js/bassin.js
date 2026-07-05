@@ -159,11 +159,12 @@ var CAEKBassin = (function () {
       });
       archives.forEach(function (a) { locked[a.ref] = true; });
 
-      // Éligible à la répartition : validée/envoyée, avec éprouvettes,
-      // ET récupération + codification confirmées (cf. Répertoire).
+      // Éligible à la répartition : soumise/validée (la validation admin
+      // n'est PAS bloquante), avec éprouvettes, ET récupération +
+      // codification confirmées (cf. Répertoire).
       var eligibles = list.filter(function (c) {
         var st = c.statut || "brouillon";
-        if (st !== "validee" && st !== "envoyee") { return false; }
+        if (st !== "soumis" && st !== "valide" && st !== "validee" && st !== "envoyee") { return false; }
         if (specimenInfo(c).total <= 0) { return false; }
         return window.CAEKModel ? CAEKModel.recuperationOk(c) : true;
       });

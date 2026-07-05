@@ -1,11 +1,19 @@
 /* ============================================================
-   Fiche de coulage terrain - CAEK
-   repertoire.js - Liste des fiches + recherche/filtre.
+   Module Béton - CAEK
+   repertoire.js - V3 : liste des fiches + recherche/filtre (serveur).
+
+   Cycle V3 : brouillon -> SOUMIS (opérateur, verrouillé, en attente
+   admin) -> VALIDÉ (admin). Le renvoi admin remet en brouillon avec
+   un motif affiché sur la fiche.
+
    Actions par fiche :
-     - Ouvrir / modifier (brouillon) ou consulter (validée/envoyée) ;
-     - Valider (brouillon -> validée : dispo pour le module bassin) ;
-     - Partager au bureau (validée/envoyée : message + dossier complet).
-   La validation utilise le profil opérateur (obligatoire).
+     - Ouvrir / modifier (brouillon) ou consulter (soumis/validé) ;
+     - Soumettre au laboratoire (brouillon -> soumis : dispo pour le
+       bassin, la validation admin arrive en parallèle) ;
+     - Confirmer la récupération des éprouvettes (étiquettes) ;
+     - Message récap (partage texte WhatsApp) — les exports fichiers
+       (Excel/ZIP) sont supprimés : tout est sur le serveur.
+     - Suppression : brouillons uniquement (local + serveur).
    ============================================================ */
 
 var CAEKRepertoire = (function () {
@@ -13,7 +21,6 @@ var CAEKRepertoire = (function () {
 
   var _all = [];
   var _statut = "";
-  var _selected = {};
 
   function $(id) { return document.getElementById(id); }
 
@@ -30,7 +37,13 @@ var CAEKRepertoire = (function () {
     return parts.length === 3 ? (parts[2] + "/" + parts[1] + "/" + parts[0]) : s;
   }
 
-  var STATUT_LABEL = { brouillon: "Brouillon", validee: "Validée", envoyee: "Envoyé" };
+  var STATUT_LABEL = {
+    brouillon: "Brouillon", soumis: "Soumis", valide: "Validé",
+    validee: "Validée", envoyee: "Envoyé"   // anciens statuts locaux (rétro-compat)
+  };
+
+  // Un coulage « engagé » (non brouillon) alimente le bassin.
+  function isEngagee(st) { return st === "soumis" || st === "valide" || st === "validee" || st === "envoyee"; }
 
   function num(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
 
@@ -54,7 +67,7 @@ var CAEKRepertoire = (function () {
 
   // Date de reference du coulage (pour le delai de recuperation, max 3 jours).
   function coulageDateStr(c) {
-    var d = c.dateCoulage || c.dateValidation || c.dateCreation || "";
+    var d = c.dateCoulage || c.dateSoumission || c.dateCreation || "";
     return String(d).slice(0, 10);
   }
 
@@ -64,8 +77,6 @@ var CAEKRepertoire = (function () {
     var codif = window.CAEKModel ? CAEKModel.codification(c) : [];
     var total = window.CAEKModel ? CAEKModel.totalEprouvettes(c) : 0;
 
-    // Etiquettes a inscrire sur les eprouvettes : tous les codes, en gras,
-    // groupes par prelevement, recopiables directement.
     var rows = codif.map(function (p) {
       var codesHtml = (p.codes || []).map(function (code) {
         return "<div class=\"recup-code\">" + escapeHtml(code) + "</div>";
@@ -78,7 +89,6 @@ var CAEKRepertoire = (function () {
         "</div>";
     }).join("");
 
-    // Delai depuis le coulage (regle : recuperation sous 3 jours max).
     var cd = coulageDateStr(c);
     var delaiHtml = "";
     if (cd) {
@@ -108,8 +118,7 @@ var CAEKRepertoire = (function () {
       "</div>";
   }
 
-  // Totaux terrain : quantite (m3) sur les malaxeurs, nombre d'eprouvettes
-  // via le modele partage (prelevements V2.01, retro-compatible V2).
+  // Totaux terrain : quantite (m3) sur les malaxeurs, nombre d'eprouvettes.
   function totaux(c) {
     var mals = c.malaxeurs || [];
     var qte = 0;
@@ -121,47 +130,41 @@ var CAEKRepertoire = (function () {
     return { qte: qte, epr: epr };
   }
 
-  function refresh() {
-    if (!window.CAEKDB) { return; }
-    CAEKDB.getAllCoulages().then(function (list) {
+  function loadLocal() {
+    return CAEKDB.getAllCoulages().then(function (list) {
       list.sort(function (a, b) {
         var da = a.dateModification || a.dateCreation || "";
         var db = b.dateModification || b.dateCreation || "";
         return db.localeCompare(da);
       });
       _all = list;
-      render();
     });
+  }
+
+  function refresh() {
+    if (!window.CAEKDB) { return; }
+    loadLocal().then(render);
+    // Rapatrie les changements serveur (validation/renvoi admin, fiches
+    // des collègues du labo) puis réaffiche si nécessaire.
+    if (window.CAEKCoulages) {
+      CAEKCoulages.pull().then(function (r) {
+        if (r && r.changed) { loadLocal().then(render); }
+      });
+    }
   }
 
   function filteredList() {
     var search = ($("rep-search") ? $("rep-search").value : "").trim().toLowerCase();
     return _all.filter(function (c) {
-      if (_statut && (c.statut || "brouillon") !== _statut) { return false; }
+      var st = c.statut || "brouillon";
+      if (_statut === "soumis" && !(st === "soumis" || st === "validee" || st === "envoyee")) { return false; }
+      else if (_statut === "valide" && st !== "valide") { return false; }
+      else if (_statut === "brouillon" && st !== "brouillon") { return false; }
       if (!search) { return true; }
       var hay = [c.ref, c.codeProjet, c.entreprise, c.client, c.nomProjet,
         fmtDate(c.dateCoulage), c.dateCoulage].join(" ").toLowerCase();
       return hay.indexOf(search) >= 0;
     });
-  }
-
-  // Coulages selectionnes ; si aucun coche -> toute la liste filtree.
-  function selectedCoulages() {
-    var filtered = filteredList();
-    var sel = filtered.filter(function (c) { return _selected[c.ref]; });
-    return sel.length ? sel : filtered;
-  }
-
-  function updateSelCount() {
-    var n = 0; for (var k in _selected) { if (_selected[k]) { n++; } }
-    var el = $("rep-sel-count");
-    if (el) { el.textContent = n ? (n + " sélectionnée(s)") : "Aucune sélection (export = liste filtrée)"; }
-    var all = $("rep-select-all");
-    if (all) {
-      var filtered = filteredList();
-      var allSel = filtered.length && filtered.every(function (c) { return _selected[c.ref]; });
-      all.checked = !!allSel;
-    }
   }
 
   function render() {
@@ -184,73 +187,84 @@ var CAEKRepertoire = (function () {
       var t = totaux(c);
       var ref = escapeHtml(c.ref);
 
-      var isValidee = (st === "validee" || st === "envoyee");
-      var needRecup = isValidee && window.CAEKModel &&
+      var needRecup = isEngagee(st) && window.CAEKModel &&
         CAEKModel.hasEprouvettes(c) && !CAEKModel.recuperationOk(c);
+
+      // Bandeau : renvoi par l'admin (fiche repassée en brouillon).
+      var retour = (st === "brouillon" && c.retourAdmin)
+        ? "<div class=\"result-card is-error rep-retour\">&#8617; <strong>Renvoyé par l'administrateur :</strong> " +
+          escapeHtml(c.retourAdmin) + "</div>"
+        : "";
 
       var actions = "<div class=\"rep-actions\">";
       if (st === "brouillon") {
-        actions += "<button type=\"button\" class=\"rep-act rep-valider\" data-ref=\"" + ref + "\">&#10004; Valider</button>";
+        actions += "<button type=\"button\" class=\"rep-act rep-soumettre\" data-ref=\"" + ref + "\">&#128228; Soumettre au laboratoire</button>";
       } else {
         if (needRecup) {
           actions += "<button type=\"button\" class=\"rep-act rep-recup-btn\" data-ref=\"" + ref + "\">&#9888; Confirmer récupération éprouvettes</button>";
         }
-        actions += "<button type=\"button\" class=\"rep-act rep-partager\" data-ref=\"" + ref + "\">&#128228; Partager au bureau</button>";
+        actions += "<button type=\"button\" class=\"rep-act rep-msg-btn\" data-ref=\"" + ref + "\">&#128172; Message récap</button>";
       }
       actions += "</div>";
 
       var recupPanel = needRecup ? recupPanelHtml(c, ref) : "";
 
-      var exportPanel = "<div class=\"rep-export\" hidden>" +
-        "<button type=\"button\" class=\"btn-primary rep-share\" data-ref=\"" + ref + "\">&#128228; Partager (message + dossier)</button>" +
-        "<button type=\"button\" class=\"btn-secondary rep-zip\" data-ref=\"" + ref + "\">&#128230; Exporter le dossier complet</button>" +
-        "<p class=\"hint\">Contient le fichier Excel + photos + pièces jointes du coulage.</p>" +
+      var msgPanel = "<div class=\"rep-export\" hidden>" +
+        "<button type=\"button\" class=\"btn-primary rep-share-msg\" data-ref=\"" + ref + "\">&#128228; Partager le message (WhatsApp…)</button>" +
         "<button type=\"button\" class=\"btn-secondary rep-copy\" data-ref=\"" + ref + "\">&#128203; Copier le message récap</button>" +
-        "<button type=\"button\" class=\"btn-text rep-xls\" data-ref=\"" + ref + "\">&#11015; Excel seul</button>" +
         "<div class=\"rep-export-result\" hidden></div>" +
         "</div>";
 
-      var checked = _selected[c.ref] ? " checked" : "";
+      var validInfo = (st === "valide" && c.validePar)
+        ? "<div class=\"rep-sub\">&#9989; Validé par " + escapeHtml(c.validePar) +
+          (c.dateValidation ? " le " + escapeHtml(c.dateValidation) : "") + "</div>"
+        : "";
+
+      var delBtn = (st === "brouillon")
+        ? "<button type=\"button\" class=\"rep-del\" data-del=\"" + ref + "\" " +
+          "aria-label=\"Supprimer la fiche " + ref + "\" title=\"Supprimer\">&#128465;</button>"
+        : "";
+
       return "<div class=\"rep-item\" data-ref=\"" + ref + "\">" +
+        retour +
         "<div class=\"rep-row\">" +
-        "<label class=\"rep-pick\" title=\"Sélectionner\"><input type=\"checkbox\" class=\"rep-check\" data-ref=\"" + ref + "\"" + checked + "></label>" +
         "<button type=\"button\" class=\"rep-open\" data-ref=\"" + ref + "\">" +
         "<div class=\"rep-top\"><span class=\"rep-ref\">" + ref + "</span>" +
         "<span class=\"badge badge-" + st + "\">" + (STATUT_LABEL[st] || st) + "</span></div>" +
         "<div class=\"rep-ent\">" + escapeHtml(c.client || c.entreprise || "—") + "</div>" +
         "<div class=\"rep-sub\">" + escapeHtml(c.nomProjet || "") +
         (c.dateCoulage ? " · " + escapeHtml(fmtDate(c.dateCoulage)) : "") + "</div>" +
+        validInfo +
         "<div class=\"rep-tot\">" + t.qte + " m³ · " + t.epr + " éprouvette(s)</div>" +
         "</button>" +
-        "<button type=\"button\" class=\"rep-del\" data-del=\"" + ref + "\" " +
-        "aria-label=\"Supprimer la fiche " + ref + "\" title=\"Supprimer\">&#128465;</button>" +
+        delBtn +
         "</div>" +
         actions +
         recupPanel +
-        exportPanel +
+        msgPanel +
         "</div>";
     }).join("");
-    updateSelCount();
   }
 
-  /* ---------- Validation (brouillon -> validée) ---------- */
-  function validerFiche(ref) {
-    var prof = window.CAEKProfil ? CAEKProfil.require("Profil opérateur requis. Veuillez renseigner votre nom et qualification.") : { nom: "" };
+  /* ---------- Soumission (brouillon -> soumis) ---------- */
+  function soumettreFiche(ref) {
+    var prof = window.CAEKProfil ? CAEKProfil.require("Profil opérateur requis. Connectez-vous.") : { nom: "" };
     if (!prof) { return; }
-    if (!window.confirm("Valider la fiche " + ref + " ?\nElle deviendra disponible pour le module bassin et ne sera plus modifiable.")) { return; }
-    CAEKDB.getCoulage(ref).then(function (c) {
-      if (!c) { return; }
-      c.statut = "validee";
-      c.dateValidation = new Date().toISOString();
-      if (!c.signatureOperateur && prof.nom) { c.signatureOperateur = prof.nom; }
-      c.operateurValidation = prof.nom || c.signatureOperateur || "";
-      c.qualificationValidation = prof.qualification || "";
-      c.dateModification = new Date().toISOString();
-      return CAEKDB.updateCoulage(c).then(refresh);
+    if (!window.confirm("Soumettre la fiche " + ref + " au laboratoire ?\n" +
+      "Elle sera verrouillée et envoyée à l'administrateur pour validation.\n" +
+      "La répartition des éprouvettes au bassin reste possible immédiatement.")) { return; }
+    if (!window.CAEKCoulages) { return; }
+    CAEKCoulages.soumettre(ref, prof).then(function (r) {
+      if (!r.ok) { window.alert(r.error || "Échec de la soumission."); refresh(); return; }
+      if (r.offline) {
+        window.alert("Fiche soumise (hors-ligne) : elle sera transmise au serveur au retour du réseau.");
+      }
+      if (window.CAEKBadges) { CAEKBadges.refresh(); }
+      refresh();
     });
   }
 
-  /* ---------- Partage au bureau ---------- */
+  /* ---------- Message récap (seul « export » conservé) ---------- */
   function exportResultBox(itemEl, html, isError) {
     var box = itemEl.querySelector(".rep-export-result");
     if (!box) { return; }
@@ -259,48 +273,19 @@ var CAEKRepertoire = (function () {
     box.innerHTML = html;
   }
 
-  function markEnvoyee(c) {
-    if ((c.statut || "brouillon") === "envoyee") { return Promise.resolve(); }
-    c.statut = "envoyee";
-    c.dateEnvoi = new Date().toISOString();
-    c.dateModification = new Date().toISOString();
-    return CAEKDB.updateCoulage(c);
-  }
-
   function withCoulage(ref, fn) { return CAEKDB.getCoulage(ref).then(function (c) { if (c) { return fn(c); } }); }
 
-  function doShare(ref, itemEl) {
+  function doShareMsg(ref, itemEl) {
     if (!window.CAEKExport) { return; }
     withCoulage(ref, function (c) {
-      return CAEKExport.share(c).then(function (res) {
-        if (res.shared || res.downloaded) {
-          return markEnvoyee(c).then(function () {
-            exportResultBox(itemEl, "&#10004; Dossier transmis. Fiche marquée « envoyée ».", false);
-            refresh();
-          });
-        }
-      });
-    }).catch(function (err) { exportResultBox(itemEl, "&#9888; " + escapeHtml(err && err.message || err), true); });
-  }
-
-  function doZip(ref, itemEl) {
-    if (!window.CAEKExport) { return; }
-    withCoulage(ref, function (c) {
-      return CAEKExport.downloadZip(c).then(function () {
-        return markEnvoyee(c).then(function () {
-          exportResultBox(itemEl, "&#10004; Dossier complet téléchargé.", false);
-          refresh();
-        });
-      });
-    }).catch(function (err) { exportResultBox(itemEl, "&#9888; " + escapeHtml(err && err.message || err), true); });
-  }
-
-  function doExcel(ref, itemEl) {
-    if (!window.CAEKExport) { return; }
-    withCoulage(ref, function (c) {
-      CAEKExport.download(c);
-      exportResultBox(itemEl, "&#10004; Fichier Excel téléchargé.", false);
-    }).catch(function (err) { exportResultBox(itemEl, "&#9888; " + escapeHtml(err && err.message || err), true); });
+      var t = CAEKExport.buildMessage(c);
+      if (navigator.share) {
+        return navigator.share({ text: t }).then(function () {
+          exportResultBox(itemEl, "&#10004; Message partagé.", false);
+        }).catch(function () { /* annulé */ });
+      }
+      window.prompt("Copier le message :", t);
+    });
   }
 
   function doCopyMsg(ref, itemEl) {
@@ -347,38 +332,6 @@ var CAEKRepertoire = (function () {
     });
   }
 
-  /* ---------- Export / partage de la liste des coulages ---------- */
-  function listResult(html, isError) {
-    var box = $("rep-list-result");
-    if (!box) { return; }
-    box.hidden = false;
-    box.className = "result-card " + (isError ? "is-error" : "is-ok");
-    box.innerHTML = html;
-  }
-
-  function doListExport() {
-    if (!window.CAEKExport) { return; }
-    var coulages = selectedCoulages();
-    if (!coulages.length) { listResult("&#9888; Aucune fiche à exporter.", true); return; }
-    var lotsP = (window.CAEKDB && CAEKDB.getAllLots) ? CAEKDB.getAllLots() : Promise.resolve([]);
-    lotsP.then(function (lots) {
-      CAEKExport.downloadList(coulages, lots);
-      listResult("&#10004; Liste exportée (" + coulages.length + " fiche(s)).", false);
-    }).catch(function (err) { listResult("&#9888; " + escapeHtml(err && err.message || err), true); });
-  }
-
-  function doListShare() {
-    if (!window.CAEKExport) { return; }
-    var coulages = selectedCoulages();
-    if (!coulages.length) { listResult("&#9888; Aucune fiche à partager.", true); return; }
-    var lotsP = (window.CAEKDB && CAEKDB.getAllLots) ? CAEKDB.getAllLots() : Promise.resolve([]);
-    lotsP.then(function (lots) {
-      return CAEKExport.shareList(coulages, lots).then(function (r) {
-        listResult(r && r.shared ? "&#10004; Liste partagée." : "&#10004; Liste exportée (" + coulages.length + " fiche(s)).", false);
-      });
-    }).catch(function (err) { listResult("&#9888; " + escapeHtml(err && err.message || err), true); });
-  }
-
   function init() {
     var s = $("rep-search");
     if (s) { s.addEventListener("input", render); }
@@ -396,21 +349,6 @@ var CAEKRepertoire = (function () {
       });
     }
 
-    var selAll = $("rep-select-all");
-    if (selAll) {
-      selAll.addEventListener("change", function () {
-        var filtered = filteredList();
-        filtered.forEach(function (c) {
-          if (selAll.checked) { _selected[c.ref] = true; } else { delete _selected[c.ref]; }
-        });
-        render();
-      });
-    }
-    var listXls = $("rep-list-xls");
-    if (listXls) { listXls.addEventListener("click", doListExport); }
-    var listShare = $("rep-list-share");
-    if (listShare) { listShare.addEventListener("click", doListShare); }
-
     var box = $("rep-liste");
     if (box) {
       box.addEventListener("click", function (ev) {
@@ -422,16 +360,19 @@ var CAEKRepertoire = (function () {
           ev.stopPropagation();
           var dref = del.getAttribute("data-del");
           if (dref && window.confirm("Voulez-vous vraiment supprimer la fiche " + dref + " ? Cette action est irréversible.")) {
-            CAEKDB.deleteCoulage(dref).then(function () { refresh(); });
+            CAEKDB.deleteCoulage(dref).then(function () {
+              if (window.CAEKCoulages) { CAEKCoulages.deleteOnServer(dref); }
+              refresh();
+            });
           }
           return;
         }
 
-        var val0 = tgt.closest ? tgt.closest(".rep-valider") : null;
-        if (val0) { validerFiche(val0.getAttribute("data-ref")); return; }
+        var sm = tgt.closest ? tgt.closest(".rep-soumettre") : null;
+        if (sm) { soumettreFiche(sm.getAttribute("data-ref")); return; }
 
-        var part = tgt.closest ? tgt.closest(".rep-partager") : null;
-        if (part && item) {
+        var mg = tgt.closest ? tgt.closest(".rep-msg-btn") : null;
+        if (mg && item) {
           var panel = item.querySelector(".rep-export");
           if (panel) { panel.hidden = !panel.hidden; }
           return;
@@ -451,14 +392,10 @@ var CAEKRepertoire = (function () {
           return;
         }
 
-        var sh = tgt.closest ? tgt.closest(".rep-share") : null;
-        if (sh && item) { doShare(sh.getAttribute("data-ref"), item); return; }
-        var zp = tgt.closest ? tgt.closest(".rep-zip") : null;
-        if (zp && item) { doZip(zp.getAttribute("data-ref"), item); return; }
+        var sh = tgt.closest ? tgt.closest(".rep-share-msg") : null;
+        if (sh && item) { doShareMsg(sh.getAttribute("data-ref"), item); return; }
         var cp = tgt.closest ? tgt.closest(".rep-copy") : null;
         if (cp && item) { doCopyMsg(cp.getAttribute("data-ref"), item); return; }
-        var xl = tgt.closest ? tgt.closest(".rep-xls") : null;
-        if (xl && item) { doExcel(xl.getAttribute("data-ref"), item); return; }
 
         var open = tgt.closest ? tgt.closest(".rep-open") : null;
         if (open) {
@@ -469,13 +406,6 @@ var CAEKRepertoire = (function () {
 
       box.addEventListener("change", function (ev) {
         var chk = ev.target;
-        // Case de selection d'une fiche (export liste).
-        if (chk && chk.classList && chk.classList.contains("rep-check")) {
-          var r = chk.getAttribute("data-ref");
-          if (chk.checked) { _selected[r] = true; } else { delete _selected[r]; }
-          updateSelCount();
-          return;
-        }
         // Cases a cocher de recuperation : activer le bouton quand les 2 sont cochees.
         if (!chk || !chk.classList ||
           !(chk.classList.contains("recup-c1") || chk.classList.contains("recup-c2"))) {

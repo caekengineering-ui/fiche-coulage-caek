@@ -252,7 +252,7 @@ var CAEKFiche = (function () {
 
   function setStatut(s) {
     var el = $("fc-statut"); if (!el) { return; }
-    var lbl = ({ brouillon: "Brouillon", validee: "Validée", envoyee: "Envoyé" })[s] || s;
+    var lbl = ({ brouillon: "Brouillon", soumis: "Soumis", valide: "Validé", validee: "Validée", envoyee: "Envoyé" })[s] || s;
     el.textContent = lbl;
     el.className = "badge badge-" + s;
   }

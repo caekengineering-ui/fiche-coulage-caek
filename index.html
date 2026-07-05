@@ -57,6 +57,11 @@
           <span class="big-card-label">Test de compression</span>
           <span class="menu-badge" id="badge-compression" hidden></span>
         </button>
+        <button class="big-card admin-only" data-goto="screen-validation">
+          <img class="big-card-img" src="assets/icons/menu/profil.png" alt="">
+          <span class="big-card-label">Validation des coulages</span>
+          <span class="menu-badge" id="badge-validation" hidden></span>
+        </button>
       </div>
     </section>
 
@@ -638,23 +643,21 @@
       <div class="filter-chips" id="rep-filtres">
         <button type="button" class="chip is-active" data-statut="">Toutes</button>
         <button type="button" class="chip" data-statut="brouillon">Brouillons</button>
-        <button type="button" class="chip" data-statut="validee">Validées</button>
-        <button type="button" class="chip" data-statut="envoyee">Envoyées</button>
-      </div>
-
-      <!-- Export / partage de la liste des coulages -->
-      <div class="rep-export-bar">
-        <label class="rep-selall"><input type="checkbox" id="rep-select-all"> Tout sélectionner</label>
-        <span id="rep-sel-count" class="hint"></span>
-        <div class="rep-export-actions">
-          <button id="rep-list-xls" class="btn-secondary" type="button">&#11015; Exporter liste (Excel)</button>
-          <button id="rep-list-share" class="btn-secondary" type="button">&#128228; Partager liste</button>
-        </div>
-        <div id="rep-list-result" class="result-card" hidden></div>
+        <button type="button" class="chip" data-statut="soumis">Soumises</button>
+        <button type="button" class="chip" data-statut="valide">Validées</button>
       </div>
 
       <div id="rep-count" class="hint"></div>
       <div id="rep-liste"></div>
+    </section>
+
+    <!-- ECRAN VALIDATION DES COULAGES (ADMIN) -->
+    <section id="screen-validation" class="screen">
+      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <h1 class="screen-title">Validation des coulages</h1>
+      <p class="hint">Coulages soumis par les opérateurs (tous laboratoires). Vérifiez la <strong>désignation de l'ouvrage</strong> et la <strong>formulation</strong>, puis validez — ou renvoyez pour correction avec un motif. La validation ne bloque pas le travail au bassin.</p>
+      <div id="valid-count" class="hint"></div>
+      <div id="valid-liste"><p class="hint">Chargement…</p></div>
     </section>
 
     <!-- ECRAN DONNEES & SYNCHRONISATION (serveur) -->
@@ -716,7 +719,9 @@
   <script src="js/zip.js"></script>
   <script src="js/export.js"></script>
   <script src="js/sync.js"></script>
+  <script src="js/coulages.js"></script>
   <script src="js/repertoire.js"></script>
+  <script src="js/validation.js"></script>
   <script src="js/bassin.js"></script>
   <script src="js/dechets.js"></script>
   <script src="js/compression.js"></script>

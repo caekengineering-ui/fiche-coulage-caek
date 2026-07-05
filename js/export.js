@@ -31,7 +31,7 @@ var CAEKExport = (function () {
   function num(v) { var n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? 0 : n; }
 
   function statutLabel(s) {
-    return ({ brouillon: "Brouillon", validee: "Validée", envoyee: "Envoyé" })[s] || (s || "Brouillon");
+    return ({ brouillon: "Brouillon", soumis: "Soumis", valide: "Validé", validee: "Validée", envoyee: "Envoyé" })[s] || (s || "Brouillon");
   }
 
   // Totaux recalcules : quantite sur les malaxeurs, eprouvettes via le modele
