@@ -127,14 +127,11 @@
     if (!file) { return; }
     var reader = new FileReader();
     reader.onload = function () {
-      CAEKUpdate.importBuffer(reader.result, file.name).then(function (bilan) {
+      showResult("&#8987; Envoi vers le serveur en cours…", false);
+      CAEKSync.pushClientXlsx(reader.result, file.name).then(function (bilan) {
         if (!bilan.ok) { showResult("&#9888; " + escapeHtml(bilan.error), true); return; }
-        var msg = "&#10004; Import réussi.<br>Projets : <strong>" + bilan.projetsAjoutes +
-          "</strong> ajouté(s), <strong>" + bilan.projetsMisAJour + "</strong> mis à jour.";
-        if (bilan.clientsAjoutes !== undefined) {
-          msg += "<br>Clients : <strong>" + bilan.clientsAjoutes +
-            "</strong> ajouté(s), <strong>" + bilan.clientsMisAJour + "</strong> mis à jour.";
-        }
+        var msg = "&#10004; Import envoyé au serveur puis synchronisé.<br>Projets : <strong>" +
+          bilan.projetsAjoutes + "</strong> · Clients : <strong>" + bilan.clientsAjoutes + "</strong>.";
         var warn = [];
         if (bilan.ignorees) { warn.push(bilan.ignorees + " projet(s) ignoré(s) (code ou nom manquant)"); }
         if (bilan.doublons) { warn.push(bilan.doublons + " doublon(s) de code dans le fichier"); }
@@ -237,6 +234,8 @@
 
     if (window.CAEKProfil) { CAEKProfil.init(); }
     if (window.CAEKOperateurs) { CAEKOperateurs.init(); }
+    if (window.CAEKSync) { CAEKSync.init(); }
+    document.addEventListener("caek-sync-done", refreshUpdateStatus);
     if (window.CAEKNouveau) { CAEKNouveau.init(); }
     if (window.CAEKFiche) { CAEKFiche.init(); }
     if (window.CAEKPhotos) { CAEKPhotos.init(); }

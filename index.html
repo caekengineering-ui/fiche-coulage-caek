@@ -657,24 +657,29 @@
       <div id="rep-liste"></div>
     </section>
 
-    <!-- ECRAN MISE A JOUR PROJET (T2) -->
+    <!-- ECRAN DONNEES & SYNCHRONISATION (serveur) -->
     <section id="screen-update" class="screen">
       <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
-      <h1 class="screen-title">Mise à jour projet</h1>
+      <h1 class="screen-title">Données &amp; synchronisation</h1>
 
-      <button class="btn-secondary" data-goto="screen-operateurs" type="button">&#128101; Gestion des opérateurs</button>
+      <button class="btn-secondary" data-goto="screen-operateurs" type="button">&#128101; Administration (opérateurs &amp; laboratoires)</button>
 
       <div id="update-status" class="status-card">
-        <div class="status-line"><span class="status-label">Dernier import :</span> <span id="status-date">—</span></div>
-        <div class="status-line"><span class="status-label">Clients chargés :</span> <span id="status-count-clients">0</span></div>
-        <div class="status-line"><span class="status-label">Projets chargés :</span> <span id="status-count">0</span></div>
-        <div class="status-line"><span class="status-label">Fichier :</span> <span id="status-file">—</span></div>
+        <div class="status-line"><span class="status-label">Dernière synchro :</span> <span id="status-date">—</span></div>
+        <div class="status-line"><span class="status-label">Clients :</span> <span id="status-count-clients">0</span></div>
+        <div class="status-line"><span class="status-label">Projets :</span> <span id="status-count">0</span></div>
+        <div class="status-line"><span class="status-label">Dernier fichier importé :</span> <span id="status-file">—</span></div>
       </div>
 
-      <label class="btn-primary" for="update-file">&#128229; Importer le fichier du bureau</label>
-      <input id="update-file" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden>
+      <button id="btn-sync" class="btn-primary" type="button">&#128260; Synchroniser depuis le serveur</button>
+      <p class="hint">Récupère les clients et projets gérés par l'administrateur (réseau requis). La saisie fonctionne ensuite hors-ligne sur le terrain.</p>
 
-      <p class="hint">Fichier Excel <strong>client.xlsx</strong> du bureau : feuilles <strong>CLIENTS</strong> et <strong>PROJETS</strong> (jointure par ClientID). Seuls les clients et projets actifs sont proposés à la saisie.</p>
+      <div class="admin-only">
+        <h3 class="block-subtitle">&#128229; Import bureau (administrateur)</h3>
+        <label class="btn-secondary" for="update-file">&#128229; Importer client.xlsx vers le serveur</label>
+        <input id="update-file" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden>
+        <p class="hint">Fichier Excel <strong>client.xlsx</strong> du bureau : feuilles <strong>CLIENTS</strong> et <strong>PROJETS</strong> (jointure par ClientID). Le contenu est envoyé sur le serveur puis partagé avec tous les laboratoires.</p>
+      </div>
 
       <div id="update-result" class="result-card" hidden></div>
 
@@ -710,6 +715,7 @@
   <script src="js/photos.js"></script>
   <script src="js/zip.js"></script>
   <script src="js/export.js"></script>
+  <script src="js/sync.js"></script>
   <script src="js/repertoire.js"></script>
   <script src="js/bassin.js"></script>
   <script src="js/dechets.js"></script>
