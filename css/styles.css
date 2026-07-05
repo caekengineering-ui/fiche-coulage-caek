@@ -1611,3 +1611,29 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
 .labo-filter-label { font-weight: 600; color: #b30000; white-space: nowrap; }
 .labo-filter-bar .field { margin: 0; flex: 1; }
 .badge-teste { background: #b36b00; color: #fff; }
+
+/* ============================================================
+   V3 P7 — Bilingue AR (RTL) + police Cairo (auto-hebergee)
+   ============================================================ */
+@font-face { font-family: 'Cairo'; font-weight: 400; font-display: swap; src: url('../assets/fonts/cairo-arabic-400.woff2') format('woff2'); }
+@font-face { font-family: 'Cairo'; font-weight: 600; font-display: swap; src: url('../assets/fonts/cairo-arabic-600.woff2') format('woff2'); }
+@font-face { font-family: 'Cairo'; font-weight: 700; font-display: swap; src: url('../assets/fonts/cairo-arabic-700.woff2') format('woff2'); }
+
+body.lang-ar { font-family: 'Cairo', 'Noto Sans Arabic', -apple-system, 'Segoe UI', Tahoma, sans-serif; }
+body.lang-ar .field-label, body.lang-ar .hint, body.lang-ar .app-subtitle { letter-spacing: 0; }
+
+/* Selecteur de langue FR | ع */
+.lang-switch { display: inline-flex; border: 1px solid rgba(255,255,255,0.5); border-radius: 20px; overflow: hidden; align-self: center; }
+.lang-btn { min-width: 34px; padding: 5px 9px; border: none; background: rgba(255,255,255,0.15); color: #fff; font-size: 14px; font-weight: 800; cursor: pointer; line-height: 1; }
+.lang-btn.is-active { background: #fff; color: var(--caek-red, #cc0000); }
+
+/* Valeurs, unites, jetons techniques : toujours LTR (chiffres/unites non casses) */
+[dir="rtl"] .rep-ref, [dir="rtl"] .prel-num, [dir="rtl"] .recup-code, [dir="rtl"] .rep-tot,
+[dir="rtl"] .prel-rep-codes, [dir="rtl"] .valid-codif, [dir="rtl"] .rep-code,
+[dir="rtl"] input[inputmode="numeric"], [dir="rtl"] input[inputmode="decimal"],
+[dir="rtl"] input[type="date"], [dir="rtl"] input[type="time"], [dir="rtl"] input[type="tel"],
+[dir="rtl"] input[type="password"], [dir="rtl"] #login-user, [dir="rtl"] #login-pin {
+  direction: ltr;
+  unicode-bidi: plaintext;
+}
+[dir="rtl"] .rep-row, [dir="rtl"] .oper-info { text-align: start; }

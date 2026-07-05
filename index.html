@@ -19,6 +19,10 @@
       <span class="app-subtitle">Laboratoire béton</span>
     </div>
     <div class="header-actions">
+      <div class="lang-switch" role="group" aria-label="Langue">
+        <button type="button" class="lang-btn" data-lang-btn="fr">FR</button>
+        <button type="button" class="lang-btn" data-lang-btn="ar">ع</button>
+      </div>
       <button class="header-icon-btn" id="btn-profil" type="button" data-goto="screen-profil" title="Profil opérateur">
         <img src="assets/icons/menu/profil.png" alt="Profil">
         <span class="menu-badge" id="badge-profil" hidden></span>
@@ -741,6 +745,7 @@
   </footer>
 
   <script src="vendor/xlsx.full.min.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/config.js"></script>
   <script src="js/server.js"></script>
   <script src="js/db.js"></script>
