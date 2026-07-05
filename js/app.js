@@ -39,6 +39,7 @@
     if (id === "screen-accueil" && window.CAEKValidation) { CAEKValidation.updateBadge(); }
     if (id === "screen-accueil" && window.CAEKLaboFilter) { CAEKLaboFilter.refresh(); }
     if (id === "screen-profil" && window.CAEKProfil) { CAEKProfil.fillForm(); }
+    if (id === "screen-profil" && window.CAEKPush) { CAEKPush.renderState(); }
     if ((id === "screen-profil" || id === "screen-login" || id === "screen-operateurs") && window.CAEKOperateurs) {
       CAEKOperateurs.renderAll();
     }
@@ -244,6 +245,7 @@
     if (window.CAEKValidation) { CAEKValidation.init(); }
     if (window.CAEKFormulations) { CAEKFormulations.init(); }
     if (window.CAEKLaboFilter) { CAEKLaboFilter.init(); }
+    if (window.CAEKPush) { CAEKPush.init(); }
     document.addEventListener("caek-sync-done", refreshUpdateStatus);
     if (window.CAEKNouveau) { CAEKNouveau.init(); }
     if (window.CAEKFiche) { CAEKFiche.init(); }

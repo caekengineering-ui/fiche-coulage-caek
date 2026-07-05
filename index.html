@@ -123,8 +123,12 @@
       <div id="profil-active"></div>
       <button id="profil-changer" class="btn-primary" type="button">&#128260; Changer d'opérateur</button>
       <button id="profil-pin" class="btn-secondary" type="button">&#128273; Changer mon code PIN</button>
-      <button class="btn-secondary" data-goto="screen-operateurs" type="button">&#9881;&#65039; Gestion des opérateurs</button>
+      <button class="btn-secondary admin-only" data-goto="screen-operateurs" type="button">&#9881;&#65039; Administration</button>
       <div id="profil-result" class="result-card" hidden></div>
+
+      <h3 class="block-subtitle">&#128276; Notifications</h3>
+      <div id="push-status" class="result-card" hidden></div>
+      <button id="push-toggle" class="btn-secondary" type="button" hidden>&#128276; Activer les notifications</button>
     </section>
 
     <!-- ECRAN CONNEXION OPERATEUR (serveur) -->
@@ -754,6 +758,7 @@
   <script src="js/coulages.js"></script>
   <script src="js/lots_sync.js"></script>
   <script src="js/labofilter.js"></script>
+  <script src="js/push.js"></script>
   <script src="js/formulations.js"></script>
   <script src="js/repertoire.js"></script>
   <script src="js/validation.js"></script>

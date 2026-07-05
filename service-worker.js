@@ -5,7 +5,7 @@
    Pour publier une mise a jour : incrementer CACHE_VERSION.
    ============================================================ */
 
-var CACHE_VERSION = "caek-beton-v46";
+var CACHE_VERSION = "caek-beton-v47";
 
 var APP_SHELL = [
   "./",
@@ -26,6 +26,7 @@ var APP_SHELL = [
   "./js/coulages.js",
   "./js/lots_sync.js",
   "./js/labofilter.js",
+  "./js/push.js",
   "./js/formulations.js",
   "./js/validation.js",
   "./js/nouveau.js",
@@ -102,6 +103,41 @@ self.addEventListener("activate", function (event) {
     })
   );
   self.clients.claim();
+});
+
+// ---- Notifications push (Web Push) ----
+self.addEventListener("push", function (event) {
+  var data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) { data = { body: event.data && event.data.text() }; }
+  var title = data.title || "Module Béton CAEK";
+  var options = {
+    body: data.body || "",
+    icon: "./assets/icons/icon-192.png",
+    badge: "./assets/icons/icon-192.png",
+    tag: data.tag || undefined,
+    renotify: !!data.tag,
+    data: { url: data.url || "./" }
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Clic sur une notification : ouvre/focus l'app sur l'écran ciblé.
+self.addEventListener("notificationclick", function (event) {
+  event.notification.close();
+  var target = (event.notification.data && event.notification.data.url) || "./";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (list) {
+      for (var i = 0; i < list.length; i++) {
+        if ("focus" in list[i]) {
+          if (target && target.indexOf("#") >= 0 && "navigate" in list[i]) {
+            try { list[i].navigate(target); } catch (e) {}
+          }
+          return list[i].focus();
+        }
+      }
+      if (self.clients.openWindow) { return self.clients.openWindow(target); }
+    })
+  );
 });
 
 // Requetes : cache d'abord, repli reseau (GET uniquement)
