@@ -156,6 +156,8 @@ var CAEKRepertoire = (function () {
   function filteredList() {
     var search = ($("rep-search") ? $("rep-search").value : "").trim().toLowerCase();
     return _all.filter(function (c) {
+      // Filtre labo (administrateur seulement ; opérateur déjà scopé serveur).
+      if (window.CAEKLaboFilter && !CAEKLaboFilter.match(c.laboId)) { return false; }
       var st = c.statut || "brouillon";
       if (_statut === "soumis" && !(st === "soumis" || st === "validee" || st === "envoyee")) { return false; }
       else if (_statut === "valide" && st !== "valide") { return false; }

@@ -133,6 +133,7 @@ var CAEKLots = (function () {
           if (queue[row.lot_key]) { return; }          // push local en attente
           var merged = row.payload;
           merged.lotKey = row.lot_key;
+          merged.laboId = row.labo_id || merged.laboId || "";
           if (row.statut === "valide") { merged.resultatsValides = true; }
           merged._syncedAt = new Date().toISOString();
           var local = byKey[row.lot_key];

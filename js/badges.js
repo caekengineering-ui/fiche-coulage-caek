@@ -210,7 +210,9 @@ var CAEKBadges = (function () {
       CAEKDB.getMeta("dechetsSeuil")
     ]).then(function (out) {
       var dechets = { stock: out[2], seuil: (out[3] == null) ? 300 : out[3] };
-      var s = computeStats(out[0] || [], out[1] || [], dechets);
+      // Filtre labo (administrateur seulement ; opérateur déjà scopé serveur).
+      var flt = function (x) { return !window.CAEKLaboFilter || CAEKLaboFilter.match(x && x.laboId); };
+      var s = computeStats((out[0] || []).filter(flt), (out[1] || []).filter(flt), dechets);
       setBadge("badge-coulage", s.recup + s.codif);
       setBadge("badge-bassin", s.aRepartir + s.j2 + s.j1 + s.retard + s.dechetsAlerte);
       setBadge("badge-compression", s.aTester);

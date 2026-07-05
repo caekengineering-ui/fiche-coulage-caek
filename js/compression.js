@@ -103,7 +103,11 @@ var CAEKCompression = (function () {
 
   function refresh() {
     if (!window.CAEKDB) { return; }
-    CAEKDB.getAllLots().then(function (lots) {
+    CAEKDB.getAllLots().then(function (all) {
+      // Filtre labo (administrateur seulement ; opérateur déjà scopé serveur).
+      var lots = (all || []).filter(function (l) {
+        return !window.CAEKLaboFilter || CAEKLaboFilter.match(l && l.laboId);
+      });
       var sortis = (lots || []).filter(function (l) { return l.statut === "sorti"; });
       _aTester = sortis.filter(pretATester);
       _enSechage = sortis.filter(function (l) { return !pretATester(l); });

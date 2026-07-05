@@ -40,6 +40,12 @@
 
     <!-- ECRAN ACCUEIL -->
     <section id="screen-accueil" class="screen is-active">
+      <div id="labo-filter-bar" class="labo-filter-bar admin-only" hidden>
+        <label class="labo-filter-label" for="labo-filter">&#128269; Vue laboratoire</label>
+        <select id="labo-filter" class="field">
+          <option value="">Tous les laboratoires</option>
+        </select>
+      </div>
       <p class="screen-intro">Choisissez un module</p>
       <div class="big-cards">
         <button class="big-card" data-goto="screen-coulage">
@@ -747,6 +753,7 @@
   <script src="js/medias.js"></script>
   <script src="js/coulages.js"></script>
   <script src="js/lots_sync.js"></script>
+  <script src="js/labofilter.js"></script>
   <script src="js/formulations.js"></script>
   <script src="js/repertoire.js"></script>
   <script src="js/validation.js"></script>

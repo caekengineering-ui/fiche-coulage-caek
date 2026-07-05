@@ -168,6 +168,7 @@ var CAEKBassin = (function () {
         if (specimenInfo(c).total <= 0) { return false; }
         return window.CAEKModel ? CAEKModel.recuperationOk(c) : true;
       });
+      eligibles = eligibles.filter(laboOk);
       _repList = eligibles.filter(function (c) { return !c.bassinReparti; });
       _doneList = eligibles.filter(function (c) { return !!c.bassinReparti; });
       _doneList.forEach(function (c) { c._editable = !locked[c.ref]; });
@@ -297,6 +298,11 @@ var CAEKBassin = (function () {
 
   function lotRepRowHtml(lot, idx) {
     var joursVal = (lot.age === "autre" && lot.ageJours) ? (" value=\"" + lot.ageJours + "\"") : "";
+    // Un lot d'au moins 2 éprouvettes peut être divisé pour un âge exigé par
+    // le client (ex. 3 j) ; le reste garde son échéance (par défaut 28 j).
+    var splitBtn = (lot.nombre > 1)
+      ? "<button type=\"button\" class=\"btn-text lot-split\" data-idx=\"" + idx + "\">&#9986; Diviser (âge client)</button>"
+      : "";
     return "<div class=\"prel-rep-row\" data-idx=\"" + idx + "\">" +
       "<div class=\"prel-rep-head\"><span class=\"prel-num\">E" + lot.prel + "</span> " +
       escapeHtml(typeLabel(lot.type)) + " · <strong>" + lot.nombre + "</strong> épr." +
@@ -305,7 +311,59 @@ var CAEKBassin = (function () {
       "<label class=\"prel-rep-age\"><span>Échéance d'essai</span>" + ageSelectHtml(lot.age) +
       "<input class=\"field lot-jours\" type=\"number\" min=\"1\" step=\"1\" inputmode=\"numeric\" placeholder=\"jours\"" +
       joursVal + (lot.age === "autre" ? "" : " hidden") + "></label>" +
+      splitBtn +
       "</div>";
+  }
+
+  // Reconstruit les lignes de l'éditeur depuis form._repLots (après division).
+  function renderRepRows(form) {
+    var editor = form.querySelector(".prel-rep-editor");
+    if (!editor) { return; }
+    editor.innerHTML = (form._repLots || []).map(lotRepRowHtml).join("");
+    updateSum(form);
+  }
+
+  // Divise un lot : détache K éprouvettes vers un nouvel âge (ex. 3 j exigé
+  // par le client). Le lot d'origine conserve le reste (28 j par défaut).
+  // On ne mélange jamais deux prélèvements : la division reste dans E<prel>.
+  // Recopie les échéances actuellement choisies dans le DOM vers _repLots
+  // (sinon une division réécrit les lignes et perdrait ces choix).
+  function syncAgesToLots(form) {
+    var lots = form._repLots || [];
+    var rows = form.querySelectorAll(".prel-rep-row");
+    for (var i = 0; i < rows.length; i++) {
+      var base = lots[intOr0(rows[i].getAttribute("data-idx"))];
+      if (!base) { continue; }
+      var ageSel = rows[i].querySelector(".lot-age").value;
+      base.age = ageSel;
+      base.ageJours = ageSel === "7j" ? 7 : (ageSel === "28j" ? 28 : intOr0(rows[i].querySelector(".lot-jours").value));
+    }
+  }
+
+  function splitLot(form, idx) {
+    syncAgesToLots(form);
+    var lots = form._repLots || [];
+    var lot = lots[idx];
+    if (!lot || lot.nombre < 2) { return; }
+    var kStr = window.prompt("Combien d'éprouvettes détacher de E" + lot.prel +
+      " pour un autre âge ? (1 à " + (lot.nombre - 1) + ")", "3");
+    if (kStr == null) { return; }
+    var k = intOr0(kStr);
+    if (k < 1 || k >= lot.nombre) { window.alert("Nombre invalide (1 à " + (lot.nombre - 1) + ")."); return; }
+    var jStr = window.prompt("Âge d'essai (en jours) pour ces " + k + " éprouvette(s) ? (ex. 3, 14, 90)", "3");
+    if (jStr == null) { return; }
+    var j = intOr0(jStr);
+    if (j <= 0) { window.alert("Âge invalide."); return; }
+    // Détache les K premiers codes ; le reste demeure sur le lot d'origine.
+    var codes = (lot.codes || []).slice();
+    var head = codes.slice(0, k);
+    var tail = codes.slice(k);
+    var age = (j === 7) ? "7j" : (j === 28 ? "28j" : "autre");
+    var nouveau = { prel: lot.prel, type: lot.type, codes: head, nombre: head.length,
+      age: age, ageJours: j };
+    lot.codes = tail; lot.nombre = tail.length;
+    lots.splice(idx, 0, nouveau);   // le nouvel âge s'affiche avant le reste
+    renderRepRows(form);
   }
 
   function openRepartForm(itemEl, coulage, existingLots) {
@@ -320,9 +378,10 @@ var CAEKBassin = (function () {
     var rows = lots.map(lotRepRowHtml).join("");
 
     var titre = "<p class=\"hint\">Répartition en <strong>lots d'essai</strong>. On ne mélange pas deux " +
-      "prélèvements dans un même lot, et on garde au moins 3 éprouvettes d'un même prélèvement ensemble. " +
-      "Par défaut : <strong>3 à 7 jours</strong>, le reste à <strong>28 jours</strong>. " +
-      "Vous pouvez changer l'échéance de chaque lot.</p>";
+      "prélèvements dans un même lot. Par défaut : <strong>3 à 7 jours</strong>, le reste à " +
+      "<strong>28 jours</strong>. Vous pouvez changer l'échéance de chaque lot, ou " +
+      "<strong>&#9986; Diviser</strong> un lot pour un âge exigé par le client (ex. 3 j) — " +
+      "le reste garde son échéance.</p>";
 
     form.innerHTML = titre +
       "<div class=\"prel-rep-editor\">" + rows + "</div>" +
@@ -522,6 +581,11 @@ var CAEKBassin = (function () {
     };
   }
 
+  // Filtre labo (administrateur seulement ; opérateur déjà scopé serveur).
+  function laboOk(x) {
+    return !window.CAEKLaboFilter || CAEKLaboFilter.match(x && x.laboId);
+  }
+
   function refreshBassin() {
     if (!window.CAEKDB) { return; }
     CAEKDB.getAllLots().then(function (lots) {
@@ -529,7 +593,7 @@ var CAEKBassin = (function () {
         return changed ? CAEKDB.getAllLots() : lots;
       });
     }).then(function (lots) {
-      _lots = lots;
+      _lots = lots.filter(laboOk);
       renderBassin();
       renderVeille();
     });
@@ -920,6 +984,12 @@ var CAEKBassin = (function () {
           return;
         }
         if (t.closest(".repb-open")) { openRepartForm(item, coulage); return; }
+        var splitBtn = t.closest ? t.closest(".lot-split") : null;
+        if (splitBtn) {
+          var f = t.closest(".repb-form");
+          if (f) { splitLot(f, intOr0(splitBtn.getAttribute("data-idx"))); }
+          return;
+        }
         if (t.closest(".repb-valider")) { validerRepartition(item.querySelector(".repb-form"), coulage); return; }
       });
       // Changement d'échéance d'un lot : révèle « jours » + revalide.
