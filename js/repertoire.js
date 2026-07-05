@@ -222,7 +222,9 @@ var CAEKRepertoire = (function () {
           (c.dateValidation ? " le " + escapeHtml(c.dateValidation) : "") + "</div>"
         : "";
 
-      var delBtn = (st === "brouillon")
+      var canDelete = st === "brouillon" ||
+        (window.CAEKOperateurs && CAEKOperateurs.isAdmin && CAEKOperateurs.isAdmin());
+      var delBtn = canDelete
         ? "<button type=\"button\" class=\"rep-del\" data-del=\"" + ref + "\" " +
           "aria-label=\"Supprimer la fiche " + ref + "\" title=\"Supprimer\">&#128465;</button>"
         : "";
@@ -370,10 +372,25 @@ var CAEKRepertoire = (function () {
             ? I18N.f("Voulez-vous vraiment supprimer la fiche {ref} ? Cette action est irréversible.", { ref: dref })
             : "Voulez-vous vraiment supprimer la fiche " + dref + " ? Cette action est irréversible.";
           if (dref && window.confirm(deleteMsg)) {
-            CAEKDB.deleteCoulage(dref).then(function () {
-              if (window.CAEKCoulages) { CAEKCoulages.deleteOnServer(dref); }
-              refresh();
-            });
+            var isAdmin = window.CAEKOperateurs && CAEKOperateurs.isAdmin && CAEKOperateurs.isAdmin();
+            var onlineAdminDelete = isAdmin && window.CAEKServer && CAEKServer.configured && CAEKServer.configured();
+            var removeLocal = function () { return CAEKDB.deleteCoulage(dref).then(refresh); };
+            if (onlineAdminDelete) {
+              CAEKServer.adminDeleteCoulage(CAEKOperateurs.token(), dref).then(function (r) {
+                if (!r || r.ok !== true) {
+                  window.alert("Suppression impossible côté serveur.");
+                  return;
+                }
+                removeLocal();
+              }).catch(function (e) {
+                window.alert("Suppression admin impossible : " + (e && e.message || e));
+              });
+            } else {
+              CAEKDB.deleteCoulage(dref).then(function () {
+                if (window.CAEKCoulages) { CAEKCoulages.deleteOnServer(dref); }
+                refresh();
+              });
+            }
           }
           return;
         }
