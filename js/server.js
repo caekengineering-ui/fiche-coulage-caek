@@ -82,6 +82,15 @@ var CAEKServer = (function () {
   function testerLot(token, id, resultats) {
     return _rpc("op_tester_lot", { p_token: token, p_id: id, p_resultats: resultats });
   }
+  function upsertLot(token, key, lot) {
+    return _rpc("op_upsert_lot", { p_token: token, p_key: key, p_lot: lot });
+  }
+  function deleteLotByKey(token, key) {
+    return _rpc("op_delete_lot", { p_token: token, p_key: key });
+  }
+  function adminValiderResultatsKey(token, key) {
+    return _rpc("admin_valider_resultats_key", { p_token: token, p_key: key });
+  }
 
   /* ---------- Formulations ---------- */
   function listFormulations(token) { return _rpc("op_list_formulations", { p_token: token }); }
@@ -175,6 +184,8 @@ var CAEKServer = (function () {
     listCoulages: listCoulages, deleteCoulage: deleteCoulage,
     saveRepartition: saveRepartition, listLots: listLots,
     sortirLot: sortirLot, retourBassin: retourBassin, testerLot: testerLot,
+    upsertLot: upsertLot, deleteLotByKey: deleteLotByKey,
+    adminValiderResultatsKey: adminValiderResultatsKey,
     listFormulations: listFormulations, proposerFormulation: proposerFormulation,
     listClients: listClients, listProjets: listProjets,
     listEvacuations: listEvacuations, addEvacuation: addEvacuation,

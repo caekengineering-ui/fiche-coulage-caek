@@ -239,6 +239,7 @@
     if (window.CAEKOperateurs) { CAEKOperateurs.init(); }
     if (window.CAEKSync) { CAEKSync.init(); }
     if (window.CAEKCoulages) { CAEKCoulages.init(); }
+    if (window.CAEKLots) { CAEKLots.init(); }
     if (window.CAEKValidation) { CAEKValidation.init(); }
     if (window.CAEKFormulations) { CAEKFormulations.init(); }
     document.addEventListener("caek-sync-done", refreshUpdateStatus);

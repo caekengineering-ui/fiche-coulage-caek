@@ -15,6 +15,7 @@ var CAEKValidation = (function () {
   "use strict";
 
   var _rows = [];        // coulages 'soumis' (lignes serveur)
+  var _lotsT = [];       // lots 'teste' (résultats d'écrasement à valider)
   var _labos = {};       // id -> nom
   var _openRef = null;   // détail déplié
 
@@ -130,17 +131,56 @@ var CAEKValidation = (function () {
       "</div>";
   }
 
+  // Résumé des Rc d'un lot testé (depuis payload.essais).
+  function rcResume(p) {
+    var essais = (p && p.essais) || [];
+    var rcs = essais.map(function (e) { return parseFloat(e && e.rc); })
+      .filter(function (n) { return !isNaN(n); });
+    if (!rcs.length) { return "—"; }
+    var min = Math.min.apply(null, rcs), max = Math.max.apply(null, rcs);
+    var moy = rcs.reduce(function (a, b) { return a + b; }, 0) / rcs.length;
+    return "Rc " + min.toFixed(1) + " à " + max.toFixed(1) + " MPa · moy " + moy.toFixed(1) + " MPa";
+  }
+
+  function lotItemHtml(row) {
+    var p = row.payload || {};
+    var labo = _labos[row.labo_id] || "—";
+    var codes = Array.isArray(p.codes) ? p.codes : [];
+    return "<div class=\"rep-item\" data-key=\"" + escapeHtml(row.lot_key) + "\">" +
+      "<div class=\"rep-row\"><div class=\"rep-open\">" +
+      "<div class=\"rep-top\"><span class=\"rep-ref\">" + escapeHtml(row.coulage_ref) +
+      " · " + escapeHtml(p.age || (row.age_jours + " j")) + "</span>" +
+      "<span class=\"badge badge-teste\">Testé</span></div>" +
+      "<div class=\"rep-ent\">" + escapeHtml(rcResume(p)) + "</div>" +
+      "<div class=\"rep-sub\">&#127970; " + escapeHtml(labo) + " · " + (p.nombre || codes.length) +
+      " épr. (" + escapeHtml(p.type || "cube") + ") · Écrasé par " + escapeHtml(p.operateurEssai || "—") +
+      (p.dateEssai ? " le " + fmtDate(p.dateEssai) : "") + "</div>" +
+      (codes.length ? "<div class=\"rep-sub\">" + escapeHtml(codes.join(" · ")) + "</div>" : "") +
+      "</div></div>" +
+      "<div class=\"oper-actions\">" +
+      "<button type=\"button\" class=\"btn-primary\" data-act=\"valider-lot\" data-key=\"" +
+      escapeHtml(row.lot_key) + "\">&#9989; Valider les résultats</button></div>" +
+      "<div class=\"valid-result result-card\" hidden></div>" +
+      "</div>";
+  }
+
   function render() {
     var box = $("valid-liste");
     if (!box) { return; }
-    if (!_rows.length) {
-      box.innerHTML = "<p class=\"screen-placeholder\">&#10004; Aucun coulage en attente de validation.</p>";
-    } else {
-      box.innerHTML = _rows.map(itemHtml).join("");
-    }
+    var html = "";
+    html += "<h3 class=\"block-subtitle\">&#128230; Coulages soumis</h3>";
+    html += _rows.length ? _rows.map(itemHtml).join("")
+      : "<p class=\"hint\">&#10004; Aucun coulage en attente.</p>";
+    html += "<h3 class=\"block-subtitle\">&#128296; Résultats d'écrasement à valider</h3>";
+    html += _lotsT.length ? _lotsT.map(lotItemHtml).join("")
+      : "<p class=\"hint\">&#10004; Aucun résultat en attente.</p>";
+    box.innerHTML = html;
     var cnt = $("valid-count");
-    if (cnt) { cnt.textContent = _rows.length + " coulage(s) soumis"; }
-    updateBadgeDisplay(_rows.length);
+    if (cnt) {
+      cnt.textContent = _rows.length + " coulage(s) soumis · " +
+        _lotsT.length + " résultat(s) d'écrasement à valider";
+    }
+    updateBadgeDisplay(_rows.length + _lotsT.length);
     loadMedias();
   }
 
@@ -219,11 +259,13 @@ var CAEKValidation = (function () {
     }
     return Promise.all([
       CAEKServer.listCoulages(CAEKOperateurs.token(), null),
-      CAEKServer.adminListLabos(CAEKOperateurs.token())
+      CAEKServer.adminListLabos(CAEKOperateurs.token()),
+      CAEKServer.listLots(CAEKOperateurs.token(), null).catch(function () { return []; })
     ]).then(function (out) {
       _labos = {};
       ((out[1] && out[1].labos) || []).forEach(function (b) { _labos[b.id] = b.nom; });
       _rows = (out[0] || []).filter(function (r) { return r.statut === "soumis"; });
+      _lotsT = (out[2] || []).filter(function (r) { return r.statut === "teste" && r.lot_key; });
       render();
     }).catch(function (e) {
       if (box) { box.innerHTML = "<p class=\"hint\">&#9888; Chargement impossible (réseau requis) : " + escapeHtml(e && e.message || "") + "</p>"; }
@@ -233,8 +275,12 @@ var CAEKValidation = (function () {
   // Badge accueil (appelé à l'affichage de l'accueil, admin en ligne).
   function updateBadge() {
     if (!ready() || navigator.onLine === false) { return; }
-    CAEKServer.listCoulages(CAEKOperateurs.token(), null).then(function (rows) {
-      var n = (rows || []).filter(function (r) { return r.statut === "soumis"; }).length;
+    Promise.all([
+      CAEKServer.listCoulages(CAEKOperateurs.token(), null),
+      CAEKServer.listLots(CAEKOperateurs.token(), null).catch(function () { return []; })
+    ]).then(function (out) {
+      var n = (out[0] || []).filter(function (r) { return r.statut === "soumis"; }).length +
+        (out[1] || []).filter(function (r) { return r.statut === "teste" && r.lot_key; }).length;
       updateBadgeDisplay(n);
     }).catch(function () {});
   }
@@ -299,6 +345,19 @@ var CAEKValidation = (function () {
     }).catch(function (e) { resultBox(itemEl, "&#9888; Réseau requis : " + escapeHtml(e && e.message || ""), true); });
   }
 
+  function validerLot(key, itemEl) {
+    if (!window.confirm("Valider ces résultats d'écrasement ?\nIls seront figés et exploitables pour les PV (pont bureau).")) { return; }
+    CAEKServer.adminValiderResultatsKey(CAEKOperateurs.token(), key).then(function (r) {
+      if (!r || r.ok !== true) {
+        resultBox(itemEl, "&#9888; " + (r && r.error === "deja_valide" ? "Déjà validés." : "Échec de la validation."), true);
+        return;
+      }
+      resultBox(itemEl, "&#10004; Résultats validés.", false);
+      if (window.CAEKLots) { CAEKLots.pull(); }
+      setTimeout(refresh, 800);
+    }).catch(function (e) { resultBox(itemEl, "&#9888; Réseau requis : " + escapeHtml(e && e.message || ""), true); });
+  }
+
   function onClick(ev) {
     var tgt = ev.target;
     var item = tgt.closest ? tgt.closest(".rep-item") : null;
@@ -308,6 +367,7 @@ var CAEKValidation = (function () {
       var ref = act.getAttribute("data-ref");
       if (a === "valider") { valider(ref, item); }
       else if (a === "renvoyer") { renvoyer(ref, item); }
+      else if (a === "valider-lot") { validerLot(act.getAttribute("data-key"), item); }
       return;
     }
     var tog = tgt.closest ? tgt.closest(".valid-toggle") : null;

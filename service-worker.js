@@ -5,7 +5,7 @@
    Pour publier une mise a jour : incrementer CACHE_VERSION.
    ============================================================ */
 
-var CACHE_VERSION = "caek-beton-v43";
+var CACHE_VERSION = "caek-beton-v44";
 
 var APP_SHELL = [
   "./",
@@ -24,6 +24,7 @@ var APP_SHELL = [
   "./js/sync.js",
   "./js/medias.js",
   "./js/coulages.js",
+  "./js/lots_sync.js",
   "./js/formulations.js",
   "./js/validation.js",
   "./js/nouveau.js",

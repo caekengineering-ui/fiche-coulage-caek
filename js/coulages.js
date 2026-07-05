@@ -264,6 +264,9 @@ var CAEKCoulages = (function () {
         var s = document.getElementById("screen-repertoire");
         if (s && s.classList.contains("is-active")) { CAEKRepertoire.refresh(); }
       }
+      // Les lots dépendent des coulages (labo, existence) : on les
+      // synchronise APRÈS, pour résoudre les coulage_introuvable.
+      if (window.CAEKLots) { CAEKLots.autoSync(); }
     });
   }
 
