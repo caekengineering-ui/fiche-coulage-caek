@@ -217,6 +217,22 @@
         <input id="form-add-dmax" class="field" type="text" placeholder="ex. 25" autocomplete="off">
         <label class="field-label" for="form-add-adjuvant">Adjuvant</label>
         <input id="form-add-adjuvant" class="field" type="text" placeholder="ex. Superplastifiant" autocomplete="off">
+        <label class="field-label" for="form-add-sable1-fraction">Sable 01 - fraction</label>
+        <input id="form-add-sable1-fraction" class="field" type="text" placeholder="ex. 0/1" autocomplete="off">
+        <label class="field-label" for="form-add-sable1-qte">Sable 01 - quantité (kg/m³)</label>
+        <input id="form-add-sable1-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 420" autocomplete="off">
+        <label class="field-label" for="form-add-sable2-fraction">Sable 02 - fraction</label>
+        <input id="form-add-sable2-fraction" class="field" type="text" placeholder="ex. 0/4" autocomplete="off">
+        <label class="field-label" for="form-add-sable2-qte">Sable 02 - quantité (kg/m³)</label>
+        <input id="form-add-sable2-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 350" autocomplete="off">
+        <label class="field-label" for="form-add-grav-38">Agrégat 3/8 - quantité (kg/m³)</label>
+        <input id="form-add-grav-38" class="field" type="number" inputmode="decimal" placeholder="ex. 180" autocomplete="off">
+        <label class="field-label" for="form-add-grav-815">Agrégat 8/15 - quantité (kg/m³)</label>
+        <input id="form-add-grav-815" class="field" type="number" inputmode="decimal" placeholder="ex. 700" autocomplete="off">
+        <label class="field-label" for="form-add-grav-1525">Agrégat 15/25 - quantité (kg/m³)</label>
+        <input id="form-add-grav-1525" class="field" type="number" inputmode="decimal" placeholder="ex. 300" autocomplete="off">
+        <label class="field-label" for="form-add-eau">Eau (L/m³)</label>
+        <input id="form-add-eau" class="field" type="number" inputmode="decimal" placeholder="ex. 175" autocomplete="off">
         <button id="form-add-btn" class="btn-primary" type="button">&#10133; Ajouter la formulation</button>
         <div id="form-result" class="result-card" hidden></div>
       </div>
@@ -609,6 +625,23 @@
               <option value="autre">Autre…</option>
             </select>
             <input id="fc-mal-adjuvant-autre" class="field" type="text" placeholder="Préciser l'adjuvant" hidden>
+
+            <label class="field-label" for="fc-mal-sable1-fraction">Sable 01 - fraction</label>
+            <input id="fc-mal-sable1-fraction" class="field" type="text" placeholder="ex. 0/1" autocomplete="off">
+            <label class="field-label" for="fc-mal-sable1-qte">Sable 01 - quantité (kg/m³)</label>
+            <input id="fc-mal-sable1-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 420" autocomplete="off">
+            <label class="field-label" for="fc-mal-sable2-fraction">Sable 02 - fraction</label>
+            <input id="fc-mal-sable2-fraction" class="field" type="text" placeholder="ex. 0/4" autocomplete="off">
+            <label class="field-label" for="fc-mal-sable2-qte">Sable 02 - quantité (kg/m³)</label>
+            <input id="fc-mal-sable2-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 350" autocomplete="off">
+            <label class="field-label" for="fc-mal-grav-38">Agrégat 3/8 - quantité (kg/m³)</label>
+            <input id="fc-mal-grav-38" class="field" type="number" inputmode="decimal" placeholder="ex. 180" autocomplete="off">
+            <label class="field-label" for="fc-mal-grav-815">Agrégat 8/15 - quantité (kg/m³)</label>
+            <input id="fc-mal-grav-815" class="field" type="number" inputmode="decimal" placeholder="ex. 700" autocomplete="off">
+            <label class="field-label" for="fc-mal-grav-1525">Agrégat 15/25 - quantité (kg/m³)</label>
+            <input id="fc-mal-grav-1525" class="field" type="number" inputmode="decimal" placeholder="ex. 300" autocomplete="off">
+            <label class="field-label" for="fc-mal-eau">Eau (L/m³)</label>
+            <input id="fc-mal-eau" class="field" type="number" inputmode="decimal" placeholder="ex. 175" autocomplete="off">
 
             <button id="fc-mal-proposer" class="btn-text" type="button">&#128190; Proposer cette formulation comme modèle</button>
           </div>

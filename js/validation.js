@@ -45,9 +45,21 @@ var CAEKValidation = (function () {
     if (f.fournisseur) { parts.push(escapeHtml(f.fournisseur)); }
     if (f.classe) { parts.push(escapeHtml(f.classe)); }
     if (f.ciment) { parts.push("Ciment " + escapeHtml(f.ciment)); }
-    if (f.dosage) { parts.push(escapeHtml(f.dosage) + " kg/m³"); }
+    if (f.dosage) { parts.push(escapeHtml(f.dosage) + " kg/m³ ciment"); }
     if (f.dmax) { parts.push("Dmax " + escapeHtml(f.dmax)); }
     if (f.adjuvant) { parts.push(escapeHtml(f.adjuvant)); }
+    if (f.sable1Fraction || f.sable1Qte) {
+      parts.push("Sable 01" + (f.sable1Fraction ? " " + escapeHtml(f.sable1Fraction) : "") +
+        (f.sable1Qte ? " " + escapeHtml(f.sable1Qte) + " kg/m³" : ""));
+    }
+    if (f.sable2Fraction || f.sable2Qte) {
+      parts.push("Sable 02" + (f.sable2Fraction ? " " + escapeHtml(f.sable2Fraction) : "") +
+        (f.sable2Qte ? " " + escapeHtml(f.sable2Qte) + " kg/m³" : ""));
+    }
+    if (f.gravier38) { parts.push("Agrégat 3/8 " + escapeHtml(f.gravier38) + " kg/m³"); }
+    if (f.gravier815) { parts.push("Agrégat 8/15 " + escapeHtml(f.gravier815) + " kg/m³"); }
+    if (f.gravier1525) { parts.push("Agrégat 15/25 " + escapeHtml(f.gravier1525) + " kg/m³"); }
+    if (f.eau) { parts.push("Eau " + escapeHtml(f.eau) + " L/m³"); }
     return parts.length ? parts.join(" · ") : "—";
   }
 

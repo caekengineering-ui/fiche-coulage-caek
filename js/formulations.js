@@ -94,6 +94,11 @@ var CAEKFormulations = (function () {
     }
   }
 
+  function setInput(id, value) {
+    var e = $(id);
+    if (e) { e.value = value == null ? "" : value; }
+  }
+
   function findModele(id) {
     for (var i = 0; i < _list.length; i++) { if (_list[i].id === id) { return _list[i]; } }
     return null;
@@ -110,6 +115,14 @@ var CAEKFormulations = (function () {
     setSelect("fc-mal-dosage", p.dosage || "");
     setSelect("fc-mal-dmax", p.dmax || "");
     setSelect("fc-mal-adjuvant", p.adjuvant || "");
+    setInput("fc-mal-sable1-fraction", p.sable1Fraction || "");
+    setInput("fc-mal-sable1-qte", p.sable1Qte || "");
+    setInput("fc-mal-sable2-fraction", p.sable2Fraction || "");
+    setInput("fc-mal-sable2-qte", p.sable2Qte || "");
+    setInput("fc-mal-grav-38", p.gravier38 || "");
+    setInput("fc-mal-grav-815", p.gravier815 || "");
+    setInput("fc-mal-grav-1525", p.gravier1525 || "");
+    setInput("fc-mal-eau", p.eau || "");
     return true;
   }
 
@@ -119,13 +132,25 @@ var CAEKFormulations = (function () {
     if (!s) { return ""; }
     return s.value === "autre" ? (a ? a.value.trim() : "") : s.value;
   }
+  function readInput(id) {
+    var e = $(id);
+    return e ? e.value.trim() : "";
+  }
 
   function proposer() {
     var fournisseur = ($("fc-mal-fournisseur") ? $("fc-mal-fournisseur").value : "").trim();
     var payload = {
       classe: readSel("fc-mal-classe"), ciment: readSel("fc-mal-ciment"),
       dosage: readSel("fc-mal-dosage"), dmax: readSel("fc-mal-dmax"),
-      adjuvant: readSel("fc-mal-adjuvant")
+      adjuvant: readSel("fc-mal-adjuvant"),
+      sable1Fraction: readInput("fc-mal-sable1-fraction"),
+      sable1Qte: readInput("fc-mal-sable1-qte"),
+      sable2Fraction: readInput("fc-mal-sable2-fraction"),
+      sable2Qte: readInput("fc-mal-sable2-qte"),
+      gravier38: readInput("fc-mal-grav-38"),
+      gravier815: readInput("fc-mal-grav-815"),
+      gravier1525: readInput("fc-mal-grav-1525"),
+      eau: readInput("fc-mal-eau")
     };
     if (!fournisseur) { window.alert("Renseignez d'abord le fournisseur / la centrale."); return; }
     if (!payload.classe && !payload.dosage) { window.alert("Renseignez au moins la classe ou le dosage."); return; }
@@ -162,6 +187,18 @@ var CAEKFormulations = (function () {
     if (p.dosage) { parts.push(p.dosage + " kg/m³"); }
     if (p.dmax) { parts.push("Dmax " + p.dmax); }
     if (p.adjuvant) { parts.push(p.adjuvant); }
+    if (p.sable1Fraction || p.sable1Qte) {
+      parts.push("Sable 01" + (p.sable1Fraction ? " " + p.sable1Fraction : "") +
+        (p.sable1Qte ? " " + p.sable1Qte + " kg/m³" : ""));
+    }
+    if (p.sable2Fraction || p.sable2Qte) {
+      parts.push("Sable 02" + (p.sable2Fraction ? " " + p.sable2Fraction : "") +
+        (p.sable2Qte ? " " + p.sable2Qte + " kg/m³" : ""));
+    }
+    if (p.gravier38) { parts.push("Agrégat 3/8 " + p.gravier38 + " kg/m³"); }
+    if (p.gravier815) { parts.push("Agrégat 8/15 " + p.gravier815 + " kg/m³"); }
+    if (p.gravier1525) { parts.push("Agrégat 15/25 " + p.gravier1525 + " kg/m³"); }
+    if (p.eau) { parts.push("Eau " + p.eau + " L/m³"); }
     return parts.join(" · ") || "—";
   }
 
@@ -210,14 +247,24 @@ var CAEKFormulations = (function () {
       ciment: ($("form-add-ciment") ? $("form-add-ciment").value : "").trim(),
       dosage: ($("form-add-dosage") ? $("form-add-dosage").value : "").trim(),
       dmax: ($("form-add-dmax") ? $("form-add-dmax").value : "").trim(),
-      adjuvant: ($("form-add-adjuvant") ? $("form-add-adjuvant").value : "").trim()
+      adjuvant: ($("form-add-adjuvant") ? $("form-add-adjuvant").value : "").trim(),
+      sable1Fraction: ($("form-add-sable1-fraction") ? $("form-add-sable1-fraction").value : "").trim(),
+      sable1Qte: ($("form-add-sable1-qte") ? $("form-add-sable1-qte").value : "").trim(),
+      sable2Fraction: ($("form-add-sable2-fraction") ? $("form-add-sable2-fraction").value : "").trim(),
+      sable2Qte: ($("form-add-sable2-qte") ? $("form-add-sable2-qte").value : "").trim(),
+      gravier38: ($("form-add-grav-38") ? $("form-add-grav-38").value : "").trim(),
+      gravier815: ($("form-add-grav-815") ? $("form-add-grav-815").value : "").trim(),
+      gravier1525: ($("form-add-grav-1525") ? $("form-add-grav-1525").value : "").trim(),
+      eau: ($("form-add-eau") ? $("form-add-eau").value : "").trim()
     };
     CAEKServer.adminUpsertFormulation(CAEKOperateurs.token(), {
       fournisseur: fournisseur, nom: nom, payload: payload, actif: true
     }).then(function (r) {
       if (!r || r.ok !== true) { formResult("&#9888; Échec de l'enregistrement.", true); return; }
       ["form-add-nom", "form-add-classe", "form-add-ciment", "form-add-dosage",
-        "form-add-dmax", "form-add-adjuvant"].forEach(function (id) {
+        "form-add-dmax", "form-add-adjuvant", "form-add-sable1-fraction",
+        "form-add-sable1-qte", "form-add-sable2-fraction", "form-add-sable2-qte",
+        "form-add-grav-38", "form-add-grav-815", "form-add-grav-1525", "form-add-eau"].forEach(function (id) {
         var e = $(id); if (e) { e.value = ""; }
       });
       formResult("&#10004; Formulation « " + escapeHtml(fournisseur) + " — " + escapeHtml(nom) + " » enregistrée (validée).", false);

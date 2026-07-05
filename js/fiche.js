@@ -326,7 +326,12 @@ var CAEKFiche = (function () {
       heure: nowTime(), quantite: "", affaissement: "", temperature: "",
       numCamion: "", numBL: "",
       preleve: false, prelType: "", prelNombre: "", prelObs: "",
-      formulation: { reprise: false, mode: "structure", fournisseur: "", classe: "", ciment: "", dosage: "", dmax: "", adjuvant: "", photoId: null }
+      formulation: {
+        reprise: false, mode: "structure", fournisseur: "", classe: "", ciment: "",
+        dosage: "", dmax: "", adjuvant: "", sable1Fraction: "", sable1Qte: "",
+        sable2Fraction: "", sable2Qte: "", gravier38: "", gravier815: "",
+        gravier1525: "", eau: "", photoId: null
+      }
     };
   }
 
@@ -441,6 +446,26 @@ var CAEKFiche = (function () {
     return s.value;
   }
 
+  function formulationParts(f) {
+    f = f || {};
+    var parts = [f.fournisseur, f.classe, f.ciment,
+      (f.dosage ? f.dosage + " kg/m³ ciment" : ""),
+      (f.dmax ? "Dmax " + f.dmax : ""), f.adjuvant];
+    if (f.sable1Fraction || f.sable1Qte) {
+      parts.push("Sable 01" + (f.sable1Fraction ? " " + f.sable1Fraction : "") +
+        (f.sable1Qte ? " " + f.sable1Qte + " kg/m³" : ""));
+    }
+    if (f.sable2Fraction || f.sable2Qte) {
+      parts.push("Sable 02" + (f.sable2Fraction ? " " + f.sable2Fraction : "") +
+        (f.sable2Qte ? " " + f.sable2Qte + " kg/m³" : ""));
+    }
+    if (f.gravier38) { parts.push("Agrégat 3/8 " + f.gravier38 + " kg/m³"); }
+    if (f.gravier815) { parts.push("Agrégat 8/15 " + f.gravier815 + " kg/m³"); }
+    if (f.gravier1525) { parts.push("Agrégat 15/25 " + f.gravier1525 + " kg/m³"); }
+    if (f.eau) { parts.push("Eau " + f.eau + " L/m³"); }
+    return parts.filter(Boolean);
+  }
+
   function populateMalaxeur() {
     var m = malaxeurDraft;
     if ($("fc-mal-titre")) { $("fc-mal-titre").textContent = "Malaxeur " + pad2(malaxeurIdx + 1); }
@@ -474,6 +499,14 @@ var CAEKFiche = (function () {
     setSelectOrAutre("fc-mal-dosage", m.formulation.dosage, ["350", "380", "400"]);
     setSelectOrAutre("fc-mal-dmax", m.formulation.dmax, ["15", "25"]);
     setSelectOrAutre("fc-mal-adjuvant", m.formulation.adjuvant, ["Superplastifiant", "Hydrofuge", "Entraîneur d'air"]);
+    setVal("fc-mal-sable1-fraction", m.formulation.sable1Fraction);
+    setVal("fc-mal-sable1-qte", m.formulation.sable1Qte);
+    setVal("fc-mal-sable2-fraction", m.formulation.sable2Fraction);
+    setVal("fc-mal-sable2-qte", m.formulation.sable2Qte);
+    setVal("fc-mal-grav-38", m.formulation.gravier38);
+    setVal("fc-mal-grav-815", m.formulation.gravier815);
+    setVal("fc-mal-grav-1525", m.formulation.gravier1525);
+    setVal("fc-mal-eau", m.formulation.eau);
     renderMalFormPhotoPreview();
     populatePrelevement(m);
   }
@@ -502,6 +535,14 @@ var CAEKFiche = (function () {
         m.formulation.dosage = readSelectOrAutre("fc-mal-dosage");
         m.formulation.dmax = readSelectOrAutre("fc-mal-dmax");
         m.formulation.adjuvant = readSelectOrAutre("fc-mal-adjuvant");
+        m.formulation.sable1Fraction = val("fc-mal-sable1-fraction").trim();
+        m.formulation.sable1Qte = val("fc-mal-sable1-qte").trim();
+        m.formulation.sable2Fraction = val("fc-mal-sable2-fraction").trim();
+        m.formulation.sable2Qte = val("fc-mal-sable2-qte").trim();
+        m.formulation.gravier38 = val("fc-mal-grav-38").trim();
+        m.formulation.gravier815 = val("fc-mal-grav-815").trim();
+        m.formulation.gravier1525 = val("fc-mal-grav-1525").trim();
+        m.formulation.eau = val("fc-mal-eau").trim();
       }
     }
     gatherPrelevement(m);
@@ -576,7 +617,7 @@ var CAEKFiche = (function () {
     (c.malaxeurs || []).forEach(function (m, i) {
       var f = m.formulation || {};
       var fdesc = f.reprise ? "Idem précédent"
-        : [f.fournisseur, f.classe, f.ciment, (f.dosage ? f.dosage + " kg/m³" : ""), (f.dmax ? "Dmax " + f.dmax : ""), f.adjuvant].filter(Boolean).join(" · ");
+        : formulationParts(f).join(" · ");
       html += "<div class=\"recap-mal\">" +
         "<div class=\"recap-mal-head\"><strong>Malaxeur " + pad2(i + 1) + "</strong>" +
         (locked ? "" : " <button type=\"button\" class=\"btn-link recap-mal-edit\" data-idx=\"" + i + "\">Modifier</button>") +

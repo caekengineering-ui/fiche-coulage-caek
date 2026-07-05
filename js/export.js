@@ -49,9 +49,21 @@ var CAEKExport = (function () {
   function formuDesc(f) {
     if (!f) { return ""; }
     if (f.mode === "photo") { return "Voir photo BL/formulation"; }
-    return [f.fournisseur, f.classe, f.ciment,
-      (f.dosage ? f.dosage + " kg/m³" : ""), (f.dmax ? "Dmax " + f.dmax : ""), f.adjuvant]
-      .filter(Boolean).join(" · ");
+    var parts = [f.fournisseur, f.classe, f.ciment,
+      (f.dosage ? f.dosage + " kg/m³ ciment" : ""), (f.dmax ? "Dmax " + f.dmax : ""), f.adjuvant];
+    if (f.sable1Fraction || f.sable1Qte) {
+      parts.push("Sable 01" + (f.sable1Fraction ? " " + f.sable1Fraction : "") +
+        (f.sable1Qte ? " " + f.sable1Qte + " kg/m³" : ""));
+    }
+    if (f.sable2Fraction || f.sable2Qte) {
+      parts.push("Sable 02" + (f.sable2Fraction ? " " + f.sable2Fraction : "") +
+        (f.sable2Qte ? " " + f.sable2Qte + " kg/m³" : ""));
+    }
+    if (f.gravier38) { parts.push("Agrégat 3/8 " + f.gravier38 + " kg/m³"); }
+    if (f.gravier815) { parts.push("Agrégat 8/15 " + f.gravier815 + " kg/m³"); }
+    if (f.gravier1525) { parts.push("Agrégat 15/25 " + f.gravier1525 + " kg/m³"); }
+    if (f.eau) { parts.push("Eau " + f.eau + " L/m³"); }
+    return parts.filter(Boolean).join(" · ");
   }
 
   /* ---------- 1) Message recap (WhatsApp / e-mail) ---------- */
