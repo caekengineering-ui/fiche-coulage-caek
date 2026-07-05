@@ -183,6 +183,28 @@
         <input id="labo-add-seuil" class="field" type="number" min="10" step="10" value="100">
         <button id="labo-add-btn" class="btn-primary" type="button">&#10133; Ajouter le laboratoire</button>
         <div id="labo-result" class="result-card" hidden></div>
+
+        <h3 class="block-subtitle">&#129514; Formulations (modèles)</h3>
+        <p class="hint">Catalogue global par fournisseur (ex. BTPH HASNAOUI → N°01, N°02…). Une formulation proposée par un opérateur doit être <strong>validée ici</strong> avant d'être utilisable comme modèle.</p>
+        <div id="form-liste"><p class="hint">Chargement…</p></div>
+
+        <h3 class="block-subtitle">&#10133; Ajouter une formulation validée</h3>
+        <label class="field-label" for="form-add-fournisseur">Fournisseur / centrale</label>
+        <input id="form-add-fournisseur" class="field" type="text" placeholder="ex. BTPH HASNAOUI" autocomplete="off">
+        <label class="field-label" for="form-add-nom">Nom / numéro</label>
+        <input id="form-add-nom" class="field" type="text" placeholder="ex. N°01" autocomplete="off">
+        <label class="field-label" for="form-add-classe">Classe béton</label>
+        <input id="form-add-classe" class="field" type="text" placeholder="ex. C25/30" autocomplete="off">
+        <label class="field-label" for="form-add-ciment">Type de ciment</label>
+        <input id="form-add-ciment" class="field" type="text" placeholder="ex. CRS" autocomplete="off">
+        <label class="field-label" for="form-add-dosage">Dosage ciment (kg/m³)</label>
+        <input id="form-add-dosage" class="field" type="text" placeholder="ex. 350" autocomplete="off">
+        <label class="field-label" for="form-add-dmax">Dmax (mm)</label>
+        <input id="form-add-dmax" class="field" type="text" placeholder="ex. 25" autocomplete="off">
+        <label class="field-label" for="form-add-adjuvant">Adjuvant</label>
+        <input id="form-add-adjuvant" class="field" type="text" placeholder="ex. Superplastifiant" autocomplete="off">
+        <button id="form-add-btn" class="btn-primary" type="button">&#10133; Ajouter la formulation</button>
+        <div id="form-result" class="result-card" hidden></div>
       </div>
     </section>
 
@@ -526,6 +548,11 @@
           </div>
 
           <div id="fc-mal-form-structure">
+            <label class="field-label" for="fc-mal-modele">&#128218; Modèle enregistré</label>
+            <select id="fc-mal-modele" class="field">
+              <option value="">— Choisir un modèle (facultatif) —</option>
+            </select>
+
             <label class="field-label" for="fc-mal-fournisseur">&#127981; Fournisseur / centrale</label>
             <input id="fc-mal-fournisseur" class="field" type="text" autocomplete="off">
 
@@ -568,6 +595,8 @@
               <option value="autre">Autre…</option>
             </select>
             <input id="fc-mal-adjuvant-autre" class="field" type="text" placeholder="Préciser l'adjuvant" hidden>
+
+            <button id="fc-mal-proposer" class="btn-text" type="button">&#128190; Proposer cette formulation comme modèle</button>
           </div>
 
           <div id="fc-mal-form-photo" hidden>
@@ -717,6 +746,7 @@
   <script src="js/sync.js"></script>
   <script src="js/medias.js"></script>
   <script src="js/coulages.js"></script>
+  <script src="js/formulations.js"></script>
   <script src="js/repertoire.js"></script>
   <script src="js/validation.js"></script>
   <script src="js/bassin.js"></script>

@@ -191,6 +191,7 @@ var CAEKSync = (function () {
     pullReferentiels().then(function (r) {
       if (r.ok) { refreshStatusCard(); }
     });
+    if (window.CAEKFormulations) { CAEKFormulations.refresh(); }
   }
 
   function init() {
