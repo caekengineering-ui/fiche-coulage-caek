@@ -117,6 +117,17 @@ var CAEKCoulages = (function () {
         if (!ready() || !online()) {
           return enqueue(ref, "soumettre").then(function () { return { ok: true, offline: true }; });
         }
+        // Téléversement des médias (photos + audios) AVANT la soumission :
+        // l'admin les examinera à la validation. Échec (bucket absent,
+        // réseau instable) => on soumet quand même, médias marqués incomplets.
+        var up = window.CAEKMedias
+          ? CAEKMedias.uploadForRef(ref)
+          : Promise.resolve({ medias: [], incomplet: false });
+        return up.then(function (m) {
+          c.medias = m.medias;
+          c.mediasIncomplets = (m.incomplet === true);
+          return rawUpdate(c);
+        }).then(function () {
         return CAEKServer.soumettreCoulage(token(), ref, c).then(function (r) {
           if (r && r.ok === true) {
             c._syncedAt = new Date().toISOString();
@@ -134,6 +145,7 @@ var CAEKCoulages = (function () {
         }).catch(function () {
           return enqueue(ref, "soumettre").then(function () { return { ok: true, offline: true }; });
         });
+        });   // fin téléversement médias
       });
     });
   }
@@ -153,6 +165,15 @@ var CAEKCoulages = (function () {
         return p.then(function () {
           return CAEKDB.getCoulage(ref).then(function (c) {
             if (!c) { return dequeue(ref); }
+            // Rejouer une soumission : re-tenter d'abord les médias.
+            var prep = (q[ref] === "soumettre" && window.CAEKMedias)
+              ? CAEKMedias.uploadForRef(ref).then(function (m) {
+                  c.medias = m.medias;
+                  c.mediasIncomplets = (m.incomplet === true);
+                  return rawUpdate(c);
+                })
+              : Promise.resolve();
+            return prep.then(function () {
             var fn = (q[ref] === "soumettre")
               ? CAEKServer.soumettreCoulage(token(), ref, c)
               : CAEKServer.saveCoulage(token(), ref, c);
@@ -163,6 +184,7 @@ var CAEKCoulages = (function () {
               }
               // échec non réseau (ex. labo_requis) : on garde en file.
             }).catch(function () { /* réseau : re-tentative plus tard */ });
+            });   // fin prep médias
           });
         });
       }, Promise.resolve());

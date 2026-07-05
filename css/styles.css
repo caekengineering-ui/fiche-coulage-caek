@@ -1592,3 +1592,15 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
   .app-main { padding: 28px 24px; }
   .app-title { font-size: 18px; }
 }
+
+/* ===== V3 : medias de l'ecran Validation (photos + audios) ===== */
+.valid-medias { margin-top: 10px; }
+.valid-medias-zone { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.valid-media { flex: 1 1 45%; max-width: 48%; background: #fff; border: 1px solid #eee;
+  border-radius: 10px; padding: 8px; }
+.valid-media audio { width: 100%; margin-top: 4px; }
+.valid-media-img { width: 100%; height: auto; border-radius: 8px; display: block; margin-top: 4px; }
+.valid-detail { padding: 10px 12px; }
+.valid-line { margin: 4px 0; }
+.valid-mal { border-top: 1px dashed #ddd; padding-top: 6px; margin-top: 6px; }
+.valid-codif { font-size: 0.92em; color: #444; margin-top: 4px; }

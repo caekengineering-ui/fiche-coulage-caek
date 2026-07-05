@@ -83,6 +83,18 @@ var CAEKValidation = (function () {
       }).join("");
     }
 
+    var medias = c.medias || [];
+    var mediasHtml = "";
+    if (medias.length) {
+      mediasHtml = "<div class=\"valid-medias\" data-ref=\"" + escapeHtml(c.ref) + "\">" +
+        "<div class=\"valid-line\"><strong>&#128247; Médias soumis (" + medias.length + ")</strong>" +
+        (c.mediasIncomplets ? " <span class=\"oper-badge is-off\">liste incomplète</span>" : "") +
+        " <span class=\"hint\">— supprimés du serveur après validation</span></div>" +
+        "<div class=\"valid-medias-zone\"><p class=\"hint\">Chargement des médias…</p></div></div>";
+    } else if (c.mediasIncomplets) {
+      mediasHtml = "<div class=\"valid-line\">&#9888; Médias non téléversés (soumission hors-ligne ou stockage indisponible).</div>";
+    }
+
     return "<div class=\"valid-detail\">" +
       "<div class=\"valid-line\"><strong>Client :</strong> " + escapeHtml(c.client || c.entreprise || "—") + "</div>" +
       "<div class=\"valid-line\"><strong>Projet :</strong> " + escapeHtml(c.nomProjet || "—") +
@@ -91,7 +103,7 @@ var CAEKValidation = (function () {
       "<div class=\"valid-line\"><strong>Ouvrage(s) coulé(s) :</strong> " + escapeHtml(ouvr) + "</div>" +
       "<div class=\"valid-line\"><strong>Bloc / étage :</strong> " + escapeHtml(blocEtage) + "</div>" +
       "<div class=\"valid-line\"><strong>Totaux :</strong> " + qte + " m³ · " + epr + " éprouvette(s)</div>" +
-      malRows + codif +
+      malRows + codif + mediasHtml +
       "<div class=\"oper-actions\">" +
       "<button type=\"button\" class=\"btn-primary\" data-act=\"valider\" data-ref=\"" + escapeHtml(c.ref) + "\">&#9989; Valider ce coulage</button>" +
       "<button type=\"button\" class=\"btn-secondary\" data-act=\"renvoyer\" data-ref=\"" + escapeHtml(c.ref) + "\">&#8617; Renvoyer pour correction</button>" +
@@ -129,6 +141,68 @@ var CAEKValidation = (function () {
     var cnt = $("valid-count");
     if (cnt) { cnt.textContent = _rows.length + " coulage(s) soumis"; }
     updateBadgeDisplay(_rows.length);
+    loadMedias();
+  }
+
+  /* ---------- Médias (photos + audios du coulage ouvert) ---------- */
+  var _urls = [];
+  function revokeUrls() {
+    _urls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} });
+    _urls = [];
+  }
+
+  var CAT_LABEL = {
+    formulation: "Formulation / BL", bl: "Bon de livraison", prelevement: "Prélèvement",
+    eprouvettes: "Éprouvettes", anomalie: "Anomalie", audio: "Note audio pour l'admin"
+  };
+
+  function loadMedias() {
+    revokeUrls();
+    var wrap = document.querySelector("#valid-liste .valid-medias");
+    if (!wrap || !window.CAEKMedias) { return; }
+    var ref = wrap.getAttribute("data-ref");
+    var row = findRow(ref);
+    if (!row) { return; }
+    var medias = (row.payload && row.payload.medias) || [];
+    var zone = wrap.querySelector(".valid-medias-zone");
+    if (!zone) { return; }
+    zone.innerHTML = "";
+    // La photo de la formulation d'abord : c'est elle que l'admin vérifie.
+    var sorted = medias.slice().sort(function (a, b) {
+      var pa = (a.categorie === "formulation" || a.categorie === "bl") ? 0 : (a.type === "audio" ? 1 : 2);
+      var pb = (b.categorie === "formulation" || b.categorie === "bl") ? 0 : (b.type === "audio" ? 1 : 2);
+      return pa - pb;
+    });
+    sorted.forEach(function (m) {
+      CAEKMedias.fetchBlob(m.path).then(function (blob) {
+        var u = URL.createObjectURL(blob);
+        _urls.push(u);
+        var d = document.createElement("div");
+        d.className = "valid-media";
+        var cat = document.createElement("div");
+        cat.className = "photo-cat";
+        cat.textContent = (m.type === "audio" ? "🎤 " : "") + (CAT_LABEL[m.categorie] || m.categorie);
+        d.appendChild(cat);
+        if (m.type === "audio") {
+          var au = document.createElement("audio");
+          au.controls = true;
+          au.src = u;
+          d.appendChild(au);
+        } else {
+          var img = document.createElement("img");
+          img.className = "valid-media-img";
+          img.src = u;
+          img.alt = m.categorie || "photo";
+          d.appendChild(img);
+        }
+        zone.appendChild(d);
+      }).catch(function () {
+        var d = document.createElement("div");
+        d.className = "hint";
+        d.textContent = "⚠ Média indisponible (" + (CAT_LABEL[m.categorie] || m.categorie) + ")";
+        zone.appendChild(d);
+      });
+    });
   }
 
   function updateBadgeDisplay(n) {
@@ -182,15 +256,33 @@ var CAEKValidation = (function () {
   function valider(ref, itemEl) {
     var row = findRow(ref);
     if (!row) { return; }
-    if (!window.confirm("Valider le coulage " + ref + " ?\nLa désignation de l'ouvrage et la formulation sont confirmées. La fiche sera figée.")) { return; }
-    CAEKServer.adminValiderCoulage(CAEKOperateurs.token(), ref, row.payload).then(function (r) {
+    if (!window.confirm("Valider le coulage " + ref + " ?\nLa désignation de l'ouvrage et la formulation sont confirmées. La fiche sera figée.\nLes photos et audios de ce coulage seront supprimés du serveur.")) { return; }
+    // Le payload validé ne référence plus les médias : ils sont purgés du
+    // Storage juste après (le quota gratuit n'est qu'une zone de transit).
+    var payload = row.payload || {};
+    var paths = (payload.medias || []).map(function (m) { return m.path; });
+    var toSend;
+    try { toSend = JSON.parse(JSON.stringify(payload)); } catch (e) { toSend = payload; }
+    toSend.medias = [];
+    toSend.mediasIncomplets = false;
+    if (paths.length) { toSend.mediasPurges = true; }
+    CAEKServer.adminValiderCoulage(CAEKOperateurs.token(), ref, toSend).then(function (r) {
       if (!r || r.ok !== true) {
         resultBox(itemEl, "&#9888; " + (r && r.error === "deja_valide" ? "Déjà validé." : "Échec de la validation."), true);
         return;
       }
-      resultBox(itemEl, "&#10004; Coulage validé.", false);
-      if (window.CAEKCoulages) { CAEKCoulages.pull(); }
-      setTimeout(refresh, 600);
+      var done = (window.CAEKMedias && paths.length)
+        ? CAEKMedias.deletePaths(paths)
+        : Promise.resolve({ ok: true, n: 0 });
+      done.then(function (p) {
+        revokeUrls();
+        resultBox(itemEl, "&#10004; Coulage validé." +
+          (paths.length
+            ? (p.ok ? " " + p.n + " média(s) supprimé(s) du serveur." : " &#9888; Purge des médias à re-tenter.")
+            : ""), false);
+        if (window.CAEKCoulages) { CAEKCoulages.pull(); }
+        setTimeout(refresh, 800);
+      });
     }).catch(function (e) { resultBox(itemEl, "&#9888; Réseau requis : " + escapeHtml(e && e.message || ""), true); });
   }
 
