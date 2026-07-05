@@ -14,7 +14,7 @@ var CAEKUpdate = (function () {
     return String(h == null ? "" : h)
       .toLowerCase()
       .normalize("NFD").replace(/[̀-ͯ]/g, "")
-      .replace(/[\s_\-./]/g, "");
+      .replace(/[\s_\-./'’]/g, "");
   }
 
   function cleanStr(v) { return v == null ? "" : String(v).trim(); }
@@ -30,6 +30,20 @@ var CAEKUpdate = (function () {
     if (v == null || v === "") { return ""; }
     var n = parseFloat(String(v).replace(",", "."));
     return isNaN(n) ? null : n; // null = present mais invalide
+  }
+
+  function parseAges(v) {
+    var raw = cleanStr(v);
+    if (!raw) { return [7, 28]; }
+    var seen = {};
+    var out = raw.split(/[;,/|+\s]+/).map(function (x) { return parseInt(x, 10); })
+      .filter(function (n) {
+        if (!(n > 0) || seen[n]) { return false; }
+        seen[n] = true;
+        return true;
+      })
+      .sort(function (a, b) { return a - b; });
+    return out.length ? out : [7, 28];
   }
 
   // Construit { champInterne: indexColonne } a partir d'une ligne d'en-tete.
@@ -74,6 +88,8 @@ var CAEKUpdate = (function () {
     resistancerequisempa: "resistance", resistancerequise: "resistance", resistance: "resistance", resistancempa: "resistance",
     referencecommande: "referenceCommande", refcommande: "referenceCommande",
     referencedossier: "referenceDossier", refdossier: "referenceDossier",
+    agesessai: "agesEssai", agesdessai: "agesEssai", ageessai: "agesEssai", agedessai: "agesEssai",
+    ages: "agesEssai", echeances: "agesEssai", echeancesessai: "agesEssai",
     entreprise: "entreprise", societe: "entreprise"
   };
 
@@ -181,6 +197,7 @@ var CAEKUpdate = (function () {
         referenceCommande: cleanStr(cell(rP, colP, "referenceCommande")),
         referenceDossier: cleanStr(cell(rP, colP, "referenceDossier")),
         resistance: res,
+        agesEssai: parseAges(cell(rP, colP, "agesEssai")),
         actif: isActif(cell(rP, colP, "actif")),
         dateMaj: nowIso
       };

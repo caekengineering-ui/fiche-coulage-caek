@@ -641,10 +641,12 @@ var CAEKBassin = (function () {
   function shapeBtnHtml(l) {
     var st = dispStatut(l);
     var rTag = (st === "retard") ? "<span class=\"shape-r\">R</span>" : "";
+    var ageLabel = (l.age === "autre" ? l.ageJours + "j" : l.age);
     return "<button type=\"button\" class=\"" + shapeClass(l) + "\" data-id=\"" + l.id + "\" " +
-      "title=\"" + escapeHtml(l.ref + " · " + typeLabel(l.type) + " · " + l.age) + "\">" +
+      "title=\"" + escapeHtml(l.ref + " · " + typeLabel(l.type) + " · " + ageLabel) + "\">" +
       "<span class=\"shape-nb\">" + l.nombre + "</span>" +
-      "<span class=\"shape-age\">" + escapeHtml(l.age === "autre" ? l.ageJours + "j" : l.age) + "</span>" +
+      "<span class=\"shape-age\">" + escapeHtml(ageLabel) + "</span>" +
+      "<span class=\"shape-ref\">" + escapeHtml(l.ref || "") + "</span>" +
       rTag + "</button>";
   }
 
@@ -660,6 +662,7 @@ var CAEKBassin = (function () {
       grid.innerHTML = "<p class=\"screen-placeholder\">Aucun lot dans le bassin. " +
         (sortis.length ? "Tous les lots sont sortis pour essai (voir ci-dessous)." : "Répartissez d'abord des éprouvettes.") +
         "</p>";
+      if (window.I18N) { I18N.translate(grid); }
     } else {
       // Tri : retard d'abord, puis J-1, J-2, loin.
       var order = { retard: 0, j1: 1, j2: 2, loin: 3 };
@@ -669,6 +672,7 @@ var CAEKBassin = (function () {
         return String(a.datePrevue).localeCompare(String(b.datePrevue));
       });
       grid.innerHTML = sorted.map(shapeBtnHtml).join("");
+      if (window.I18N) { I18N.translate(grid); }
     }
 
     // Zone « Lots sortis du bassin — en attente d'essai ».
@@ -687,6 +691,7 @@ var CAEKBassin = (function () {
           $("bassin-sortis-count").textContent = sortis.length + " lot(s) sorti(s)";
         }
         sgrid.innerHTML = sortedOut.map(shapeBtnHtml).join("");
+        if (window.I18N) { I18N.translate(sgrid); }
       }
     }
   }
@@ -816,7 +821,10 @@ var CAEKBassin = (function () {
     var heure = ($("sortie-heure") && $("sortie-heure").value) || (pad2(new Date().getHours()) + ":" + pad2(new Date().getMinutes()));
     var obs = ($("sortie-obs") && $("sortie-obs").value.trim()) || "";
 
-    if (!window.confirm("Confirmer la sortie pour essai de ce lot (" + lot.nombre + " éprouvette(s)) ?")) { return; }
+    var confirmSortie = window.I18N && I18N.f
+      ? I18N.f("Confirmer la sortie pour essai de ce lot ({n} éprouvette(s)) ?", { n: lot.nombre })
+      : "Confirmer la sortie pour essai de ce lot (" + lot.nombre + " éprouvette(s)) ?";
+    if (!window.confirm(confirmSortie)) { return; }
 
     lot.statut = "sorti";
     lot.dateSortie = todayStr();

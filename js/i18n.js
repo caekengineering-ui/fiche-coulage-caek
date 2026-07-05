@@ -13,6 +13,7 @@ var I18N = (function () {
   var KEY = "caek-lang";
   var _lang = localStorage.getItem(KEY) || "fr";
   var _obs = null;
+  var _translating = false;
 
   var AR = {
     // ---- En-tête / accueil ----
@@ -41,9 +42,21 @@ var I18N = (function () {
     "Changer d'opérateur": "تغيير المُشغّل",
     "Changer mon code PIN": "تغيير الرمز السري (PIN)",
     "Administration": "الإدارة",
+    "Profil non renseigné": "الملف غير مُعبّأ",
+    "Profil opérateur non renseigné": "ملف المُشغّل غير مُعبّأ",
+    "Opérateur connecté — il signe toutes vos actions (fiches, répartition, sorties, essais, déchets) :": "المُشغّل المتصل يوقّع كل إجراءاتك (البطاقات، التوزيع، الإخراج، الاختبارات، النفايات):",
+    "Opérateur": "مُشغّل",
+    "Administrateur": "مسؤول",
+    "Aucun labo affecté": "لا يوجد مخبر معيّن",
+    "Connecté": "متصل",
     "Se déconnecter et changer d'opérateur ?": "تسجيل الخروج وتغيير المُشغّل؟",
     "Notifications": "الإشعارات",
     "Activer les notifications": "تفعيل الإشعارات",
+    "Désactiver sur cet appareil": "تعطيل على هذا الجهاز",
+    "Cet appareil / navigateur ne gère pas les notifications.": "هذا الجهاز / المتصفح لا يدعم الإشعارات.",
+    "Notifications bloquées dans les réglages du navigateur. Autorisez-les puis réessayez.": "الإشعارات محظورة في إعدادات المتصفح. اسمح بها ثم أعد المحاولة.",
+    "Notifications activées sur cet appareil.": "الإشعارات مفعّلة على هذا الجهاز.",
+    "Activez les notifications pour être alerté (coulages à valider, éprouvettes à écraser…).": "فعّل الإشعارات ليصلك التنبيه (صبّات للاعتماد، عيّنات للاختبار…).",
     "Aucun opérateur connecté.": "لا يوجد مُشغّل متصل.",
 
     // ---- Sous-menu coulage ----
@@ -108,6 +121,10 @@ var I18N = (function () {
     "Diviser (âge client)": "تقسيم (عمر الزبون)",
     "Sortir pour essai": "إخراج للاختبار",
     "Aucune fiche à répartir pour l'instant.": "لا توجد بطاقة للتوزيع حاليًا.",
+    "Aucun lot dans le bassin. Répartissez d'abord des éprouvettes.": "لا توجد أي مجموعة في الحوض. وزّع العيّنات أولاً.",
+    "Aucun lot dans le bassin. Tous les lots sont sortis pour essai (voir ci-dessous).": "لا توجد أي مجموعة في الحوض. كل المجموعات خرجت للاختبار (انظر أدناه).",
+    "Tous les lots sont sortis pour essai (voir ci-dessous).": "كل المجموعات خرجت للاختبار (انظر أدناه).",
+    "Répartissez d'abord des éprouvettes.": "وزّع العيّنات أولاً.",
 
     // ---- Compression / écrasement ----
     "À tester": "للاختبار",
@@ -138,10 +155,10 @@ var I18N = (function () {
     "Observation prélèvement": "ملاحظة أخذ العيّنة",
     "N° camion / toupie": "رقم الشاحنة / الخلّاطة",
     "N° BL": "رقم وصل التسليم",
-    "Bloc": "الكتلة", "Bloc / zone": "الكتلة / المنطقة",
+    "Bloc": "بلوك", "Bloc / zone": "بلوك / المنطقة",
     "Étage": "الطابق", "Partie": "الجزء",
     "Quantité (m³)": "الكمّية (m³)",
-    "Affaissement (cm)": "الهبوط (cm)",
+    "Affaissement (cm)": "سلامب",
     "Température (°C)": "درجة الحرارة (°C)",
     "Nombre d'éprouvettes": "عدد العيّنات",
     "Quantité évacuée (éprouvettes)": "الكمّية المُجلاة (عيّنات)",
@@ -151,21 +168,232 @@ var I18N = (function () {
     "Terminer le coulage": "إنهاء الصبّ",
     "Commencer le prélèvement": "بدء أخذ العيّنة",
 
+    // ---- Écran fiche coulage / récap ----
+    "Répertoire des coulages": "سجل الصبّات",
+    "Aucune alerte coulage en cours": "لا يوجد تنبيه صبّ حالياً",
+    "Ouvrage(s) coulé(s)": "العنصر / العناصر المصبوبة",
+    "Choisissez la (les) famille(s), puis touchez les ouvrages concernés.": "اختر العائلة أو العائلات، ثم اضغط على العناصر المعنية.",
+    "Autres (ouvrage non listé)": "أخرى (عنصر غير موجود في القائمة)",
+    "(à préciser)": "(يُحدّد)",
+    "(facultatif)": "(اختياري)",
+    "Bloc / Étage / Partie": "بلوك / الطابق / الجزء",
+    "Début coulage": "بدء الصبّ",
+    "Malaxeurs": "الخلّاطات",
+    "Récap": "الملخّص",
+    "Récapitulatif": "الملخّص",
+    "Prélèvement d'échantillons": "أخذ عيّنات",
+    "Avez-vous effectué un prélèvement d'échantillons de béton sur ce malaxeur / toupie ?": "هل تم أخذ عيّنات خرسانة من هذه الخلّاطة / الشاحنة؟",
+    "Type de moule — touchez Cube, Cylindre, ou les deux (= prélèvement mixte) :": "نوع القالب: اضغط مكعب أو أسطوانة أو الاثنين (= عيّنة مختلطة):",
+    "Cube": "مكعب",
+    "Cylindre": "أسطوانة",
+    "Mixte": "مختلط",
+    "Données du malaxeur / toupie": "بيانات الخلّاطة / الشاحنة",
+    "Heure de prélèvement": "وقت أخذ العيّنة",
+    "Quantité de béton (m³)": "كمية الخرسانة (m³)",
+    "Formulation / Centrale": "الصيغة / المحطة الخرسانة / مكونات الخرسانة",
+    "Saisie": "إدخال",
+    "Photo BL": "صورة وصل التسليم",
+    "Photo du BL / formulation": "صورة وصل التسليم / الصيغة",
+    "La photo est compressée et stockée localement.": "يتم ضغط الصورة وتخزينها محلياً.",
+    "Annuler le malaxeur": "إلغاء الخلّاطة",
+    "Réf. coulage": "مرجع الصبّ",
+    "Quantité totale": "الكمية الإجمالية",
+    "Total éprouvettes": "إجمالي العيّنات",
+    "Détail des malaxeurs": "تفاصيل الخلّاطات",
+    "Modifier": "تعديل",
+    "Supprimer": "حذف",
+    "Ajouter un malaxeur": "إضافة خلّاطة",
+    "Prélèvements réalisés": "العينات المنجزة",
+    "Les prélèvements sont déclarés pendant la saisie de chaque malaxeur. Codification : RÉF-E1, RÉF-E2…": "يتم التصريح بالعيّنات أثناء إدخال كل خلّاطة. الترميز: RÉF-E1، RÉF-E2…",
+    "Aucun prélèvement déclaré. Indiquez-le pendant la saisie d'un malaxeur (question « Avez-vous effectué un prélèvement ? »).": "لم يتم التصريح بأي عيّنة. حدّد ذلك أثناء إدخال الخلّاطة (سؤال: هل تم أخذ عيّنة؟).",
+    "Signaler un problème / anomalie": "الإبلاغ عن مشكلة / خلل",
+    "Décrire le problème (facultatif)": "وصف المشكلة (اختياري)",
+    "Photo de l'anomalie": "صورة الخلل",
+    "Enregistrer une note audio": "تسجيل ملاحظة صوتية",
+    "Profil : Technicien laboratoire · Annexe Béchar (pré-rempli, modifiable).": "الملف: تقني مخبر · ملحقة بشار (مملوء مسبقاً، قابل للتعديل).",
+    "La validation et le partage au bureau se font ensuite depuis le Répertoire des coulages.": "يتم الاعتماد والمشاركة مع المكتب لاحقاً من سجل الصبّات.",
+    "Retour à l'accueil": "الرجوع إلى الصفحة الرئيسية",
+    "Fiche": "بطاقة",
+    "Statut": "الحالة",
+    "Référence": "المرجع",
+    "Adresse / Ville": "العنوان / المدينة",
+    "Code projet": "رمز المشروع",
+    "Fondation": "الأساسات",
+    "Superstructure": "الهيكل العلوي",
+    "Choisissez d'abord une famille ci-dessus.": "اختر أولاً عائلة من الأعلى.",
+    "facultatif — coulage en plusieurs reprises": "اختياري - الصبّ على عدة مراحل",
+    "Ouvrages": "العناصر",
+    "Bloc / Étage": "بلوك / الطابق",
+
     // ---- Messages généraux ----
     "Aucun coulage en attente de validation.": "لا يوجد صبّ في انتظار الاعتماد.",
     "Aucun résultat en attente.": "لا توجد نتيجة في الانتظار.",
-    "Chargement…": "جارٍ التحميل…"
+    "Chargement…": "جارٍ التحميل…",
+
+    // ---- Bassin / répartition / déchets / compression ----
+    "Aucune alerte bassin en cours": "لا يوجد تنبيه حوض حالياً",
+    "Fiches validées comportant des éprouvettes, pas encore réparties au bassin.": "بطاقات معتمدة تحتوي على عيّنات ولم توزّع بعد في الحوض.",
+    "Aucune fiche à répartir pour l'instant.": "لا توجد بطاقة للتوزيع حالياً.",
+    "Revoir / corriger": "مراجعة / تصحيح",
+    "Répartition en": "التوزيع على",
+    "lots d'essai": "مجموعات اختبار",
+    ". On ne mélange pas deux prélèvements dans un même lot. Par défaut :": ". لا يتم خلط عينتين في نفس المجموعة. افتراضياً:",
+    ", le reste à": "، والباقي على",
+    ". Vous pouvez changer l'échéance de chaque lot, ou": ". يمكنك تغيير موعد كل مجموعة، أو",
+    "✂ Diviser": "✂ تقسيم",
+    "un lot pour un âge exigé par le client (ex. 3 j) — le reste garde son échéance.": "مجموعة لعمر يطلبه الزبون (مثلاً 3 أيام) - والباقي يحتفظ بموعده.",
+    "prélèvements dans un même lot. Par défaut :": "عيّنات في نفس المجموعة. افتراضياً:",
+    "aucun mélange de prélèvements": "بدون خلط العينات",
+    "lot(s) d'essai": "مجموعة اختبار",
+    "Verrouillée : un lot a déjà été écrasé ou archivé.": "مقفلة: تم اختبار أو أرشفة مجموعة بالفعل.",
+    "Couleurs (échéance d'essai) :": "الألوان (موعد الاختبار):",
+    "Échéance loin": "الموعد بعيد",
+    "J-2 (à sortir bientôt)": "J-2 (للإخراج قريباً)",
+    "J-1 (à sortir aujourd'hui)": "J-1 (للإخراج اليوم)",
+    "Retard (R)": "تأخير (R)",
+    "Sorti pour essai": "أُخرج للاختبار",
+    "Formes (type) :": "الأشكال (النوع):",
+    "Carré = Cube": "مربع = مكعب",
+    "Cercle = Cylindre": "دائرة = أسطوانة",
+    "Hexagone = Mixte": "سداسي = مختلط",
+    "Lots sortis du bassin — en attente d'essai": "مجموعات خارجة من الحوض في انتظار الاختبار",
+    "Ces lots ne sont plus dans le bassin : ils sèchent / sont préparés avant l'essai (délai 24 h conseillé).": "هذه المجموعات لم تعد في الحوض: تجف / يتم تحضيرها قبل الاختبار (ينصح بمدة 24 ساعة).",
+    "Ouvrage": "العنصر",
+    "Date de coulage": "تاريخ الصبّ",
+    "Prélèvement": "العينة",
+    "Type": "النوع",
+    "Nombre": "العدد",
+    "Codification": "الترميز",
+    "Âge": "العمر",
+    "Date prévue": "التاريخ المتوقع",
+    "Statut": "الحالة",
+    "Revoir la répartition de ce coulage": "مراجعة توزيع هذا الصبّ",
+    "Sortie en retard (échéance d'essai dépassée) : motif obligatoire.": "إخراج متأخر (تم تجاوز موعد الاختبار): السبب إجباري.",
+    "Sortie aujourd'hui : conforme à l'échéance.": "إخراج اليوم: مطابق للموعد.",
+    "Sortie anticipée : motif obligatoire.": "إخراج مبكر: السبب إجباري.",
+    "Éprouvettes cassées après essai de compression. L'historique des essais n'est pas affecté.": "عيّنات مكسّرة بعد اختبار الضغط. سجل الاختبارات لا يتأثر.",
+    "éprouvettes cassées": "عيّنات مكسّرة",
+    "kg estimés": "كغ تقديري",
+    "seuil d'alerte": "حد التنبيه",
+    "Confirmer une évacuation": "تأكيد عملية إجلاء",
+    "Confirmer évacuation": "تأكيد الإجلاء",
+    "Historique des évacuations": "سجل الإجلاءات",
+    "Aucune évacuation enregistrée.": "لا توجد عملية إجلاء مسجلة.",
+    "Aucun essai en attente": "لا يوجد اختبار في الانتظار",
+    "Lots sortis du bassin pour essai. Saisissez les résultats d'écrasement.": "مجموعات خارجة من الحوض للاختبار. أدخل نتائج الضغط.",
+    "Aucun lot sorti pour essai. Sortez d'abord des lots depuis le bassin.": "لا توجد مجموعة خارجة للاختبار. أخرج المجموعات أولاً من الحوض.",
+    "Historique des essais": "سجل الاختبارات",
+    "Du": "من",
+    "Au": "إلى",
+    "Filtrer": "تصفية",
+    "Tout": "الكل",
+    "Aucun essai enregistré.": "لا يوجد اختبار مسجل.",
+
+    // ---- Messages dynamiques / confirmations ----
+    "Valider le coulage {ref} ?": "هل تريد اعتماد عملية الصبّ {ref}؟",
+    "La désignation de l'ouvrage et la formulation sont confirmées. La fiche sera figée.": "سيتم تأكيد تسمية المنشأ والصيغة، وستصبح البطاقة مقفلة.",
+    "Les photos et audios de ce coulage seront supprimés du serveur après validation.": "سيتم حذف صور وتسجيلات هذا الصبّ من الخادم بعد الاعتماد.",
+    "Supprimer le Malaxeur {n} ?": "هل تريد حذف الخلّاطة {n}؟",
+    "Soumettre la fiche {ref} au laboratoire ?": "هل تريد إرسال البطاقة {ref} إلى المخبر؟",
+    "Elle sera verrouillée et envoyée à l'administrateur pour validation.": "سيتم قفلها وإرسالها إلى المسؤول للاعتماد.",
+    "La répartition des éprouvettes au bassin reste possible immédiatement.": "يبقى توزيع العيّنات في الحوض ممكناً مباشرة.",
+    "Voulez-vous vraiment supprimer la fiche {ref} ? Cette action est irréversible.": "هل تريد فعلاً حذف البطاقة {ref}؟ لا يمكن التراجع عن هذا الإجراء.",
+    "Confirmer la sortie pour essai de ce lot ({n} éprouvette(s)) ?": "هل تريد تأكيد إخراج هذه المجموعة للاختبار ({n} عيّنة)؟",
+    "Désactiver cet opérateur ? Il ne pourra plus se connecter.": "هل تريد تعطيل هذا المُشغّل؟ لن يستطيع تسجيل الدخول.",
+    "Désactiver ce laboratoire ? Il n'apparaîtra plus dans les listes.": "هل تريد تعطيل هذا المخبر؟ لن يظهر في القوائم.",
+    "Confirmez-vous que le coulage est bien terminé ?": "هل تؤكد أن عملية الصبّ انتهت؟"
   };
+
+  var MIXED = [
+    ["Aucune alerte coulage en cours", "لا يوجد تنبيه صبّ حالياً"],
+    ["Aucune alerte bassin en cours", "لا يوجد تنبيه حوض حالياً"],
+    ["Aucun essai en attente", "لا يوجد اختبار في الانتظار"],
+    ["fiche à valider", "بطاقة للاعتماد"],
+    ["fiches à valider", "بطاقات للاعتماد"],
+    ["codification non confirmée", "ترميز غير مؤكد"],
+    ["à répartir", "للتوزيع"],
+    ["à sortir aujourd'hui (J-1)", "للإخراج اليوم (J-1)"],
+    ["à sortir aujourd'hui", "للإخراج اليوم"],
+    ["bientôt (J-2)", "قريباً (J-2)"],
+    ["en retard", "متأخر"],
+    ["coulé le", "صُبّ بتاريخ"],
+    ["éprouvette(s)", "عيّنة"],
+    ["lot(s) à tester", "مجموعة للاختبار"],
+    ["fiche(s) à répartir", "بطاقة للتوزيع"],
+    ["éprouvettes cassées", "عيّنات مكسّرة"],
+    ["kg estimés", "كغ تقديري"],
+    ["seuil d'alerte", "حد التنبيه"],
+    ["Malaxeur", "خلّاطة"],
+    ["Supprimer", "حذف"],
+    ["Modifier", "تعديل"],
+    ["Quantité totale", "الكمية الإجمالية"],
+    ["Total éprouvettes", "إجمالي العيّنات"],
+    ["Détail des malaxeurs", "تفاصيل الخلّاطات"],
+    ["Réf. coulage", "مرجع الصبّ"],
+    ["Code projet", "رمز المشروع"],
+    ["Adresse / Ville", "العنوان / المدينة"],
+    ["Statut", "الحالة"],
+    ["Fiche", "بطاقة"],
+    ["Fondation", "الأساسات"],
+    ["Superstructure", "الهيكل العلوي"],
+    ["Bloc / Étage / Partie", "بلوك / الطابق / الجزء"],
+    ["Bloc / étage", "بلوك / الطابق"],
+    ["Bloc / Étage", "بلوك / الطابق"],
+    ["Ouvrages", "العناصر"],
+    ["Totaux", "الإجماليات"],
+    ["Formulation / Centrale", "الصيغة / المحطة الخرسانة / مكونات الخرسانة"],
+    ["Formulation / BL", "الصيغة / وصل التسليم"],
+    ["Bon de livraison", "وصل التسليم"],
+    ["Éprouvettes", "العيّنات"],
+    ["Anomalie", "خلل"],
+    ["Note audio pour l'admin", "ملاحظة صوتية للمسؤول"],
+    ["Cube", "مكعب"],
+    ["Cylindre", "أسطوانة"],
+    ["Mixte", "مختلط"]
+  ];
+
+  var RULES = [
+    { re: /(\d+)\s+fiche\(s\)\s+à répartir/g, ar: "$1 بطاقة للتوزيع" },
+    { re: /(\d+)\s+fiche(s)?\s+à valider/g, ar: "$1 بطاقة للاعتماد" },
+    { re: /(\d+)\s+lot\(s\)\s+à tester/g, ar: "$1 مجموعة للاختبار" },
+    { re: /(\d+)\s+lot\(s\)\s+d'essai/g, ar: "$1 مجموعة اختبار" },
+    { re: /(\d+)\s+éprouvette\(s\)/g, ar: "$1 عيّنة" },
+    { re: /(\d+)\s+éprouvette(s)? cassée(s)?/g, ar: "$1 عيّنة مكسّرة" },
+    { re: /(\d+)\s+à sortir aujourd'hui/g, ar: "$1 للإخراج اليوم" },
+    { re: /(\d+)\s+en retard/g, ar: "$1 متأخر" },
+    { re: /(\d+)\s+bientôt \(J-2\)/g, ar: "$1 قريباً (J-2)" },
+    { re: /E(\d+)\s+Cube\s+×(\d+)/g, ar: "E$1 مكعب ×$2" },
+    { re: /E(\d+)\s+Cylindre\s+×(\d+)/g, ar: "E$1 أسطوانة ×$2" },
+    { re: /E(\d+)\s+Mixte\s+×(\d+)/g, ar: "E$1 مختلط ×$2" }
+  ];
 
   function lang() { return _lang; }
   function T(s) {
     if (_lang !== "ar" || s == null) { return s; }
     var k = String(s).trim();
-    return AR[k] || s;
+    return AR[k] || _translateMixed(k) || s;
+  }
+  function F(s, vars) {
+    var out = T(s);
+    vars = vars || {};
+    Object.keys(vars).forEach(function (k) {
+      out = String(out).replace(new RegExp("\\{" + k + "\\}", "g"), vars[k]);
+    });
+    return out;
   }
 
   // emoji/pictogrammes/flèches de tête (pas les chiffres ni les lettres)
   var LEAD = new RegExp("^([\\u2190-\\u21FF\\u2300-\\u27BF\\u2B00-\\u2BFF\\u{1F000}-\\u{1FAFF}\\uFE0F\\u200D]+\\s*)([\\s\\S]+)$", "u");
+
+  function _translateMixed(t) {
+    var out = String(t);
+    for (var r = 0; r < RULES.length; r++) { out = out.replace(RULES[r].re, RULES[r].ar); }
+    var sorted = MIXED.slice().sort(function (a, b) { return b[0].length - a[0].length; });
+    for (var i = 0; i < sorted.length; i++) {
+      out = out.split(sorted[i][0]).join(sorted[i][1]);
+    }
+    return out !== t ? out : "";
+  }
 
   function _translateNode(n) {
     var raw = n.nodeValue;
@@ -177,6 +405,12 @@ var I18N = (function () {
     if (m && AR[m[2].trim()]) {
       if (n.__fr == null) { n.__fr = raw; }
       n.nodeValue = raw.replace(t, m[1] + AR[m[2].trim()]);
+      return;
+    }
+    var mixed = _translateMixed(t);
+    if (mixed) {
+      if (n.__fr == null) { n.__fr = raw; }
+      n.nodeValue = raw.replace(t, mixed);
     }
   }
 
@@ -214,6 +448,7 @@ var I18N = (function () {
   function translate(root) {
     root = root || document.body;
     if (_lang !== "ar") { return; }
+    _translating = true;
     // Le texte des <option> est traduit (choix des listes déroulantes) ; seuls
     // SCRIPT/STYLE/TEXTAREA sont exclus. Les valeurs dynamiques (noms de client,
     // projets…) ne sont pas dans le dictionnaire -> restent inchangées.
@@ -230,9 +465,11 @@ var I18N = (function () {
     while (w.nextNode()) { nodes.push(w.currentNode); }
     nodes.forEach(_translateNode);
     _translateAttrs(root);
+    _translating = false;
   }
 
   function _restoreAll() {
+    _translating = true;
     var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
     var nodes = [];
     while (w.nextNode()) { nodes.push(w.currentNode); }
@@ -241,6 +478,7 @@ var I18N = (function () {
       if (n.__fr != null) { n.nodeValue = n.__fr; n.__fr = null; }
     }
     _restoreAttrs();
+    _translating = false;
   }
 
   function setLang(l) {
@@ -276,17 +514,30 @@ var I18N = (function () {
   function _observe() {
     if (_obs) { return; }
     _obs = new MutationObserver(function (muts) {
+      if (_translating) { return; }
       if (_lang !== "ar") { return; }
       for (var i = 0; i < muts.length; i++) {
-        var added = muts[i].addedNodes;
-        for (var j = 0; j < added.length; j++) {
-          var node = added[j];
-          if (node.nodeType === 1) { translate(node); }
-          else if (node.nodeType === 3) { _translateNode(node); }
+        if (muts[i].type === "characterData") {
+          _translateNode(muts[i].target);
+        } else if (muts[i].type === "attributes") {
+          _translateAttrs(muts[i].target.parentNode || document.body);
+        } else {
+          var added = muts[i].addedNodes;
+          for (var j = 0; j < added.length; j++) {
+            var node = added[j];
+            if (node.nodeType === 1) { translate(node); }
+            else if (node.nodeType === 3) { _translateNode(node); }
+          }
         }
       }
     });
-    _obs.observe(document.body, { childList: true, subtree: true });
+    _obs.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: I18N_ATTRS
+    });
   }
 
   function init() {
@@ -306,7 +557,7 @@ var I18N = (function () {
     window.prompt = function (m, d) { return _prompt(m == null ? m : trMsg(m), d); };
   }
 
-  return { init: init, setLang: setLang, lang: lang, T: T, translate: translate };
+  return { init: init, setLang: setLang, lang: lang, T: T, f: F, translate: translate };
 })();
 
 document.addEventListener("DOMContentLoaded", function () { I18N.init(); });

@@ -302,37 +302,56 @@ var CAEKValidation = (function () {
   function valider(ref, itemEl) {
     var row = findRow(ref);
     if (!row) { return; }
-    if (!window.confirm("Valider le coulage " + ref + " ?\nLa désignation de l'ouvrage et la formulation sont confirmées. La fiche sera figée.\nLes photos et audios de ce coulage seront supprimés du serveur.")) { return; }
-    // On purge le Storage AVANT de figer le payload : on ne retire les
-    // références des médias QUE si leur suppression a réussi. En cas d'échec,
-    // les références sont conservées + un indicateur mediasPurgePending permet
-    // de re-tenter la purge plus tard (pas de fichier orphelin non traçable).
+    var confirmMsg = window.I18N && I18N.f
+      ? I18N.f("Valider le coulage {ref} ?", { ref: ref }) + "\n" +
+        I18N.f("La désignation de l'ouvrage et la formulation sont confirmées. La fiche sera figée.") + "\n" +
+        I18N.f("Les photos et audios de ce coulage seront supprimés du serveur après validation.")
+      : "Valider le coulage " + ref + " ?\nLa désignation de l'ouvrage et la formulation sont confirmées. La fiche sera figée.\nLes photos et audios de ce coulage seront supprimés du serveur après validation.";
+    if (!window.confirm(confirmMsg)) { return; }
     var payload = row.payload || {};
     var paths = (payload.medias || []).map(function (m) { return m.path; });
-    var purge = (window.CAEKMedias && paths.length)
-      ? CAEKMedias.deletePaths(paths)
-      : Promise.resolve({ ok: true, n: 0 });
-    purge.then(function (p) {
-      var toSend;
-      try { toSend = JSON.parse(JSON.stringify(payload)); } catch (e) { toSend = payload; }
-      if (p && p.ok) {
-        toSend.medias = [];
-        toSend.mediasIncomplets = false;
-        toSend.mediasPurgePending = false;
-      } else {
-        // Purge ratée : garder les références pour une re-tentative.
-        toSend.mediasPurgePending = true;
+    var toSend;
+    try { toSend = JSON.parse(JSON.stringify(payload)); } catch (e) { toSend = payload; }
+    if (paths.length) { toSend.mediasPurgePending = true; }
+    CAEKServer.adminValiderCoulage(CAEKOperateurs.token(), ref, toSend).then(function (r) {
+      if (!r || r.ok !== true) {
+        resultBox(itemEl, "&#9888; " + (r && r.error === "deja_valide" ? "Déjà validé." : "Échec de la validation."), true);
+        return;
       }
-      return CAEKServer.adminValiderCoulage(CAEKOperateurs.token(), ref, toSend).then(function (r) {
-        if (!r || r.ok !== true) {
-          resultBox(itemEl, "&#9888; " + (r && r.error === "deja_valide" ? "Déjà validé." : "Échec de la validation."), true);
+      if (!paths.length) {
+        revokeUrls();
+        resultBox(itemEl, "&#10004; Coulage validé.", false);
+        if (window.CAEKCoulages) { CAEKCoulages.pull(); }
+        setTimeout(refresh, 800);
+        return;
+      }
+      if (!window.CAEKMedias) {
+        resultBox(itemEl, "&#10004; Coulage validé. &#9888; Médias non supprimés (à re-tenter).", true);
+        if (window.CAEKCoulages) { CAEKCoulages.pull(); }
+        setTimeout(refresh, 800);
+        return;
+      }
+      CAEKMedias.deletePaths(paths).then(function (p) {
+        if (!p || p.ok !== true) {
+          resultBox(itemEl, "&#10004; Coulage validé. &#9888; Médias non supprimés (à re-tenter).", true);
+          if (window.CAEKCoulages) { CAEKCoulages.pull(); }
+          setTimeout(refresh, 800);
           return;
         }
-        revokeUrls();
-        resultBox(itemEl, "&#10004; Coulage validé." +
-          (paths.length
-            ? (p && p.ok ? " " + p.n + " média(s) supprimé(s) du serveur." : " &#9888; Médias non supprimés (à re-tenter).")
-            : ""), false);
+        CAEKServer.adminMarquerMediasPurges(CAEKOperateurs.token(), ref).then(function (m) {
+          revokeUrls();
+          resultBox(itemEl, "&#10004; Coulage validé. " + p.n + " média(s) supprimé(s) du serveur." +
+            (m && m.ok === true ? "" : " &#9888; Références médias à nettoyer."), !(m && m.ok === true));
+          if (window.CAEKCoulages) { CAEKCoulages.pull(); }
+          setTimeout(refresh, 800);
+        }).catch(function () {
+          revokeUrls();
+          resultBox(itemEl, "&#10004; Coulage validé. " + p.n + " média(s) supprimé(s) du serveur. &#9888; Références médias à nettoyer.", true);
+          if (window.CAEKCoulages) { CAEKCoulages.pull(); }
+          setTimeout(refresh, 800);
+        });
+      }).catch(function () {
+        resultBox(itemEl, "&#10004; Coulage validé. &#9888; Médias non supprimés (à re-tenter).", true);
         if (window.CAEKCoulages) { CAEKCoulages.pull(); }
         setTimeout(refresh, 800);
       });

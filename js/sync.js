@@ -135,6 +135,7 @@ var CAEKSync = (function () {
           localisation: p.localisation,
           resistanceMpa: (p.resistance === "" || p.resistance == null) ? "" : String(p.resistance),
           referenceCommande: p.referenceCommande, referenceDossier: p.referenceDossier,
+          agesEssai: Array.isArray(p.agesEssai) && p.agesEssai.length ? p.agesEssai : [7, 28],
           actif: p.actif !== false
         });
       }).then(function (nP) { return { nC: nC, nP: nP }; });

@@ -384,6 +384,28 @@ begin
   return json_build_object('ok', true, 'valide_par', r.nom, 'date_validation', v);
 end; $$;
 
+-- Nettoyage des références médias APRES suppression Storage réussie.
+-- Séparé de la validation pour éviter de supprimer des fichiers avant que la
+-- fiche soit effectivement figée côté serveur.
+create or replace function public.admin_marquer_medias_purges(p_token text, p_ref text)
+returns json language plpgsql security definer set search_path = public as $$
+declare ex public.coulages; pl jsonb;
+begin
+  if not public._is_admin(p_token) then
+    return json_build_object('ok', false, 'error', 'admin');
+  end if;
+  select * into ex from public.coulages where ref = p_ref;
+  if not found then return json_build_object('ok', false, 'error', 'introuvable'); end if;
+  if ex.statut <> 'valide' then return json_build_object('ok', false, 'error', 'non_valide'); end if;
+  pl := ex.payload || jsonb_build_object(
+    'medias', '[]'::jsonb,
+    'mediasIncomplets', false,
+    'mediasPurgePending', false
+  );
+  update public.coulages set payload = pl, updated_at = now() where ref = p_ref;
+  return json_build_object('ok', true);
+end; $$;
+
 -- Renvoi en brouillon par un ADMIN (correction demandée à l'opérateur).
 create or replace function public.admin_renvoyer_coulage(p_token text, p_ref text, p_motif text)
 returns json language plpgsql security definer set search_path = public as $$
@@ -863,6 +885,7 @@ grant execute on function
   public.op_save_push_subscription(text,jsonb),
   public.op_delete_push_subscription(text,text),
   public.admin_valider_coulage(text,text,jsonb),
+  public.admin_marquer_medias_purges(text,text),
   public.admin_renvoyer_coulage(text,text,text),
   public.admin_delete_coulage(text,text),
   public.admin_valider_resultats(text,uuid),

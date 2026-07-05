@@ -622,7 +622,8 @@ var CAEKFiche = (function () {
     rec.querySelectorAll(".recap-mal-del").forEach(function (b) {
       b.addEventListener("click", function () {
         var idx = parseInt(b.getAttribute("data-idx"), 10);
-        if (!confirm("Supprimer le Malaxeur " + pad2(idx + 1) + " ?")) { return; }
+        var msg = window.I18N && I18N.f ? I18N.f("Supprimer le Malaxeur {n} ?", { n: pad2(idx + 1) }) : "Supprimer le Malaxeur " + pad2(idx + 1) + " ?";
+        if (!confirm(msg)) { return; }
         current.malaxeurs.splice(idx, 1);
         computeTotals();
         CAEKDB.updateCoulage(current).then(renderRecap);
@@ -894,7 +895,7 @@ var CAEKFiche = (function () {
     if (term) {
       term.addEventListener("click", function () {
         var err = prelError(); if (err) { alert(err); return; }
-        if (!window.confirm("Confirmez-vous que le coulage est bien terminé ?")) { return; }
+        if (!window.confirm(window.I18N && I18N.f ? I18N.f("Confirmez-vous que le coulage est bien terminé ?") : "Confirmez-vous que le coulage est bien terminé ?")) { return; }
         saveMalaxeurToCoulage().then(function () { gotoStep("recap"); });
       });
     }

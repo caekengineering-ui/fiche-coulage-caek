@@ -18,12 +18,13 @@ alter table public.lots add column if not exists payload jsonb;
 -- déjà été validés par un admin (statut 'valide' = verrouillé).
 create or replace function public.op_upsert_lot(p_token text, p_key text, p_lot jsonb)
 returns json language plpgsql security definer set search_path = public as $$
-declare r public.operators; c public.coulages; ex public.lots; v_ref text;
+declare r public.operators; c public.coulages; ex public.lots; v_ref text; v_new_statut text; v_old_rank int; v_new_rank int;
 begin
   r := public._op_by_token(p_token);
   if r.id is null then return json_build_object('ok', false, 'error', 'auth'); end if;
   if coalesce(p_key,'') = '' then return json_build_object('ok', false, 'error', 'cle'); end if;
   v_ref := p_lot->>'ref';
+  v_new_statut := coalesce(p_lot->>'statut', 'en_bassin');
   select * into c from public.coulages where ref = v_ref;
   if not found then return json_build_object('ok', false, 'error', 'coulage_introuvable'); end if;
   if r.is_admin is not true and (r.labo_id is null or c.labo_id <> r.labo_id) then
@@ -32,6 +33,16 @@ begin
   select * into ex from public.lots where lot_key = p_key;
   if found and ex.statut = 'valide' then
     return json_build_object('ok', false, 'error', 'verrouille');
+  end if;
+  if found then
+    v_old_rank := case ex.statut when 'en_bassin' then 1 when 'sorti' then 2 when 'teste' then 3 when 'valide' then 4 else 0 end;
+    v_new_rank := case v_new_statut when 'en_bassin' then 1 when 'sorti' then 2 when 'teste' then 3 when 'valide' then 4 else 0 end;
+    if v_new_rank < v_old_rank then
+      return json_build_object('ok', false, 'error', 'conflit_statut', 'statut_serveur', ex.statut);
+    end if;
+    if ex.statut = 'teste' and v_new_statut = 'teste' and ex.resultats is not null and (p_lot->'essais') is distinct from ex.resultats then
+      return json_build_object('ok', false, 'error', 'conflit_resultats', 'statut_serveur', ex.statut);
+    end if;
   end if;
   insert into public.lots(lot_key, coulage_ref, labo_id, prel, type, age_jours, nombre,
                           codes, date_coulage, date_echeance, statut, resultats,
@@ -44,7 +55,7 @@ begin
             coalesce(p_lot->'codes', '[]'::jsonb),
             nullif(p_lot->>'dateCoulage','')::date,
             nullif(p_lot->>'datePrevue','')::date,
-            coalesce(p_lot->>'statut', 'en_bassin'),
+            v_new_statut,
             p_lot->'essais',
             coalesce(p_lot->>'operateurEssai',''),
             p_lot, now())

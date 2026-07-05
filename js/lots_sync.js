@@ -78,8 +78,8 @@ var CAEKLots = (function () {
         l._syncedAt = new Date().toISOString();
         return rawUpdate(l).then(function () { return dequeue(l.lotKey); });
       }
-      if (r && r.error === "verrouille") {
-        // Résultats déjà validés par l'admin : se réaligner sur le serveur.
+      if (r && (r.error === "verrouille" || r.error === "conflit_statut" || r.error === "conflit_resultats")) {
+        // Serveur plus avancé que la copie hors-ligne : se réaligner.
         return dequeue(l.lotKey).then(pull);
       }
       // coulage_introuvable (coulage pas encore synchronisé) ou autre :

@@ -123,6 +123,9 @@ var CAEKServer = (function () {
   function adminValiderCoulage(token, ref, payload) {
     return _rpc("admin_valider_coulage", { p_token: token, p_ref: ref, p_payload: payload });
   }
+  function adminMarquerMediasPurges(token, ref) {
+    return _rpc("admin_marquer_medias_purges", { p_token: token, p_ref: ref });
+  }
   function adminRenvoyerCoulage(token, ref, motif) {
     return _rpc("admin_renvoyer_coulage", { p_token: token, p_ref: ref, p_motif: motif || "" });
   }
@@ -190,7 +193,8 @@ var CAEKServer = (function () {
     listClients: listClients, listProjets: listProjets,
     listEvacuations: listEvacuations, addEvacuation: addEvacuation,
     savePushSubscription: savePushSubscription, deletePushSubscription: deletePushSubscription,
-    adminValiderCoulage: adminValiderCoulage, adminRenvoyerCoulage: adminRenvoyerCoulage,
+    adminValiderCoulage: adminValiderCoulage, adminMarquerMediasPurges: adminMarquerMediasPurges,
+    adminRenvoyerCoulage: adminRenvoyerCoulage,
     adminDeleteCoulage: adminDeleteCoulage, adminValiderResultats: adminValiderResultats,
     adminListFormulations: adminListFormulations, adminUpsertFormulation: adminUpsertFormulation,
     adminValiderFormulation: adminValiderFormulation, adminDeleteFormulation: adminDeleteFormulation,

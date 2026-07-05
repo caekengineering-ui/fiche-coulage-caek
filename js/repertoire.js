@@ -252,9 +252,14 @@ var CAEKRepertoire = (function () {
   function soumettreFiche(ref) {
     var prof = window.CAEKProfil ? CAEKProfil.require("Profil opérateur requis. Connectez-vous.") : { nom: "" };
     if (!prof) { return; }
-    if (!window.confirm("Soumettre la fiche " + ref + " au laboratoire ?\n" +
-      "Elle sera verrouillée et envoyée à l'administrateur pour validation.\n" +
-      "La répartition des éprouvettes au bassin reste possible immédiatement.")) { return; }
+    var submitMsg = window.I18N && I18N.f
+      ? I18N.f("Soumettre la fiche {ref} au laboratoire ?", { ref: ref }) + "\n" +
+        I18N.f("Elle sera verrouillée et envoyée à l'administrateur pour validation.") + "\n" +
+        I18N.f("La répartition des éprouvettes au bassin reste possible immédiatement.")
+      : "Soumettre la fiche " + ref + " au laboratoire ?\n" +
+        "Elle sera verrouillée et envoyée à l'administrateur pour validation.\n" +
+        "La répartition des éprouvettes au bassin reste possible immédiatement.";
+    if (!window.confirm(submitMsg)) { return; }
     if (!window.CAEKCoulages) { return; }
     CAEKCoulages.soumettre(ref, prof).then(function (r) {
       if (!r.ok) { window.alert(r.error || "Échec de la soumission."); refresh(); return; }
@@ -361,7 +366,10 @@ var CAEKRepertoire = (function () {
         if (del) {
           ev.stopPropagation();
           var dref = del.getAttribute("data-del");
-          if (dref && window.confirm("Voulez-vous vraiment supprimer la fiche " + dref + " ? Cette action est irréversible.")) {
+          var deleteMsg = window.I18N && I18N.f
+            ? I18N.f("Voulez-vous vraiment supprimer la fiche {ref} ? Cette action est irréversible.", { ref: dref })
+            : "Voulez-vous vraiment supprimer la fiche " + dref + " ? Cette action est irréversible.";
+          if (dref && window.confirm(deleteMsg)) {
             CAEKDB.deleteCoulage(dref).then(function () {
               if (window.CAEKCoulages) { CAEKCoulages.deleteOnServer(dref); }
               refresh();
