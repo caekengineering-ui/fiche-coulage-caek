@@ -121,6 +121,36 @@ var I18N = (function () {
     // ---- Déchets ----
     "Appeler le camion d'évacuation": "استدعاء شاحنة الإجلاء",
 
+    // ---- Champs des formulaires (parcours opérateur) ----
+    "Client / Entreprise": "الزبون / المؤسسة",
+    "ou rechercher par code projet": "أو البحث برمز المشروع",
+    "Nom du client / particulier": "اسم الزبون / خاصّ",
+    "Lieu / désignation": "المكان / التسمية",
+    "Code (racine de la référence)": "الرمز (أصل المرجع)",
+    "Modèle enregistré": "نموذج محفوظ",
+    "Fournisseur / centrale": "المورّد / المحطة",
+    "Fournisseur / centrale béton": "المورّد / محطة الخرسانة",
+    "Classe béton": "صنف الخرسانة",
+    "Type de ciment": "نوع الإسمنت",
+    "Dosage ciment (kg/m³)": "جرعة الإسمنت (kg/m³)",
+    "Adjuvant": "الإضافات",
+    "Observation": "ملاحظة",
+    "Observation prélèvement": "ملاحظة أخذ العيّنة",
+    "N° camion / toupie": "رقم الشاحنة / الخلّاطة",
+    "N° BL": "رقم وصل التسليم",
+    "Bloc": "الكتلة", "Bloc / zone": "الكتلة / المنطقة",
+    "Étage": "الطابق", "Partie": "الجزء",
+    "Quantité (m³)": "الكمّية (m³)",
+    "Affaissement (cm)": "الهبوط (cm)",
+    "Température (°C)": "درجة الحرارة (°C)",
+    "Nombre d'éprouvettes": "عدد العيّنات",
+    "Quantité évacuée (éprouvettes)": "الكمّية المُجلاة (عيّنات)",
+    "Préciser l'ouvrage": "تحديد المنشأ",
+    "Proposer cette formulation comme modèle": "اقتراح هذه الصيغة كنموذج",
+    "Malaxeur suivant": "الخلّاطة التالية",
+    "Terminer le coulage": "إنهاء الصبّ",
+    "Commencer le prélèvement": "بدء أخذ العيّنة",
+
     // ---- Messages généraux ----
     "Aucun coulage en attente de validation.": "لا يوجد صبّ في انتظار الاعتماد.",
     "Aucun résultat en attente.": "لا توجد نتيجة في الانتظار.",
@@ -150,27 +180,56 @@ var I18N = (function () {
     }
   }
 
+  // Attributs traduits (le texte des <option> l'est comme un nœud texte).
+  var I18N_ATTRS = ["placeholder", "title", "aria-label", "alt"];
+
+  function _translateAttrs(root) {
+    for (var a = 0; a < I18N_ATTRS.length; a++) {
+      var attr = I18N_ATTRS[a];
+      var els = root.querySelectorAll ? root.querySelectorAll("[" + attr + "]") : [];
+      for (var i = 0; i < els.length; i++) {
+        var el = els[i];
+        var t = (el.getAttribute(attr) || "").trim();
+        if (t && AR[t]) {
+          var bak = "data-fr-" + attr;
+          if (!el.hasAttribute(bak)) { el.setAttribute(bak, el.getAttribute(attr)); }
+          el.setAttribute(attr, AR[t]);
+        }
+      }
+    }
+  }
+
+  function _restoreAttrs() {
+    for (var a = 0; a < I18N_ATTRS.length; a++) {
+      var attr = I18N_ATTRS[a];
+      var bak = "data-fr-" + attr;
+      var els = document.querySelectorAll("[" + bak + "]");
+      for (var i = 0; i < els.length; i++) {
+        els[i].setAttribute(attr, els[i].getAttribute(bak));
+        els[i].removeAttribute(bak);
+      }
+    }
+  }
+
   function translate(root) {
     root = root || document.body;
     if (_lang !== "ar") { return; }
+    // Le texte des <option> est traduit (choix des listes déroulantes) ; seuls
+    // SCRIPT/STYLE/TEXTAREA sont exclus. Les valeurs dynamiques (noms de client,
+    // projets…) ne sont pas dans le dictionnaire -> restent inchangées.
     var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: function (node) {
         var p = node.parentNode;
         if (!p) { return NodeFilter.FILTER_REJECT; }
         var tag = p.nodeName;
-        if (tag === "SCRIPT" || tag === "STYLE" || tag === "TEXTAREA" || tag === "OPTION") { return NodeFilter.FILTER_REJECT; }
+        if (tag === "SCRIPT" || tag === "STYLE" || tag === "TEXTAREA") { return NodeFilter.FILTER_REJECT; }
         return NodeFilter.FILTER_ACCEPT;
       }
     });
     var nodes = [];
     while (w.nextNode()) { nodes.push(w.currentNode); }
     nodes.forEach(_translateNode);
-    var phs = root.querySelectorAll ? root.querySelectorAll("[placeholder]") : [];
-    for (var i = 0; i < phs.length; i++) {
-      var el = phs[i];
-      var t = (el.getAttribute("placeholder") || "").trim();
-      if (AR[t]) { if (!el.dataset.frPh) { el.dataset.frPh = el.getAttribute("placeholder"); } el.setAttribute("placeholder", AR[t]); }
-    }
+    _translateAttrs(root);
   }
 
   function _restoreAll() {
@@ -181,11 +240,7 @@ var I18N = (function () {
       var n = nodes[i];
       if (n.__fr != null) { n.nodeValue = n.__fr; n.__fr = null; }
     }
-    var els = document.querySelectorAll("[data-fr-ph]");
-    for (var j = 0; j < els.length; j++) {
-      els[j].setAttribute("placeholder", els[j].dataset.frPh);
-      delete els[j].dataset.frPh;
-    }
+    _restoreAttrs();
   }
 
   function setLang(l) {
@@ -238,10 +293,17 @@ var I18N = (function () {
     _bindToggles();
     _observe();
     setLang(_lang);
+    // Les consignes opérateur passent souvent par alert/confirm/prompt :
+    // on traduit leur message (ligne par ligne).
+    function trMsg(m) {
+      return String(m).split("\n").map(function (line) { return T(line); }).join("\n");
+    }
     var _alert = window.alert.bind(window);
-    window.alert = function (m) {
-      return _alert(String(m).split("\n").map(function (line) { return T(line); }).join("\n"));
-    };
+    window.alert = function (m) { return _alert(trMsg(m)); };
+    var _confirm = window.confirm.bind(window);
+    window.confirm = function (m) { return _confirm(trMsg(m)); };
+    var _prompt = window.prompt.bind(window);
+    window.prompt = function (m, d) { return _prompt(m == null ? m : trMsg(m), d); };
   }
 
   return { init: init, setLang: setLang, lang: lang, T: T, translate: translate };

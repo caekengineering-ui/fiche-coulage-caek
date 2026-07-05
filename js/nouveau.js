@@ -218,6 +218,10 @@ var CAEKNouveau = (function () {
         coulage.referenceCommande = activeProjet.referenceCommande || "";
         coulage.referenceDossier = activeProjet.referenceDossier || "";
         coulage.resistance = (activeProjet.resistance === undefined ? "" : activeProjet.resistance);
+        // Ages d'essai exiges par le client (defaut 7/28) -> pilotent la
+        // repartition proposee au bassin.
+        coulage.agesEssai = (Array.isArray(activeProjet.agesEssai) && activeProjet.agesEssai.length)
+          ? activeProjet.agesEssai.slice() : [7, 28];
         if (cli) {
           coulage.entreprise = cli.nom || "";
           coulage.client = cli.nom || "";

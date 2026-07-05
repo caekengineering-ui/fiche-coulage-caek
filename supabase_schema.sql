@@ -12,7 +12,7 @@
 --  et peut filtrer par labo (paramètre p_labo des fonctions de liste).
 --
 --  Workflow coulage : brouillon (op) -> soumis (op) -> valide (admin).
---  Lots d'éprouvettes : au_bassin -> sorti -> teste (op) -> valide (admin).
+--  Lots d'éprouvettes : en_bassin -> sorti -> teste (op) -> valide (admin).
 --
 --  Opérateur admin par défaut créé en bas :  identifiant = admin   PIN = 1234
 --  >>> Changez ce PIN dès la première connexion (écran Admin de l'app). <<<
@@ -132,7 +132,7 @@ create table if not exists public.lots (
   codes                 jsonb default '[]'::jsonb,  -- ["ABA012-E1-01", ...]
   date_coulage          date,
   date_echeance         date,
-  statut                text not null default 'au_bassin', -- au_bassin | sorti | teste | valide
+  statut                text not null default 'en_bassin', -- en_bassin | sorti | teste | valide
   resultats             jsonb,              -- éprouvette par éprouvette : dims, masse, force, Rc
   sorti_at              timestamptz,
   ecrase_par            text default '',
@@ -427,7 +427,7 @@ begin
   if r.is_admin is not true and (r.labo_id is null or c.labo_id <> r.labo_id) then
     return json_build_object('ok', false, 'error', 'autre_labo');
   end if;
-  if exists (select 1 from public.lots where coulage_ref = p_ref and statut <> 'au_bassin') then
+  if exists (select 1 from public.lots where coulage_ref = p_ref and statut <> 'en_bassin') then
     return json_build_object('ok', false, 'error', 'lots_engages');
   end if;
   delete from public.lots where coulage_ref = p_ref;
@@ -468,7 +468,7 @@ returns boolean language sql immutable as $$
   select r.is_admin is true or (r.labo_id is not null and l.labo_id = r.labo_id);
 $$;
 
--- Sortie du bassin (au_bassin -> sorti).
+-- Sortie du bassin (en_bassin -> sorti).
 create or replace function public.op_sortir_lot(p_token text, p_id uuid)
 returns json language plpgsql security definer set search_path = public as $$
 declare r public.operators; l public.lots;
@@ -478,12 +478,12 @@ begin
   select * into l from public.lots where id = p_id;
   if not found then return json_build_object('ok', false, 'error', 'introuvable'); end if;
   if not public._lot_scope_ok(r, l) then return json_build_object('ok', false, 'error', 'autre_labo'); end if;
-  if l.statut <> 'au_bassin' then return json_build_object('ok', false, 'error', 'statut'); end if;
+  if l.statut <> 'en_bassin' then return json_build_object('ok', false, 'error', 'statut'); end if;
   update public.lots set statut = 'sorti', sorti_at = now(), updated_at = now() where id = p_id;
   return json_build_object('ok', true);
 end; $$;
 
--- Retour au bassin (sorti -> au_bassin, correction d'une erreur).
+-- Retour au bassin (sorti -> en_bassin, correction d'une erreur).
 create or replace function public.op_retour_bassin(p_token text, p_id uuid)
 returns json language plpgsql security definer set search_path = public as $$
 declare r public.operators; l public.lots;
@@ -494,11 +494,11 @@ begin
   if not found then return json_build_object('ok', false, 'error', 'introuvable'); end if;
   if not public._lot_scope_ok(r, l) then return json_build_object('ok', false, 'error', 'autre_labo'); end if;
   if l.statut <> 'sorti' then return json_build_object('ok', false, 'error', 'statut'); end if;
-  update public.lots set statut = 'au_bassin', sorti_at = null, updated_at = now() where id = p_id;
+  update public.lots set statut = 'en_bassin', sorti_at = null, updated_at = now() where id = p_id;
   return json_build_object('ok', true);
 end; $$;
 
--- Saisie de l'essai d'écrasement (sorti ou au_bassin -> teste).
+-- Saisie de l'essai d'écrasement (sorti ou en_bassin -> teste).
 -- p_resultats = résultats éprouvette par éprouvette (dims, masse, force, Rc).
 create or replace function public.op_tester_lot(p_token text, p_id uuid, p_resultats jsonb)
 returns json language plpgsql security definer set search_path = public as $$

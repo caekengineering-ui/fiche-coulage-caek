@@ -187,6 +187,11 @@ var CAEKModel = (function () {
     };
   }
 
+  function ageLabel(j) { return j === 7 ? "7j" : (j === 28 ? "28j" : "autre"); }
+
+  // Ages d'essai exiges (defaut 7 et 28). Le PLUS GRAND age = "reste" ; les
+  // ages plus petits (ex. 3, 7) prennent chacun 3 eprouvettes du plus gros
+  // prelevement. Jamais de melange entre prelevements.
   function proposeRepartition(c) {
     var codes = allCodes(c);
     var byPrel = {}, order = [];
@@ -194,19 +199,36 @@ var CAEKModel = (function () {
       if (!byPrel[x.prel]) { byPrel[x.prel] = []; order.push(x.prel); }
       byPrel[x.prel].push(x);
     });
-    // Prelevement portant le test 7 jours = le plus gros ayant >= 3 eprouvettes.
-    var sevenPrel = 0, best = 2;
+    // Ages exiges par le projet (repli 7/28), tries croissants, uniques.
+    var ages = (c && Array.isArray(c.agesEssai) && c.agesEssai.length) ? c.agesEssai : [7, 28];
+    ages = ages.map(function (a) { return parseInt(a, 10); })
+      .filter(function (a) { return a > 0; })
+      .sort(function (a, b) { return a - b; });
+    var seen = {}; ages = ages.filter(function (a) { if (seen[a]) { return false; } seen[a] = 1; return true; });
+    if (!ages.length) { ages = [7, 28]; }
+    var resteAge = ages[ages.length - 1];         // le plus grand = reste (28 j)
+    var petits = ages.slice(0, -1);               // ex. [3, 7]
+    // Plus gros prelevement (>= 3) : il porte les ages courts.
+    var bigPrel = 0, best = 2;
     order.forEach(function (p) {
-      if (byPrel[p].length > best) { best = byPrel[p].length; sevenPrel = p; }
+      if (byPrel[p].length > best) { best = byPrel[p].length; bigPrel = p; }
     });
     var lots = [];
     order.forEach(function (p) {
       var g = byPrel[p];
-      if (p === sevenPrel) {
-        lots.push(repLot(p, g.slice(0, 3), "7j", 7));
-        if (g.length > 3) { lots.push(repLot(p, g.slice(3), "28j", 28)); }
+      if (p === bigPrel && petits.length) {
+        var idx = 0;
+        petits.forEach(function (a) {
+          // On ne detache 3 eprouvettes que s'il en reste strictement plus de
+          // 3 (pour garder au moins 1 eprouvette au "reste").
+          if (g.length - idx > 3) {
+            lots.push(repLot(p, g.slice(idx, idx + 3), ageLabel(a), a));
+            idx += 3;
+          }
+        });
+        if (g.length - idx > 0) { lots.push(repLot(p, g.slice(idx), ageLabel(resteAge), resteAge)); }
       } else {
-        lots.push(repLot(p, g, "28j", 28));
+        lots.push(repLot(p, g, ageLabel(resteAge), resteAge));
       }
     });
     return lots;

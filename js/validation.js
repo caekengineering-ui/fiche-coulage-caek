@@ -303,28 +303,35 @@ var CAEKValidation = (function () {
     var row = findRow(ref);
     if (!row) { return; }
     if (!window.confirm("Valider le coulage " + ref + " ?\nLa désignation de l'ouvrage et la formulation sont confirmées. La fiche sera figée.\nLes photos et audios de ce coulage seront supprimés du serveur.")) { return; }
-    // Le payload validé ne référence plus les médias : ils sont purgés du
-    // Storage juste après (le quota gratuit n'est qu'une zone de transit).
+    // On purge le Storage AVANT de figer le payload : on ne retire les
+    // références des médias QUE si leur suppression a réussi. En cas d'échec,
+    // les références sont conservées + un indicateur mediasPurgePending permet
+    // de re-tenter la purge plus tard (pas de fichier orphelin non traçable).
     var payload = row.payload || {};
     var paths = (payload.medias || []).map(function (m) { return m.path; });
-    var toSend;
-    try { toSend = JSON.parse(JSON.stringify(payload)); } catch (e) { toSend = payload; }
-    toSend.medias = [];
-    toSend.mediasIncomplets = false;
-    if (paths.length) { toSend.mediasPurges = true; }
-    CAEKServer.adminValiderCoulage(CAEKOperateurs.token(), ref, toSend).then(function (r) {
-      if (!r || r.ok !== true) {
-        resultBox(itemEl, "&#9888; " + (r && r.error === "deja_valide" ? "Déjà validé." : "Échec de la validation."), true);
-        return;
+    var purge = (window.CAEKMedias && paths.length)
+      ? CAEKMedias.deletePaths(paths)
+      : Promise.resolve({ ok: true, n: 0 });
+    purge.then(function (p) {
+      var toSend;
+      try { toSend = JSON.parse(JSON.stringify(payload)); } catch (e) { toSend = payload; }
+      if (p && p.ok) {
+        toSend.medias = [];
+        toSend.mediasIncomplets = false;
+        toSend.mediasPurgePending = false;
+      } else {
+        // Purge ratée : garder les références pour une re-tentative.
+        toSend.mediasPurgePending = true;
       }
-      var done = (window.CAEKMedias && paths.length)
-        ? CAEKMedias.deletePaths(paths)
-        : Promise.resolve({ ok: true, n: 0 });
-      done.then(function (p) {
+      return CAEKServer.adminValiderCoulage(CAEKOperateurs.token(), ref, toSend).then(function (r) {
+        if (!r || r.ok !== true) {
+          resultBox(itemEl, "&#9888; " + (r && r.error === "deja_valide" ? "Déjà validé." : "Échec de la validation."), true);
+          return;
+        }
         revokeUrls();
         resultBox(itemEl, "&#10004; Coulage validé." +
           (paths.length
-            ? (p.ok ? " " + p.n + " média(s) supprimé(s) du serveur." : " &#9888; Purge des médias à re-tenter.")
+            ? (p && p.ok ? " " + p.n + " média(s) supprimé(s) du serveur." : " &#9888; Médias non supprimés (à re-tenter).")
             : ""), false);
         if (window.CAEKCoulages) { CAEKCoulages.pull(); }
         setTimeout(refresh, 800);
