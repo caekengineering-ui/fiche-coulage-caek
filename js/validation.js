@@ -18,6 +18,7 @@ var CAEKValidation = (function () {
   var _lotsT = [];       // lots 'teste' (résultats d'écrasement à valider)
   var _labos = {};       // id -> nom
   var _openRef = null;   // détail déplié
+  var _editRef = null;   // coulage en cours de CORRECTION par le vérificateur
 
   function $(id) { return document.getElementById(id); }
   function escapeHtml(s) {
@@ -108,6 +109,10 @@ var CAEKValidation = (function () {
       mediasHtml = "<div class=\"valid-line\">&#9888; Médias non téléversés (soumission hors-ligne ou stockage indisponible).</div>";
     }
 
+    if (_editRef === c.ref) {
+      return editFormHtml(c, mediasHtml);
+    }
+
     return "<div class=\"valid-detail\">" +
       "<div class=\"valid-line\"><strong>Client :</strong> " + escapeHtml(c.client || c.entreprise || "—") + "</div>" +
       "<div class=\"valid-line\"><strong>Projet :</strong> " + escapeHtml(c.nomProjet || "—") +
@@ -116,13 +121,115 @@ var CAEKValidation = (function () {
       "<div class=\"valid-line\"><strong>Ouvrage(s) coulé(s) :</strong> " + escapeHtml(ouvr) + "</div>" +
       "<div class=\"valid-line\"><strong>Bloc / étage :</strong> " + escapeHtml(blocEtage) + "</div>" +
       "<div class=\"valid-line\"><strong>Totaux :</strong> " + qte + " m³ · " + epr + " éprouvette(s)</div>" +
+      (c.corrigePar ? "<div class=\"valid-line\">&#9999;&#65039; <strong>Corrigé par :</strong> " +
+        escapeHtml(c.corrigePar) + (c.corrigeLe ? " le " + escapeHtml(c.corrigeLe) : "") + "</div>" : "") +
       malRows + codif + mediasHtml +
       "<div class=\"oper-actions\">" +
       "<button type=\"button\" class=\"btn-primary\" data-act=\"valider\" data-ref=\"" + escapeHtml(c.ref) + "\">&#9989; Valider ce coulage</button>" +
-      "<button type=\"button\" class=\"btn-secondary\" data-act=\"renvoyer\" data-ref=\"" + escapeHtml(c.ref) + "\">&#9999;&#65039; Corriger</button>" +
+      "<button type=\"button\" class=\"btn-secondary\" data-act=\"corriger\" data-ref=\"" + escapeHtml(c.ref) + "\">&#9999;&#65039; Corriger</button>" +
+      "<button type=\"button\" class=\"btn-text\" data-act=\"renvoyer\" data-ref=\"" + escapeHtml(c.ref) + "\">&#8617; Renvoyer à l'opérateur</button>" +
       "</div>" +
       "<div class=\"valid-result result-card\" hidden></div>" +
       "</div>";
+  }
+
+  /* ---------- Formulaire de CORRECTION (vérificateur) ---------- */
+  // Champs de formulation éditables (mêmes clés que la fiche opérateur).
+  var FORM_FIELDS = [
+    ["fournisseur", "Fournisseur / centrale"],
+    ["classe", "Classe béton"],
+    ["ciment", "Type de ciment"],
+    ["dosage", "Dosage ciment (kg/m³)"],
+    ["dmax", "Dmax (mm)"],
+    ["adjuvant", "Adjuvant"],
+    ["eau", "Eau (L/m³)"],
+    ["sable1Fraction", "Sable 01 — fraction"],
+    ["sable1Qte", "Sable 01 (kg/m³)"],
+    ["sable2Fraction", "Sable 02 — fraction"],
+    ["sable2Qte", "Sable 02 (kg/m³)"],
+    ["gravier38", "Agrégat 3/8 (kg/m³)"],
+    ["gravier815", "Agrégat 8/15 (kg/m³)"],
+    ["gravier1525", "Agrégat 15/25 (kg/m³)"]
+  ];
+
+  function inp(id, label, value, type) {
+    return "<label class=\"field-label\" for=\"" + id + "\">" + label + "</label>" +
+      "<input id=\"" + id + "\" class=\"field\" type=\"" + (type || "text") + "\" value=\"" +
+      escapeHtml(value == null ? "" : value) + "\" autocomplete=\"off\">";
+  }
+
+  function editFormHtml(c, mediasHtml) {
+    var ouvr = Array.isArray(c.ouvrages) ? c.ouvrages.join(" + ") : (c.ouvrages || "");
+    var html = "<div class=\"valid-detail valid-edit\">" +
+      "<p class=\"hint\">&#9999;&#65039; <strong>Correction par le vérificateur</strong> — modifiez les informations saisies par l'opérateur, puis enregistrez et validez. Les prélèvements et la codification ne sont pas modifiables ici.</p>" +
+      inp("ved-client", "Client", c.client || c.entreprise || "") +
+      inp("ved-ouvrages", "Ouvrage(s) coulé(s)", ouvr) +
+      "<div class=\"ved-grid\">" +
+      inp("ved-bloc", "Bloc", c.bloc || "") +
+      inp("ved-etage", "Étage", c.etage || "") +
+      "</div>" +
+      inp("ved-date", "Date du coulage", String(c.dateCoulage || "").slice(0, 10), "date");
+
+    (c.malaxeurs || []).forEach(function (m, i) {
+      var f = m.formulation || {};
+      html += "<div class=\"valid-mal\"><div class=\"valid-mal-head\"><strong>Malaxeur " + (i + 1) + "</strong>" +
+        (m.preleve === true ? " · " + (m.prelNombre || 0) + " épr. " + escapeHtml(m.prelType || "cube") + " (non modifiable)" : "") +
+        "</div><div class=\"ved-grid\">" +
+        inp("ved-m" + i + "-heure", "Heure de prélèvement", m.heure || "") +
+        inp("ved-m" + i + "-quantite", "Quantité de béton (m³)", m.quantite == null ? "" : m.quantite) +
+        inp("ved-m" + i + "-affaissement", "Affaissement (cm)", m.affaissement == null ? "" : m.affaissement) +
+        inp("ved-m" + i + "-temperature", "Température (°C)", m.temperature == null ? "" : m.temperature);
+      FORM_FIELDS.forEach(function (fd) {
+        html += inp("ved-m" + i + "-" + fd[0], fd[1], f[fd[0]] == null ? "" : f[fd[0]]);
+      });
+      html += "</div></div>";
+    });
+
+    html += mediasHtml +
+      "<div class=\"oper-actions\">" +
+      "<button type=\"button\" class=\"btn-primary\" data-act=\"enregistrer-valider\" data-ref=\"" + escapeHtml(c.ref) + "\">&#128190; Enregistrer les corrections et valider</button>" +
+      "<button type=\"button\" class=\"btn-text\" data-act=\"annuler-edit\" data-ref=\"" + escapeHtml(c.ref) + "\">Annuler</button>" +
+      "</div>" +
+      "<div class=\"valid-result result-card\" hidden></div>" +
+      "</div>";
+    return html;
+  }
+
+  function vval(id) {
+    var e = document.getElementById(id);
+    return e ? e.value.trim() : "";
+  }
+
+  // Reconstruit le payload corrigé depuis le formulaire (clone + surcharges).
+  function readEditForm(ref) {
+    var row = findRow(ref);
+    if (!row) { return null; }
+    var c;
+    try { c = JSON.parse(JSON.stringify(row.payload || {})); } catch (e) { return null; }
+    c.client = vval("ved-client");
+    if (c.entreprise) { c.entreprise = c.client; }
+    var ouvr = vval("ved-ouvrages");
+    c.ouvrages = Array.isArray(row.payload.ouvrages)
+      ? ouvr.split("+").map(function (s) { return s.trim(); }).filter(Boolean)
+      : ouvr;
+    c.bloc = vval("ved-bloc");
+    c.etage = vval("ved-etage");
+    if (vval("ved-date")) { c.dateCoulage = vval("ved-date"); }
+    (c.malaxeurs || []).forEach(function (m, i) {
+      m.heure = vval("ved-m" + i + "-heure");
+      m.quantite = vval("ved-m" + i + "-quantite");
+      m.affaissement = vval("ved-m" + i + "-affaissement");
+      m.temperature = vval("ved-m" + i + "-temperature");
+      m.formulation = m.formulation || {};
+      FORM_FIELDS.forEach(function (fd) {
+        m.formulation[fd[0]] = vval("ved-m" + i + "-" + fd[0]);
+      });
+    });
+    // Traçabilité de la correction (visible sur les documents / le détail).
+    var s = window.CAEKOperateurs && CAEKOperateurs.session ? CAEKOperateurs.session() : null;
+    c.corrigePar = (s && s.nom) || "Vérificateur";
+    c.corrigeLe = fmtDate(new Date().toISOString().slice(0, 10));
+    return c;
   }
 
   function itemHtml(row) {
@@ -311,7 +418,8 @@ var CAEKValidation = (function () {
     return null;
   }
 
-  function valider(ref, itemEl) {
+  // p_override : payload CORRIGÉ par le vérificateur (formulaire d'édition).
+  function valider(ref, itemEl, p_override) {
     var row = findRow(ref);
     if (!row) { return; }
     var confirmMsg = window.I18N && I18N.f
@@ -320,11 +428,12 @@ var CAEKValidation = (function () {
         I18N.f("Les photos et audios de ce coulage seront supprimés du serveur après validation.")
       : "Valider le coulage " + ref + " ?\nLa désignation de l'ouvrage et la formulation sont confirmées. La fiche sera figée.\nLes photos et audios de ce coulage seront supprimés du serveur après validation.";
     if (!window.confirm(confirmMsg)) { return; }
-    var payload = row.payload || {};
+    var payload = p_override || row.payload || {};
     var paths = (payload.medias || []).map(function (m) { return m.path; });
     var toSend;
     try { toSend = JSON.parse(JSON.stringify(payload)); } catch (e) { toSend = payload; }
     if (paths.length) { toSend.mediasPurgePending = true; }
+    _editRef = null;
     CAEKServer.adminValiderCoulage(CAEKOperateurs.token(), ref, toSend).then(function (r) {
       if (!r || r.ok !== true) {
         resultBox(itemEl, "&#9888; " + (r && r.error === "deja_valide" ? "Déjà validé." : "Échec de la validation."), true);
@@ -404,6 +513,13 @@ var CAEKValidation = (function () {
       var a = act.getAttribute("data-act");
       var ref = act.getAttribute("data-ref");
       if (a === "valider") { valider(ref, item); }
+      else if (a === "corriger") { _editRef = ref; _openRef = ref; render(); }
+      else if (a === "annuler-edit") { _editRef = null; render(); }
+      else if (a === "enregistrer-valider") {
+        var corrige = readEditForm(ref);
+        if (!corrige) { resultBox(item, "&#9888; Lecture du formulaire impossible.", true); return; }
+        valider(ref, item, corrige);
+      }
       else if (a === "renvoyer") { renvoyer(ref, item); }
       else if (a === "valider-lot") { validerLot(act.getAttribute("data-key"), item); }
       return;
@@ -412,6 +528,7 @@ var CAEKValidation = (function () {
     if (tog) {
       var r = tog.getAttribute("data-ref");
       _openRef = (_openRef === r) ? null : r;
+      if (_editRef && _editRef !== _openRef) { _editRef = null; }   // fermer = abandonner l'édition
       render();
     }
   }

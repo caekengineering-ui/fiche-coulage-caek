@@ -13,9 +13,9 @@
 var CAEK_CONFIG = {
   SUPABASE_URL: "https://lraxccgckyuxvotliify.supabase.co",
   SUPABASE_ANON: "sb_publishable_iHgKDbThut5dkpkDJz4GlQ_zBhEOUfJ",
-  // Clé publique VAPID des notifications push (générée avec
-  // « npx web-push generate-vapid-keys » — voir GUIDE_NOTIFICATIONS.md).
-  // Laisser le placeholder tant que les notifications ne sont pas déployées.
-  VAPID_PUBLIC: "VOTRE_CLE_VAPID_PUBLIQUE",
+  // Clé PUBLIQUE VAPID des notifications push (paire générée le 06/07/2026,
+  // clé privée = secret de l'Edge Function send-push — voir
+  // GUIDE_NOTIFICATIONS.md et vapid_keys.json hors dépôt).
+  VAPID_PUBLIC: "BJM--_1Z6-rFzlMj6hu8r8GoovAO5IAv9lABm1CVyBvv-zJeBWhBq9tUvmKjKcd8ZElr3SKMe6Q1jJdxCUw1q8I",
   APP_VERSION: "3.0"
 };

@@ -1672,3 +1672,9 @@ body.lang-ar .field-label, body.lang-ar .hint, body.lang-ar .app-subtitle { lett
   unicode-bidi: plaintext;
 }
 [dir="rtl"] .rep-row, [dir="rtl"] .oper-info { text-align: start; }
+
+/* ===== V3 : formulaire de correction du verificateur (ecran Validation) ===== */
+.valid-edit { background: #fffdf7; border: 1px dashed #d8b74a; border-radius: 10px; }
+.ved-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+.valid-edit .field { margin-bottom: 6px; }
+.valid-edit .valid-mal { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 8px; }

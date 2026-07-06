@@ -5,57 +5,51 @@ Les notifications arrivent sur le téléphone **même application fermée** :
 - **Opérateurs d'un labo** : éprouvettes à sortir/écraser (échéances),
   « appeler le camion d'évacuation » (seuil déchets atteint).
 
-Tout est gratuit (Supabase Edge Functions + Web Push). Étapes à faire **une
-seule fois**. Prévoir ~15 minutes. Il faut avoir installé le
-[CLI Supabase](https://supabase.com/docs/guides/cli) et
-[Node.js](https://nodejs.org).
+Tout est gratuit. **Tout se fait dans le navigateur** (dashboard Supabase),
+aucune ligne de commande. Étapes à faire une seule fois (~10 min).
 
-## 1. Exécuter les migrations SQL
+## État actuel
 
-Dans le SQL Editor du projet **module-beton-caek**, exécuter (dans l'ordre) :
-1. `supabase_notifications.sql` (table `notifications`, déclencheurs, rappels).
+- ✅ Côté application : prêt (abonnement, bouton Profil, clé publique VAPID
+  branchée dans `js/config.js`).
+- ✅ Clés VAPID : générées le 06/07/2026 — la paire est dans
+  **`../vapid_keys.json`** (dossier parent, hors dépôt git). La clé PRIVÉE est
+  secrète.
+- ⬜ Étapes serveur ci-dessous (SQL + Edge Function + secrets + cron).
 
-## 2. Générer les clés VAPID
+## 1. Exécuter la migration SQL
 
-Dans un terminal :
+SQL Editor du projet **module-beton-caek** → coller le contenu de
+`supabase_notifications.sql` → **Run**.
+(Crée la table `notifications`, les déclencheurs « coulage soumis » /
+« résultats testés » → admins, et la fonction de rappels quotidiens.)
 
-```bash
-npx web-push generate-vapid-keys
-```
+## 2. Créer l'Edge Function « send-push » (via le dashboard)
 
-Cela affiche une **Public Key** et une **Private Key**. Garder les deux.
+1. Dashboard → **Edge Functions** (menu gauche) → **Deploy a new function**
+   → **Via Editor** (éditeur dans le navigateur).
+2. Nom de la fonction : `send-push`.
+3. Effacer le code d'exemple et coller **tout** le contenu de
+   `supabase/functions/send-push/index.ts` (dans ce dossier).
+4. **Deploy function**.
+5. Ouvrir la fonction → **Details** : désactiver « Verify JWT » (l'appel
+   viendra du cron avec la clé secrète en en-tête).
 
-- Coller la **Public Key** dans `js/config.js` → `VAPID_PUBLIC`.
-- La **Private Key** reste secrète (étape 4).
+## 3. Renseigner les secrets de la fonction
 
-## 3. Déployer l'Edge Function
+Dashboard → **Edge Functions** → **Secrets** → ajouter :
 
-Depuis le dossier `module_beton_caek/` :
+| Nom | Valeur |
+|---|---|
+| `SB_URL` | `https://lraxccgckyuxvotliify.supabase.co` |
+| `SB_SERVICE_ROLE` | la clé **secret** `sb_secret_…` (Project Settings → API Keys) |
+| `VAPID_PUBLIC` | valeur `vapid_public` de `../vapid_keys.json` |
+| `VAPID_PRIVATE` | valeur `vapid_private` de `../vapid_keys.json` |
+| `VAPID_SUBJECT` | `mailto:caek.engineering@gmail.com` |
 
-```bash
-supabase login
-supabase link --project-ref lraxccgckyuxvotliify
-supabase functions deploy send-push --no-verify-jwt
-```
+## 4. Planifier l'envoi (pg_cron)
 
-## 4. Renseigner les secrets de la fonction
-
-```bash
-supabase secrets set ^
-  SB_URL=https://lraxccgckyuxvotliify.supabase.co ^
-  SB_SERVICE_ROLE=sb_secret_XXXXXXXX ^
-  VAPID_PUBLIC=LA_CLE_PUBLIQUE ^
-  VAPID_PRIVATE=LA_CLE_PRIVEE ^
-  VAPID_SUBJECT=mailto:caek.engineering@gmail.com
-```
-
-> `SB_SERVICE_ROLE` = clé **secret** (`sb_secret_…`) du projet
-> (Project Settings → API Keys). Ne jamais la mettre dans l'app.
-> (Sous Linux/Mac, remplacer les `^` par des `\` pour les retours à la ligne.)
-
-## 5. Planifier l'envoi (pg_cron)
-
-Dans le SQL Editor, activer les extensions puis programmer :
+SQL Editor → coller et exécuter (remplacer `sb_secret_XXXX` par la clé secret) :
 
 ```sql
 create extension if not exists pg_cron;
@@ -65,7 +59,7 @@ create extension if not exists pg_net;
 select cron.schedule('caek-send-push', '*/2 * * * *', $$
   select net.http_post(
     url := 'https://lraxccgckyuxvotliify.supabase.co/functions/v1/send-push',
-    headers := jsonb_build_object('Authorization', 'Bearer sb_secret_XXXXXXXX')
+    headers := jsonb_build_object('Authorization', 'Bearer sb_secret_XXXX')
   );
 $$);
 
@@ -75,23 +69,22 @@ select cron.schedule('caek-reminders', '0 7 * * *', $$
 $$);
 ```
 
-*(Remplacer `sb_secret_XXXXXXXX` par la clé secret.)*
-
-## 6. Activer côté téléphone
+## 5. Activer côté téléphone
 
 1. Ouvrir l'app, se connecter.
 2. **iPhone uniquement** : d'abord *Partager → « Sur l'écran d'accueil »*,
    puis rouvrir l'app depuis l'icône (obligatoire, iOS 16.4+).
 3. Écran **Profil → 🔔 Activer les notifications** → accepter la permission.
 
-Chaque opérateur fait ça sur son téléphone. Ensuite, un coulage soumis ou une
-échéance déclenche une notification dans les 2 minutes.
+Chaque opérateur/admin fait ça une fois sur son téléphone. Ensuite, un coulage
+soumis ou une échéance déclenche une notification dans les ~2 minutes.
 
 ## Vérifier / dépanner
 
-- Test manuel de l'envoi : appeler l'URL de la fonction (via le cron ou
-  `curl -X POST .../functions/v1/send-push -H "Authorization: Bearer sb_secret_…"`).
-- Voir les logs : `supabase functions logs send-push`.
-- Table `notifications` : les lignes passent de `pending` à `sent`.
-- Android/Chrome fonctionne toujours ; iPhone nécessite l'installation écran
-  d'accueil (limite d'Apple, pas de l'app).
+- Table `notifications` (Table Editor) : les lignes passent de `pending` à
+  `sent` après le passage du cron.
+- Logs de la fonction : Dashboard → Edge Functions → send-push → **Logs**.
+- Test immédiat sans attendre le cron : Edge Functions → send-push →
+  **Invoke** (ou soumettre un coulage de test puis attendre 2 min).
+- Android/Chrome : fonctionne partout ; iPhone : uniquement app installée sur
+  l'écran d'accueil (limite d'Apple).

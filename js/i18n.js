@@ -365,7 +365,22 @@ var I18N = (function () {
 
     // ---- Validation coulage ----
     "Corriger": "تصحيح",
-    "Corriger / renvoyer le coulage": "تصحيح / إعادة الصبّ"
+    "Corriger / renvoyer le coulage": "تصحيح / إعادة الصبّ",
+    "Renvoyer à l'opérateur": "إعادة إلى المُشغّل",
+    "Correction par le vérificateur": "تصحيح من طرف المُدقّق",
+    "— modifiez les informations saisies par l'opérateur, puis enregistrez et validez. Les prélèvements et la codification ne sont pas modifiables ici.": "— عدّل المعلومات التي أدخلها المُشغّل ثم احفظ واعتمد. العيّنات والترميز غير قابلة للتعديل هنا.",
+    "Enregistrer les corrections et valider": "حفظ التصحيحات والاعتماد",
+    "Corrigé par :": "صُحّح من طرف:",
+    "(non modifiable)": "(غير قابل للتعديل)",
+    "Eau (L/m³)": "الماء (L/m³)",
+    "Sable 01 — fraction": "رمل 01 — الحبيبات",
+    "Sable 01 (kg/m³)": "رمل 01 (kg/m³)",
+    "Sable 02 — fraction": "رمل 02 — الحبيبات",
+    "Sable 02 (kg/m³)": "رمل 02 (kg/m³)",
+    "Agrégat 3/8 (kg/m³)": "حصى 3/8 (kg/m³)",
+    "Agrégat 8/15 (kg/m³)": "حصى 8/15 (kg/m³)",
+    "Agrégat 15/25 (kg/m³)": "حصى 15/25 (kg/m³)",
+    "Lecture du formulaire impossible.": "تعذّرت قراءة النموذج."
   };
 
   var MIXED = [
