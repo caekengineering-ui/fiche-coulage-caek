@@ -42,9 +42,14 @@ var CAEKDemo = (function () {
       affaissement: 8, temperature: 22, numCamion: opts.numCamion || "", numBL: opts.numBL || "",
       preleve: false, prelType: "", prelNombre: "", prelObs: "",
       formulation: { reprise: false, mode: "structure", fournisseur: "Centrale DEMO",
-        classe: "C25/30", ciment: "CPJ", dosage: "350", dmax: "25", adjuvant: "",
-        sable1Fraction: "0/1", sable1Qte: "420", sable2Fraction: "0/4", sable2Qte: "330",
-        gravier38: "180", gravier815: "690", gravier1525: "300", eau: "175", photoId: null }
+        classe: "C25/30", ciment: "CPJ", dosage: "350", dmax: "25", adjuvant: "S216",
+        cimentProvenance: "Cimenterie de Chlef", adjuvantDosage: "0.9", adjuvantProvenance: "SIKA",
+        sable1Fraction: "0/1", sable1Qte: "420", sable1Provenance: "TERGA",
+        sable2Fraction: "0/4", sable2Qte: "330", sable2Provenance: "TRANS CANAL",
+        gravier38: "180", gravier38Provenance: "Carrière DEMO",
+        gravier815: "690", gravier815Provenance: "Carrière DEMO",
+        gravier1525: "300", gravier1525Provenance: "Carrière DEMO",
+        eau: "175", eauProvenance: "SEOR", photoId: null }
     };
     if (opts.prel) {
       m.preleve = true; m.prelType = opts.prel; m.prelNombre = opts.nombre || 3;
@@ -84,6 +89,8 @@ var CAEKDemo = (function () {
       ouvrageAutre: opts.ouvrageAutre || "",
       bloc: bloc, etage: etage, partie: partie,
       ouvrageZonePartie: zone,
+      modeCoulage: opts.modeCoulage || "pompe",
+      modeCoulageAutre: opts.modeCoulageAutre || "",
       signatureOperateur: "Op DEMO",
       operateurValidation: brouillon ? "" : "Op DEMO",
       qualificationValidation: brouillon ? "" : "Technicien",

@@ -37,6 +37,13 @@ var CAEKValidation = (function () {
     return p.length === 3 ? (p[2] + "/" + p[1] + "/" + p[0]) : s;
   }
   function num(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  function modeCoulageLabel(c) {
+    var mode = (c && c.modeCoulage) || "";
+    if (mode === "pompe") { return "Pompe"; }
+    if (mode === "benne") { return "Benne"; }
+    if (mode === "autre") { return c.modeCoulageAutre ? "Autre : " + c.modeCoulageAutre : "Autre"; }
+    return "—";
+  }
 
   /* ---------- Récapitulatif d'un coulage soumis ---------- */
   function formulationHtml(f) {
@@ -45,22 +52,24 @@ var CAEKValidation = (function () {
     var parts = [];
     if (f.fournisseur) { parts.push(escapeHtml(f.fournisseur)); }
     if (f.classe) { parts.push(escapeHtml(f.classe)); }
-    if (f.ciment) { parts.push("Ciment " + escapeHtml(f.ciment)); }
-    if (f.dosage) { parts.push(escapeHtml(f.dosage) + " kg/m³ ciment"); }
+    if (f.ciment) { parts.push("Ciment " + escapeHtml(f.ciment) + (f.cimentProvenance ? " (" + escapeHtml(f.cimentProvenance) + ")" : "")); }
+    if (f.dosage) { parts.push(escapeHtml(f.dosage) + " kg ciment"); }
     if (f.dmax) { parts.push("Dmax " + escapeHtml(f.dmax)); }
-    if (f.adjuvant) { parts.push(escapeHtml(f.adjuvant)); }
+    if (f.adjuvant) { parts.push(escapeHtml(f.adjuvant) + (f.adjuvantDosage ? " " + escapeHtml(f.adjuvantDosage) + " %" : "") + (f.adjuvantProvenance ? " (" + escapeHtml(f.adjuvantProvenance) + ")" : "")); }
     if (f.sable1Fraction || f.sable1Qte) {
       parts.push("Sable 01" + (f.sable1Fraction ? " " + escapeHtml(f.sable1Fraction) : "") +
-        (f.sable1Qte ? " " + escapeHtml(f.sable1Qte) + " kg/m³" : ""));
+        (f.sable1Qte ? " " + escapeHtml(f.sable1Qte) + " kg" : "") +
+        (f.sable1Provenance ? " (" + escapeHtml(f.sable1Provenance) + ")" : ""));
     }
     if (f.sable2Fraction || f.sable2Qte) {
       parts.push("Sable 02" + (f.sable2Fraction ? " " + escapeHtml(f.sable2Fraction) : "") +
-        (f.sable2Qte ? " " + escapeHtml(f.sable2Qte) + " kg/m³" : ""));
+        (f.sable2Qte ? " " + escapeHtml(f.sable2Qte) + " kg" : "") +
+        (f.sable2Provenance ? " (" + escapeHtml(f.sable2Provenance) + ")" : ""));
     }
-    if (f.gravier38) { parts.push("Agrégat 3/8 " + escapeHtml(f.gravier38) + " kg/m³"); }
-    if (f.gravier815) { parts.push("Agrégat 8/15 " + escapeHtml(f.gravier815) + " kg/m³"); }
-    if (f.gravier1525) { parts.push("Agrégat 15/25 " + escapeHtml(f.gravier1525) + " kg/m³"); }
-    if (f.eau) { parts.push("Eau " + escapeHtml(f.eau) + " L/m³"); }
+    if (f.gravier38) { parts.push("Agrégat 3/8 " + escapeHtml(f.gravier38) + " kg" + (f.gravier38Provenance ? " (" + escapeHtml(f.gravier38Provenance) + ")" : "")); }
+    if (f.gravier815) { parts.push("Agrégat 8/15 " + escapeHtml(f.gravier815) + " kg" + (f.gravier815Provenance ? " (" + escapeHtml(f.gravier815Provenance) + ")" : "")); }
+    if (f.gravier1525) { parts.push("Agrégat 15/25 " + escapeHtml(f.gravier1525) + " kg" + (f.gravier1525Provenance ? " (" + escapeHtml(f.gravier1525Provenance) + ")" : "")); }
+    if (f.eau) { parts.push("Eau " + escapeHtml(f.eau) + " Litre" + (f.eauProvenance ? " (" + escapeHtml(f.eauProvenance) + ")" : "")); }
     return parts.length ? parts.join(" · ") : "—";
   }
 
@@ -118,6 +127,7 @@ var CAEKValidation = (function () {
       "<div class=\"valid-line\"><strong>Projet :</strong> " + escapeHtml(c.nomProjet || "—") +
         (c.codeProjet ? " (" + escapeHtml(c.codeProjet) + ")" : "") + "</div>" +
       "<div class=\"valid-line\"><strong>Date du coulage :</strong> " + fmtDate(c.dateCoulage) + "</div>" +
+      "<div class=\"valid-line\"><strong>Mode de coulage :</strong> " + escapeHtml(modeCoulageLabel(c)) + "</div>" +
       "<div class=\"valid-line\"><strong>Ouvrage(s) coulé(s) :</strong> " + escapeHtml(ouvr) + "</div>" +
       "<div class=\"valid-line\"><strong>Bloc / étage :</strong> " + escapeHtml(blocEtage) + "</div>" +
       "<div class=\"valid-line\"><strong>Totaux :</strong> " + qte + " m³ · " + epr + " éprouvette(s)</div>" +
@@ -139,17 +149,26 @@ var CAEKValidation = (function () {
     ["fournisseur", "Fournisseur / centrale"],
     ["classe", "Classe béton"],
     ["ciment", "Type de ciment"],
-    ["dosage", "Dosage ciment (kg/m³)"],
+    ["cimentProvenance", "Provenance ciment"],
+    ["dosage", "Dosage ciment (kg)"],
     ["dmax", "Dmax (mm)"],
     ["adjuvant", "Adjuvant"],
-    ["eau", "Eau (L/m³)"],
+    ["adjuvantDosage", "Dosage adjuvant (%)"],
+    ["adjuvantProvenance", "Provenance adjuvant"],
+    ["eau", "Eau (Litre)"],
+    ["eauProvenance", "Provenance eau"],
     ["sable1Fraction", "Sable 01 — fraction"],
-    ["sable1Qte", "Sable 01 (kg/m³)"],
+    ["sable1Qte", "Sable 01 (kg)"],
+    ["sable1Provenance", "Provenance sable 01"],
     ["sable2Fraction", "Sable 02 — fraction"],
-    ["sable2Qte", "Sable 02 (kg/m³)"],
-    ["gravier38", "Agrégat 3/8 (kg/m³)"],
-    ["gravier815", "Agrégat 8/15 (kg/m³)"],
-    ["gravier1525", "Agrégat 15/25 (kg/m³)"]
+    ["sable2Qte", "Sable 02 (kg)"],
+    ["sable2Provenance", "Provenance sable 02"],
+    ["gravier38", "Agrégat 3/8 (kg)"],
+    ["gravier38Provenance", "Provenance agrégat 3/8"],
+    ["gravier815", "Agrégat 8/15 (kg)"],
+    ["gravier815Provenance", "Provenance agrégat 8/15"],
+    ["gravier1525", "Agrégat 15/25 (kg)"],
+    ["gravier1525Provenance", "Provenance agrégat 15/25"]
   ];
 
   function inp(id, label, value, type) {
@@ -168,7 +187,15 @@ var CAEKValidation = (function () {
       inp("ved-bloc", "Bloc", c.bloc || "") +
       inp("ved-etage", "Étage", c.etage || "") +
       "</div>" +
-      inp("ved-date", "Date du coulage", String(c.dateCoulage || "").slice(0, 10), "date");
+      inp("ved-date", "Date du coulage", String(c.dateCoulage || "").slice(0, 10), "date") +
+      "<label class=\"field-label\" for=\"ved-mode-coulage\">Mode de coulage</label>" +
+      "<select id=\"ved-mode-coulage\" class=\"field\">" +
+      "<option value=\"\">—</option>" +
+      "<option value=\"pompe\"" + (c.modeCoulage === "pompe" ? " selected" : "") + ">Pompe</option>" +
+      "<option value=\"benne\"" + (c.modeCoulage === "benne" ? " selected" : "") + ">Benne</option>" +
+      "<option value=\"autre\"" + (c.modeCoulage === "autre" ? " selected" : "") + ">Autre</option>" +
+      "</select>" +
+      inp("ved-mode-coulage-autre", "Mode de coulage — autre", c.modeCoulageAutre || "");
 
     (c.malaxeurs || []).forEach(function (m, i) {
       var f = m.formulation || {};
@@ -215,6 +242,8 @@ var CAEKValidation = (function () {
     c.bloc = vval("ved-bloc");
     c.etage = vval("ved-etage");
     if (vval("ved-date")) { c.dateCoulage = vval("ved-date"); }
+    c.modeCoulage = vval("ved-mode-coulage");
+    c.modeCoulageAutre = c.modeCoulage === "autre" ? vval("ved-mode-coulage-autre") : "";
     (c.malaxeurs || []).forEach(function (m, i) {
       m.heure = vval("ved-m" + i + "-heure");
       m.quantite = vval("ved-m" + i + "-quantite");

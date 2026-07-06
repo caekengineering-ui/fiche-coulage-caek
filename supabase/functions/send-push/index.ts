@@ -10,11 +10,15 @@
 // ============================================================================
 import webpush from "npm:web-push@3.6.7";
 
-const SB_URL = Deno.env.get("SB_URL")!;
-const SB_SERVICE_ROLE = Deno.env.get("SB_SERVICE_ROLE")!;
-const VAPID_PUBLIC = Deno.env.get("VAPID_PUBLIC")!;
-const VAPID_PRIVATE = Deno.env.get("VAPID_PRIVATE")!;
-const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:caek.engineering@gmail.com";
+function cleanEnv(name: string, fallback = "") {
+  return (Deno.env.get(name) || fallback).trim().replace(/^["']|["']$/g, "");
+}
+
+const SB_URL = cleanEnv("SB_URL");
+const SB_SERVICE_ROLE = cleanEnv("SB_SERVICE_ROLE");
+const VAPID_PUBLIC = cleanEnv("VAPID_PUBLIC");
+const VAPID_PRIVATE = cleanEnv("VAPID_PRIVATE");
+const VAPID_SUBJECT = cleanEnv("VAPID_SUBJECT", "mailto:caek.engineering@gmail.com");
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 

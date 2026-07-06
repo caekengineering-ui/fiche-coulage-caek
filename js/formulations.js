@@ -112,17 +112,26 @@ var CAEKFormulations = (function () {
     if (four) { four.value = f.fournisseur || ""; }
     setSelect("fc-mal-classe", p.classe || "");
     setSelect("fc-mal-ciment", p.ciment || "");
+    setInput("fc-mal-ciment-prov", p.cimentProvenance || "");
     setSelect("fc-mal-dosage", p.dosage || "");
     setSelect("fc-mal-dmax", p.dmax || "");
     setSelect("fc-mal-adjuvant", p.adjuvant || "");
+    setInput("fc-mal-adjuvant-dosage", p.adjuvantDosage || "");
+    setInput("fc-mal-adjuvant-prov", p.adjuvantProvenance || "");
     setInput("fc-mal-sable1-fraction", p.sable1Fraction || "");
     setInput("fc-mal-sable1-qte", p.sable1Qte || "");
+    setInput("fc-mal-sable1-prov", p.sable1Provenance || "");
     setInput("fc-mal-sable2-fraction", p.sable2Fraction || "");
     setInput("fc-mal-sable2-qte", p.sable2Qte || "");
+    setInput("fc-mal-sable2-prov", p.sable2Provenance || "");
     setInput("fc-mal-grav-38", p.gravier38 || "");
+    setInput("fc-mal-grav-38-prov", p.gravier38Provenance || "");
     setInput("fc-mal-grav-815", p.gravier815 || "");
+    setInput("fc-mal-grav-815-prov", p.gravier815Provenance || "");
     setInput("fc-mal-grav-1525", p.gravier1525 || "");
+    setInput("fc-mal-grav-1525-prov", p.gravier1525Provenance || "");
     setInput("fc-mal-eau", p.eau || "");
+    setInput("fc-mal-eau-prov", p.eauProvenance || "");
     return true;
   }
 
@@ -141,16 +150,25 @@ var CAEKFormulations = (function () {
     var fournisseur = ($("fc-mal-fournisseur") ? $("fc-mal-fournisseur").value : "").trim();
     var payload = {
       classe: readSel("fc-mal-classe"), ciment: readSel("fc-mal-ciment"),
+      cimentProvenance: readInput("fc-mal-ciment-prov"),
       dosage: readSel("fc-mal-dosage"), dmax: readSel("fc-mal-dmax"),
       adjuvant: readSel("fc-mal-adjuvant"),
+      adjuvantDosage: readInput("fc-mal-adjuvant-dosage"),
+      adjuvantProvenance: readInput("fc-mal-adjuvant-prov"),
       sable1Fraction: readInput("fc-mal-sable1-fraction"),
       sable1Qte: readInput("fc-mal-sable1-qte"),
+      sable1Provenance: readInput("fc-mal-sable1-prov"),
       sable2Fraction: readInput("fc-mal-sable2-fraction"),
       sable2Qte: readInput("fc-mal-sable2-qte"),
+      sable2Provenance: readInput("fc-mal-sable2-prov"),
       gravier38: readInput("fc-mal-grav-38"),
+      gravier38Provenance: readInput("fc-mal-grav-38-prov"),
       gravier815: readInput("fc-mal-grav-815"),
+      gravier815Provenance: readInput("fc-mal-grav-815-prov"),
       gravier1525: readInput("fc-mal-grav-1525"),
-      eau: readInput("fc-mal-eau")
+      gravier1525Provenance: readInput("fc-mal-grav-1525-prov"),
+      eau: readInput("fc-mal-eau"),
+      eauProvenance: readInput("fc-mal-eau-prov")
     };
     if (!fournisseur) { window.alert("Renseignez d'abord le fournisseur / la centrale."); return; }
     if (!payload.classe && !payload.dosage) { window.alert("Renseignez au moins la classe ou le dosage."); return; }
@@ -183,22 +201,24 @@ var CAEKFormulations = (function () {
     p = p || {};
     var parts = [];
     if (p.classe) { parts.push(p.classe); }
-    if (p.ciment) { parts.push("Ciment " + p.ciment); }
-    if (p.dosage) { parts.push(p.dosage + " kg/m³"); }
+    if (p.ciment) { parts.push("Ciment " + p.ciment + (p.cimentProvenance ? " (" + p.cimentProvenance + ")" : "")); }
+    if (p.dosage) { parts.push(p.dosage + " kg"); }
     if (p.dmax) { parts.push("Dmax " + p.dmax); }
-    if (p.adjuvant) { parts.push(p.adjuvant); }
+    if (p.adjuvant) { parts.push(p.adjuvant + (p.adjuvantDosage ? " " + p.adjuvantDosage + " %" : "") + (p.adjuvantProvenance ? " (" + p.adjuvantProvenance + ")" : "")); }
     if (p.sable1Fraction || p.sable1Qte) {
       parts.push("Sable 01" + (p.sable1Fraction ? " " + p.sable1Fraction : "") +
-        (p.sable1Qte ? " " + p.sable1Qte + " kg/m³" : ""));
+        (p.sable1Qte ? " " + p.sable1Qte + " kg" : "") +
+        (p.sable1Provenance ? " (" + p.sable1Provenance + ")" : ""));
     }
     if (p.sable2Fraction || p.sable2Qte) {
       parts.push("Sable 02" + (p.sable2Fraction ? " " + p.sable2Fraction : "") +
-        (p.sable2Qte ? " " + p.sable2Qte + " kg/m³" : ""));
+        (p.sable2Qte ? " " + p.sable2Qte + " kg" : "") +
+        (p.sable2Provenance ? " (" + p.sable2Provenance + ")" : ""));
     }
-    if (p.gravier38) { parts.push("Agrégat 3/8 " + p.gravier38 + " kg/m³"); }
-    if (p.gravier815) { parts.push("Agrégat 8/15 " + p.gravier815 + " kg/m³"); }
-    if (p.gravier1525) { parts.push("Agrégat 15/25 " + p.gravier1525 + " kg/m³"); }
-    if (p.eau) { parts.push("Eau " + p.eau + " L/m³"); }
+    if (p.gravier38) { parts.push("Agrégat 3/8 " + p.gravier38 + " kg" + (p.gravier38Provenance ? " (" + p.gravier38Provenance + ")" : "")); }
+    if (p.gravier815) { parts.push("Agrégat 8/15 " + p.gravier815 + " kg" + (p.gravier815Provenance ? " (" + p.gravier815Provenance + ")" : "")); }
+    if (p.gravier1525) { parts.push("Agrégat 15/25 " + p.gravier1525 + " kg" + (p.gravier1525Provenance ? " (" + p.gravier1525Provenance + ")" : "")); }
+    if (p.eau) { parts.push("Eau " + p.eau + " Litre" + (p.eauProvenance ? " (" + p.eauProvenance + ")" : "")); }
     return parts.join(" · ") || "—";
   }
 
@@ -245,26 +265,37 @@ var CAEKFormulations = (function () {
     var payload = {
       classe: ($("form-add-classe") ? $("form-add-classe").value : "").trim(),
       ciment: ($("form-add-ciment") ? $("form-add-ciment").value : "").trim(),
+      cimentProvenance: ($("form-add-ciment-prov") ? $("form-add-ciment-prov").value : "").trim(),
       dosage: ($("form-add-dosage") ? $("form-add-dosage").value : "").trim(),
       dmax: ($("form-add-dmax") ? $("form-add-dmax").value : "").trim(),
       adjuvant: ($("form-add-adjuvant") ? $("form-add-adjuvant").value : "").trim(),
+      adjuvantDosage: ($("form-add-adjuvant-dosage") ? $("form-add-adjuvant-dosage").value : "").trim(),
+      adjuvantProvenance: ($("form-add-adjuvant-prov") ? $("form-add-adjuvant-prov").value : "").trim(),
       sable1Fraction: ($("form-add-sable1-fraction") ? $("form-add-sable1-fraction").value : "").trim(),
       sable1Qte: ($("form-add-sable1-qte") ? $("form-add-sable1-qte").value : "").trim(),
+      sable1Provenance: ($("form-add-sable1-prov") ? $("form-add-sable1-prov").value : "").trim(),
       sable2Fraction: ($("form-add-sable2-fraction") ? $("form-add-sable2-fraction").value : "").trim(),
       sable2Qte: ($("form-add-sable2-qte") ? $("form-add-sable2-qte").value : "").trim(),
+      sable2Provenance: ($("form-add-sable2-prov") ? $("form-add-sable2-prov").value : "").trim(),
       gravier38: ($("form-add-grav-38") ? $("form-add-grav-38").value : "").trim(),
+      gravier38Provenance: ($("form-add-grav-38-prov") ? $("form-add-grav-38-prov").value : "").trim(),
       gravier815: ($("form-add-grav-815") ? $("form-add-grav-815").value : "").trim(),
+      gravier815Provenance: ($("form-add-grav-815-prov") ? $("form-add-grav-815-prov").value : "").trim(),
       gravier1525: ($("form-add-grav-1525") ? $("form-add-grav-1525").value : "").trim(),
-      eau: ($("form-add-eau") ? $("form-add-eau").value : "").trim()
+      gravier1525Provenance: ($("form-add-grav-1525-prov") ? $("form-add-grav-1525-prov").value : "").trim(),
+      eau: ($("form-add-eau") ? $("form-add-eau").value : "").trim(),
+      eauProvenance: ($("form-add-eau-prov") ? $("form-add-eau-prov").value : "").trim()
     };
     CAEKServer.adminUpsertFormulation(CAEKOperateurs.token(), {
       fournisseur: fournisseur, nom: nom, payload: payload, actif: true
     }).then(function (r) {
       if (!r || r.ok !== true) { formResult("&#9888; Échec de l'enregistrement.", true); return; }
       ["form-add-nom", "form-add-classe", "form-add-ciment", "form-add-dosage",
-        "form-add-dmax", "form-add-adjuvant", "form-add-sable1-fraction",
-        "form-add-sable1-qte", "form-add-sable2-fraction", "form-add-sable2-qte",
-        "form-add-grav-38", "form-add-grav-815", "form-add-grav-1525", "form-add-eau"].forEach(function (id) {
+        "form-add-ciment-prov", "form-add-dmax", "form-add-adjuvant", "form-add-adjuvant-dosage", "form-add-adjuvant-prov",
+        "form-add-sable1-fraction", "form-add-sable1-qte", "form-add-sable1-prov",
+        "form-add-sable2-fraction", "form-add-sable2-qte", "form-add-sable2-prov",
+        "form-add-grav-38", "form-add-grav-38-prov", "form-add-grav-815", "form-add-grav-815-prov",
+        "form-add-grav-1525", "form-add-grav-1525-prov", "form-add-eau", "form-add-eau-prov"].forEach(function (id) {
         var e = $(id); if (e) { e.value = ""; }
       });
       formResult("&#10004; Formulation « " + escapeHtml(fournisseur) + " — " + escapeHtml(nom) + " » enregistrée (validée).", false);

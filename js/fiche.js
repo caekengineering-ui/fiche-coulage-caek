@@ -276,6 +276,9 @@ var CAEKFiche = (function () {
     ro("fc-contact", contact);
 
     setVal("fc-date", c.dateCoulage || todayDate());
+    setSeg("fc-mode-coulage", "mode-coulage", c.modeCoulage || "");
+    setVal("fc-mode-coulage-autre", c.modeCoulageAutre || "");
+    show("fc-mode-coulage-autre", c.modeCoulage === "autre");
 
     selectedOuvrages = {};
     (c.ouvrages || []).forEach(function (k) { selectedOuvrages[k] = true; });
@@ -303,6 +306,8 @@ var CAEKFiche = (function () {
 
   function gatherProjetStep() {
     current.dateCoulage = val("fc-date") || todayDate();
+    current.modeCoulage = segActive("fc-mode-coulage", "mode-coulage");
+    current.modeCoulageAutre = current.modeCoulage === "autre" ? val("fc-mode-coulage-autre").trim() : "";
     current.ouvrages = selectedOuvrageKeys();
     current.ouvrageFamilies = Object.keys(selectedFamilies).filter(function (k) { return selectedFamilies[k]; });
     var labels = selectedOuvrageLabels();
@@ -328,9 +333,11 @@ var CAEKFiche = (function () {
       preleve: false, prelType: "", prelNombre: "", prelObs: "",
       formulation: {
         reprise: false, mode: "structure", fournisseur: "", classe: "", ciment: "",
-        dosage: "", dmax: "", adjuvant: "", sable1Fraction: "", sable1Qte: "",
-        sable2Fraction: "", sable2Qte: "", gravier38: "", gravier815: "",
-        gravier1525: "", eau: "", photoId: null
+        cimentProvenance: "", dosage: "", dmax: "", adjuvant: "", adjuvantDosage: "", adjuvantProvenance: "",
+        sable1Fraction: "", sable1Qte: "", sable1Provenance: "",
+        sable2Fraction: "", sable2Qte: "", sable2Provenance: "",
+        gravier38: "", gravier38Provenance: "", gravier815: "", gravier815Provenance: "",
+        gravier1525: "", gravier1525Provenance: "", eau: "", eauProvenance: "", photoId: null
       }
     };
   }
@@ -338,6 +345,14 @@ var CAEKFiche = (function () {
   function goMalaxeur(idx) {
     if ((current.statut || "brouillon") !== "brouillon") { return; }
     gatherProjetStep();
+    if (!current.modeCoulage) {
+      alert("Choisissez le mode de coulage : Pompe, Benne ou Autre.");
+      return;
+    }
+    if (current.modeCoulage === "autre" && !current.modeCoulageAutre) {
+      alert("Précisez le mode de coulage.");
+      return;
+    }
     malaxeurIdx = (typeof idx === "number") ? idx : current.malaxeurs.length;
     var existing = current.malaxeurs[malaxeurIdx];
     malaxeurDraft = existing ? JSON.parse(JSON.stringify(existing)) : emptyMalaxeur();
@@ -357,6 +372,13 @@ var CAEKFiche = (function () {
     var sw = $(switchId); if (!sw) { return ""; }
     var a = sw.querySelector(".seg.is-active");
     return a ? (a.getAttribute("data-" + attr) || "") : "";
+  }
+  function modeCoulageLabel(c) {
+    var mode = (c && c.modeCoulage) || "";
+    if (mode === "pompe") { return "Pompe"; }
+    if (mode === "benne") { return "Benne"; }
+    if (mode === "autre") { return c.modeCoulageAutre ? "Autre : " + c.modeCoulageAutre : "Autre"; }
+    return "—";
   }
 
   /* ---- Prelevement porte par le malaxeur (V2.02) ---- */
@@ -448,21 +470,26 @@ var CAEKFiche = (function () {
 
   function formulationParts(f) {
     f = f || {};
-    var parts = [f.fournisseur, f.classe, f.ciment,
-      (f.dosage ? f.dosage + " kg/m³ ciment" : ""),
-      (f.dmax ? "Dmax " + f.dmax : ""), f.adjuvant];
+    var parts = [f.fournisseur, f.classe,
+      f.ciment ? "Ciment " + f.ciment + (f.cimentProvenance ? " (" + f.cimentProvenance + ")" : "") : "",
+      (f.dosage ? f.dosage + " kg ciment" : ""),
+      (f.dmax ? "Dmax " + f.dmax : ""),
+      f.adjuvant ? f.adjuvant + (f.adjuvantDosage ? " " + f.adjuvantDosage + " %" : "") +
+        (f.adjuvantProvenance ? " (" + f.adjuvantProvenance + ")" : "") : ""];
     if (f.sable1Fraction || f.sable1Qte) {
       parts.push("Sable 01" + (f.sable1Fraction ? " " + f.sable1Fraction : "") +
-        (f.sable1Qte ? " " + f.sable1Qte + " kg/m³" : ""));
+        (f.sable1Qte ? " " + f.sable1Qte + " kg" : "") +
+        (f.sable1Provenance ? " (" + f.sable1Provenance + ")" : ""));
     }
     if (f.sable2Fraction || f.sable2Qte) {
       parts.push("Sable 02" + (f.sable2Fraction ? " " + f.sable2Fraction : "") +
-        (f.sable2Qte ? " " + f.sable2Qte + " kg/m³" : ""));
+        (f.sable2Qte ? " " + f.sable2Qte + " kg" : "") +
+        (f.sable2Provenance ? " (" + f.sable2Provenance + ")" : ""));
     }
-    if (f.gravier38) { parts.push("Agrégat 3/8 " + f.gravier38 + " kg/m³"); }
-    if (f.gravier815) { parts.push("Agrégat 8/15 " + f.gravier815 + " kg/m³"); }
-    if (f.gravier1525) { parts.push("Agrégat 15/25 " + f.gravier1525 + " kg/m³"); }
-    if (f.eau) { parts.push("Eau " + f.eau + " L/m³"); }
+    if (f.gravier38) { parts.push("Agrégat 3/8 " + f.gravier38 + " kg" + (f.gravier38Provenance ? " (" + f.gravier38Provenance + ")" : "")); }
+    if (f.gravier815) { parts.push("Agrégat 8/15 " + f.gravier815 + " kg" + (f.gravier815Provenance ? " (" + f.gravier815Provenance + ")" : "")); }
+    if (f.gravier1525) { parts.push("Agrégat 15/25 " + f.gravier1525 + " kg" + (f.gravier1525Provenance ? " (" + f.gravier1525Provenance + ")" : "")); }
+    if (f.eau) { parts.push("Eau " + f.eau + " Litre" + (f.eauProvenance ? " (" + f.eauProvenance + ")" : "")); }
     return parts.filter(Boolean);
   }
 
@@ -496,17 +523,26 @@ var CAEKFiche = (function () {
     setVal("fc-mal-fournisseur", m.formulation.fournisseur);
     setSelectOrAutre("fc-mal-classe", m.formulation.classe, ["C25/30", "C30/37", "C35/45", "C40/50"]);
     setSelectOrAutre("fc-mal-ciment", m.formulation.ciment, ["CRS", "CPJ"]);
+    setVal("fc-mal-ciment-prov", m.formulation.cimentProvenance);
     setSelectOrAutre("fc-mal-dosage", m.formulation.dosage, ["350", "380", "400"]);
     setSelectOrAutre("fc-mal-dmax", m.formulation.dmax, ["15", "25"]);
     setSelectOrAutre("fc-mal-adjuvant", m.formulation.adjuvant, ["Superplastifiant", "Hydrofuge", "Entraîneur d'air"]);
+    setVal("fc-mal-adjuvant-dosage", m.formulation.adjuvantDosage);
+    setVal("fc-mal-adjuvant-prov", m.formulation.adjuvantProvenance);
     setVal("fc-mal-sable1-fraction", m.formulation.sable1Fraction);
     setVal("fc-mal-sable1-qte", m.formulation.sable1Qte);
+    setVal("fc-mal-sable1-prov", m.formulation.sable1Provenance);
     setVal("fc-mal-sable2-fraction", m.formulation.sable2Fraction);
     setVal("fc-mal-sable2-qte", m.formulation.sable2Qte);
+    setVal("fc-mal-sable2-prov", m.formulation.sable2Provenance);
     setVal("fc-mal-grav-38", m.formulation.gravier38);
+    setVal("fc-mal-grav-38-prov", m.formulation.gravier38Provenance);
     setVal("fc-mal-grav-815", m.formulation.gravier815);
+    setVal("fc-mal-grav-815-prov", m.formulation.gravier815Provenance);
     setVal("fc-mal-grav-1525", m.formulation.gravier1525);
+    setVal("fc-mal-grav-1525-prov", m.formulation.gravier1525Provenance);
     setVal("fc-mal-eau", m.formulation.eau);
+    setVal("fc-mal-eau-prov", m.formulation.eauProvenance);
     renderMalFormPhotoPreview();
     populatePrelevement(m);
   }
@@ -532,17 +568,26 @@ var CAEKFiche = (function () {
         m.formulation.fournisseur = val("fc-mal-fournisseur").trim();
         m.formulation.classe = readSelectOrAutre("fc-mal-classe");
         m.formulation.ciment = readSelectOrAutre("fc-mal-ciment");
+        m.formulation.cimentProvenance = val("fc-mal-ciment-prov").trim();
         m.formulation.dosage = readSelectOrAutre("fc-mal-dosage");
         m.formulation.dmax = readSelectOrAutre("fc-mal-dmax");
         m.formulation.adjuvant = readSelectOrAutre("fc-mal-adjuvant");
+        m.formulation.adjuvantDosage = val("fc-mal-adjuvant-dosage").trim();
+        m.formulation.adjuvantProvenance = val("fc-mal-adjuvant-prov").trim();
         m.formulation.sable1Fraction = val("fc-mal-sable1-fraction").trim();
         m.formulation.sable1Qte = val("fc-mal-sable1-qte").trim();
+        m.formulation.sable1Provenance = val("fc-mal-sable1-prov").trim();
         m.formulation.sable2Fraction = val("fc-mal-sable2-fraction").trim();
         m.formulation.sable2Qte = val("fc-mal-sable2-qte").trim();
+        m.formulation.sable2Provenance = val("fc-mal-sable2-prov").trim();
         m.formulation.gravier38 = val("fc-mal-grav-38").trim();
+        m.formulation.gravier38Provenance = val("fc-mal-grav-38-prov").trim();
         m.formulation.gravier815 = val("fc-mal-grav-815").trim();
+        m.formulation.gravier815Provenance = val("fc-mal-grav-815-prov").trim();
         m.formulation.gravier1525 = val("fc-mal-grav-1525").trim();
+        m.formulation.gravier1525Provenance = val("fc-mal-grav-1525-prov").trim();
         m.formulation.eau = val("fc-mal-eau").trim();
+        m.formulation.eauProvenance = val("fc-mal-eau-prov").trim();
       }
     }
     gatherPrelevement(m);
@@ -605,6 +650,7 @@ var CAEKFiche = (function () {
     html += "<div><span class=\"ro-label\">Code projet</span><span class=\"ro-val\">" + escapeHtml(c.codeProjet || "—") + "</span></div>";
     html += "<div><span class=\"ro-label\">Réf. coulage</span><span class=\"ro-val\">" + escapeHtml(c.ref || "") + "</span></div>";
     html += "<div><span class=\"ro-label\">Date</span><span class=\"ro-val\">" + fmtDateFr(c.dateCoulage) + "</span></div>";
+    html += "<div><span class=\"ro-label\">Mode de coulage</span><span class=\"ro-val\">" + escapeHtml(modeCoulageLabel(c)) + "</span></div>";
     html += "<div><span class=\"ro-label\">Ouvrages</span><span class=\"ro-val\">" + escapeHtml(c.ouvrageCoule || "—") + "</span></div>";
     html += "<div><span class=\"ro-label\">Bloc / Étage</span><span class=\"ro-val\">" + escapeHtml([c.bloc ? "Bloc " + c.bloc : "", c.etage].filter(Boolean).join(" · ") || "—") + "</span></div>";
     html += "<div><span class=\"ro-label\">Partie</span><span class=\"ro-val\">" + escapeHtml(c.partie || "—") + "</span></div>";
@@ -877,6 +923,24 @@ var CAEKFiche = (function () {
     if (home) { home.addEventListener("click", gotoAccueil); }
     var arec = $("fc-audio-rec");
     if (arec) { arec.addEventListener("click", toggleAudioRec); }
+
+    bindSegSwitch("fc-mode-coulage", "mode-coulage", function (v) {
+      if (!current) { return; }
+      current.modeCoulage = v;
+      show("fc-mode-coulage-autre", v === "autre");
+      if (v !== "autre") {
+        setVal("fc-mode-coulage-autre", "");
+        current.modeCoulageAutre = "";
+      }
+      markDirty();
+    });
+    var modeAutre = $("fc-mode-coulage-autre");
+    if (modeAutre) {
+      modeAutre.addEventListener("input", function () {
+        if (current) { current.modeCoulageAutre = modeAutre.value.trim(); }
+        markDirty();
+      });
+    }
 
     bindSegSwitch("fc-mal-reprise-switch", "reprise", function (v) {
       if (!malaxeurDraft) { return; }

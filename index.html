@@ -207,32 +207,50 @@
         <input id="form-add-fournisseur" class="field" type="text" placeholder="ex. BTPH HASNAOUI" autocomplete="off">
         <label class="field-label" for="form-add-nom">Nom / numéro</label>
         <input id="form-add-nom" class="field" type="text" placeholder="ex. N°01" autocomplete="off">
-        <label class="field-label" for="form-add-classe">Classe béton</label>
-        <input id="form-add-classe" class="field" type="text" placeholder="ex. C25/30" autocomplete="off">
-        <label class="field-label" for="form-add-ciment">Type de ciment</label>
-        <input id="form-add-ciment" class="field" type="text" placeholder="ex. CRS" autocomplete="off">
-        <label class="field-label" for="form-add-dosage">Dosage ciment (kg/m³)</label>
-        <input id="form-add-dosage" class="field" type="text" placeholder="ex. 350" autocomplete="off">
-        <label class="field-label" for="form-add-dmax">Dmax (mm)</label>
-        <input id="form-add-dmax" class="field" type="text" placeholder="ex. 25" autocomplete="off">
-        <label class="field-label" for="form-add-adjuvant">Adjuvant</label>
-        <input id="form-add-adjuvant" class="field" type="text" placeholder="ex. Superplastifiant" autocomplete="off">
-        <label class="field-label" for="form-add-sable1-fraction">Sable 01 - fraction</label>
-        <input id="form-add-sable1-fraction" class="field" type="text" placeholder="ex. 0/1" autocomplete="off">
-        <label class="field-label" for="form-add-sable1-qte">Sable 01 - quantité (kg/m³)</label>
-        <input id="form-add-sable1-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 420" autocomplete="off">
-        <label class="field-label" for="form-add-sable2-fraction">Sable 02 - fraction</label>
-        <input id="form-add-sable2-fraction" class="field" type="text" placeholder="ex. 0/4" autocomplete="off">
-        <label class="field-label" for="form-add-sable2-qte">Sable 02 - quantité (kg/m³)</label>
-        <input id="form-add-sable2-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 350" autocomplete="off">
-        <label class="field-label" for="form-add-grav-38">Agrégat 3/8 - quantité (kg/m³)</label>
-        <input id="form-add-grav-38" class="field" type="number" inputmode="decimal" placeholder="ex. 180" autocomplete="off">
-        <label class="field-label" for="form-add-grav-815">Agrégat 8/15 - quantité (kg/m³)</label>
-        <input id="form-add-grav-815" class="field" type="number" inputmode="decimal" placeholder="ex. 700" autocomplete="off">
-        <label class="field-label" for="form-add-grav-1525">Agrégat 15/25 - quantité (kg/m³)</label>
-        <input id="form-add-grav-1525" class="field" type="number" inputmode="decimal" placeholder="ex. 300" autocomplete="off">
-        <label class="field-label" for="form-add-eau">Eau (L/m³)</label>
-        <input id="form-add-eau" class="field" type="number" inputmode="decimal" placeholder="ex. 175" autocomplete="off">
+        <div class="form-section">
+          <div class="form-section-title">Ciment</div>
+          <div class="form-grid">
+            <div><label class="field-label" for="form-add-classe">Classe béton</label><input id="form-add-classe" class="field" type="text" placeholder="ex. C25/30" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-ciment">Type de ciment</label><input id="form-add-ciment" class="field" type="text" placeholder="ex. CRS" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-dosage">Dosage ciment (kg)</label><input id="form-add-dosage" class="field" type="text" placeholder="ex. 350" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-dmax">Dmax (mm)</label><input id="form-add-dmax" class="field" type="text" placeholder="ex. 25" autocomplete="off"></div>
+            <div class="form-span-2"><label class="field-label" for="form-add-ciment-prov">Provenance ciment</label><input id="form-add-ciment-prov" class="field" type="text" placeholder="ex. Cimenterie de Chlef" autocomplete="off"></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-title">Sables</div>
+          <div class="form-grid">
+            <div><label class="field-label" for="form-add-sable1-fraction">Sable 01 - fraction</label><input id="form-add-sable1-fraction" class="field" type="text" placeholder="ex. 0/1" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-sable1-qte">Sable 01 - quantité (kg)</label><input id="form-add-sable1-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 420" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-sable1-prov">Provenance sable 01</label><input id="form-add-sable1-prov" class="field" type="text" placeholder="ex. TERGA / TRANS CANAL" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-sable2-fraction">Sable 02 - fraction</label><input id="form-add-sable2-fraction" class="field" type="text" placeholder="ex. 0/4" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-sable2-qte">Sable 02 - quantité (kg)</label><input id="form-add-sable2-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 350" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-sable2-prov">Provenance sable 02</label><input id="form-add-sable2-prov" class="field" type="text" placeholder="ex. TERGA / TRANS CANAL" autocomplete="off"></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-title">Agrégats</div>
+          <div class="form-grid">
+            <div><label class="field-label" for="form-add-grav-38">3/8 - quantité (kg)</label><input id="form-add-grav-38" class="field" type="number" inputmode="decimal" placeholder="ex. 180" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-grav-38-prov">Provenance 3/8</label><input id="form-add-grav-38-prov" class="field" type="text" placeholder="ex. Carrière" autocomplete="off"></div>
+            <div></div>
+            <div><label class="field-label" for="form-add-grav-815">8/15 - quantité (kg)</label><input id="form-add-grav-815" class="field" type="number" inputmode="decimal" placeholder="ex. 700" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-grav-815-prov">Provenance 8/15</label><input id="form-add-grav-815-prov" class="field" type="text" placeholder="ex. Carrière" autocomplete="off"></div>
+            <div></div>
+            <div><label class="field-label" for="form-add-grav-1525">15/25 - quantité (kg)</label><input id="form-add-grav-1525" class="field" type="number" inputmode="decimal" placeholder="ex. 300" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-grav-1525-prov">Provenance 15/25</label><input id="form-add-grav-1525-prov" class="field" type="text" placeholder="ex. Carrière" autocomplete="off"></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-title">Eau et adjuvant</div>
+          <div class="form-grid">
+            <div><label class="field-label" for="form-add-eau">Eau (Litre)</label><input id="form-add-eau" class="field" type="number" inputmode="decimal" placeholder="ex. 175" autocomplete="off"></div>
+            <div class="form-span-2"><label class="field-label" for="form-add-eau-prov">Provenance eau</label><input id="form-add-eau-prov" class="field" type="text" placeholder="ex. SEOR" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-adjuvant">Adjuvant</label><input id="form-add-adjuvant" class="field" type="text" placeholder="ex. Superplastifiant" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-adjuvant-dosage">Dosage adjuvant (%)</label><input id="form-add-adjuvant-dosage" class="field" type="number" inputmode="decimal" placeholder="ex. 0.9" autocomplete="off"></div>
+            <div><label class="field-label" for="form-add-adjuvant-prov">Provenance adjuvant</label><input id="form-add-adjuvant-prov" class="field" type="text" placeholder="ex. SIKA" autocomplete="off"></div>
+          </div>
+        </div>
         <button id="form-add-btn" class="btn-primary" type="button">&#10133; Ajouter la formulation</button>
         <div id="form-result" class="result-card" hidden></div>
       </div>
@@ -457,6 +475,15 @@
         <label class="field-label" for="fc-date">&#128197; Date du coulage</label>
         <input id="fc-date" class="field" type="date">
 
+        <h2 class="block-title">Mode de coulage</h2>
+        <p class="hint">Cochez le mode utilisé sur chantier ; il sera repris dans le bulletin d'échantillonnage.</p>
+        <div class="seg-switch" id="fc-mode-coulage">
+          <button type="button" class="seg" data-mode-coulage="pompe">Pompe</button>
+          <button type="button" class="seg" data-mode-coulage="benne">Benne</button>
+          <button type="button" class="seg" data-mode-coulage="autre">Autre</button>
+        </div>
+        <input id="fc-mode-coulage-autre" class="field" type="text" placeholder="Préciser le mode de coulage" autocomplete="off" hidden>
+
         <h2 class="block-title">Ouvrage(s) coulé(s)</h2>
         <p class="hint">Choisissez la (les) famille(s), puis touchez les ouvrages concernés.</p>
         <div id="fc-ouvrages" class="ouvrage-families"></div>
@@ -586,62 +613,50 @@
             <label class="field-label" for="fc-mal-fournisseur">&#127981; Fournisseur / centrale</label>
             <input id="fc-mal-fournisseur" class="field" type="text" autocomplete="off">
 
-            <label class="field-label" for="fc-mal-classe">Classe béton</label>
-            <select id="fc-mal-classe" class="field" data-autre="fc-mal-classe-autre">
-              <option value="">—</option>
-              <option>C25/30</option><option>C30/37</option><option>C35/45</option><option>C40/50</option>
-              <option value="autre">Autre…</option>
-            </select>
-            <input id="fc-mal-classe-autre" class="field" type="text" placeholder="Préciser la classe" hidden>
-
-            <label class="field-label" for="fc-mal-ciment">Type de ciment</label>
-            <select id="fc-mal-ciment" class="field" data-autre="fc-mal-ciment-autre">
-              <option value="">—</option>
-              <option>CRS</option><option>CPJ</option>
-              <option value="autre">Autre…</option>
-            </select>
-            <input id="fc-mal-ciment-autre" class="field" type="text" placeholder="Préciser le ciment" hidden>
-
-            <label class="field-label" for="fc-mal-dosage">Dosage ciment (kg/m³)</label>
-            <select id="fc-mal-dosage" class="field" data-autre="fc-mal-dosage-autre">
-              <option value="">—</option>
-              <option>350</option><option>380</option><option>400</option>
-              <option value="autre">Autre…</option>
-            </select>
-            <input id="fc-mal-dosage-autre" class="field" type="number" inputmode="numeric" placeholder="Préciser le dosage" hidden>
-
-            <label class="field-label" for="fc-mal-dmax">Dmax (mm)</label>
-            <select id="fc-mal-dmax" class="field" data-autre="fc-mal-dmax-autre">
-              <option value="">—</option>
-              <option>15</option><option>25</option>
-              <option value="autre">Autre…</option>
-            </select>
-            <input id="fc-mal-dmax-autre" class="field" type="number" inputmode="numeric" placeholder="Préciser le Dmax" hidden>
-
-            <label class="field-label" for="fc-mal-adjuvant">Adjuvant</label>
-            <select id="fc-mal-adjuvant" class="field" data-autre="fc-mal-adjuvant-autre">
-              <option value="">— Aucun —</option>
-              <option>Superplastifiant</option><option>Hydrofuge</option><option>Entraîneur d'air</option>
-              <option value="autre">Autre…</option>
-            </select>
-            <input id="fc-mal-adjuvant-autre" class="field" type="text" placeholder="Préciser l'adjuvant" hidden>
-
-            <label class="field-label" for="fc-mal-sable1-fraction">Sable 01 - fraction</label>
-            <input id="fc-mal-sable1-fraction" class="field" type="text" placeholder="ex. 0/1" autocomplete="off">
-            <label class="field-label" for="fc-mal-sable1-qte">Sable 01 - quantité (kg/m³)</label>
-            <input id="fc-mal-sable1-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 420" autocomplete="off">
-            <label class="field-label" for="fc-mal-sable2-fraction">Sable 02 - fraction</label>
-            <input id="fc-mal-sable2-fraction" class="field" type="text" placeholder="ex. 0/4" autocomplete="off">
-            <label class="field-label" for="fc-mal-sable2-qte">Sable 02 - quantité (kg/m³)</label>
-            <input id="fc-mal-sable2-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 350" autocomplete="off">
-            <label class="field-label" for="fc-mal-grav-38">Agrégat 3/8 - quantité (kg/m³)</label>
-            <input id="fc-mal-grav-38" class="field" type="number" inputmode="decimal" placeholder="ex. 180" autocomplete="off">
-            <label class="field-label" for="fc-mal-grav-815">Agrégat 8/15 - quantité (kg/m³)</label>
-            <input id="fc-mal-grav-815" class="field" type="number" inputmode="decimal" placeholder="ex. 700" autocomplete="off">
-            <label class="field-label" for="fc-mal-grav-1525">Agrégat 15/25 - quantité (kg/m³)</label>
-            <input id="fc-mal-grav-1525" class="field" type="number" inputmode="decimal" placeholder="ex. 300" autocomplete="off">
-            <label class="field-label" for="fc-mal-eau">Eau (L/m³)</label>
-            <input id="fc-mal-eau" class="field" type="number" inputmode="decimal" placeholder="ex. 175" autocomplete="off">
+            <div class="form-section">
+              <div class="form-section-title">Ciment</div>
+              <div class="form-grid">
+                <div><label class="field-label" for="fc-mal-classe">Classe béton</label><select id="fc-mal-classe" class="field" data-autre="fc-mal-classe-autre"><option value="">—</option><option>C25/30</option><option>C30/37</option><option>C35/45</option><option>C40/50</option><option value="autre">Autre…</option></select><input id="fc-mal-classe-autre" class="field" type="text" placeholder="Préciser la classe" hidden></div>
+                <div><label class="field-label" for="fc-mal-ciment">Type de ciment</label><select id="fc-mal-ciment" class="field" data-autre="fc-mal-ciment-autre"><option value="">—</option><option>CRS</option><option>CPJ</option><option value="autre">Autre…</option></select><input id="fc-mal-ciment-autre" class="field" type="text" placeholder="Préciser le ciment" hidden></div>
+                <div><label class="field-label" for="fc-mal-dosage">Dosage ciment (kg)</label><select id="fc-mal-dosage" class="field" data-autre="fc-mal-dosage-autre"><option value="">—</option><option>350</option><option>380</option><option>400</option><option value="autre">Autre…</option></select><input id="fc-mal-dosage-autre" class="field" type="number" inputmode="numeric" placeholder="Préciser le dosage" hidden></div>
+                <div><label class="field-label" for="fc-mal-dmax">Dmax (mm)</label><select id="fc-mal-dmax" class="field" data-autre="fc-mal-dmax-autre"><option value="">—</option><option>15</option><option>25</option><option value="autre">Autre…</option></select><input id="fc-mal-dmax-autre" class="field" type="number" inputmode="numeric" placeholder="Préciser le Dmax" hidden></div>
+                <div class="form-span-2"><label class="field-label" for="fc-mal-ciment-prov">Provenance ciment</label><input id="fc-mal-ciment-prov" class="field" type="text" placeholder="ex. Cimenterie de Chlef" autocomplete="off"></div>
+              </div>
+            </div>
+            <div class="form-section">
+              <div class="form-section-title">Sables</div>
+              <div class="form-grid">
+                <div><label class="field-label" for="fc-mal-sable1-fraction">Sable 01 - fraction</label><input id="fc-mal-sable1-fraction" class="field" type="text" placeholder="ex. 0/1" autocomplete="off"></div>
+                <div><label class="field-label" for="fc-mal-sable1-qte">Sable 01 - quantité (kg)</label><input id="fc-mal-sable1-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 420" autocomplete="off"></div>
+                <div><label class="field-label" for="fc-mal-sable1-prov">Provenance sable 01</label><input id="fc-mal-sable1-prov" class="field" type="text" placeholder="ex. TERGA / TRANS CANAL" autocomplete="off"></div>
+                <div><label class="field-label" for="fc-mal-sable2-fraction">Sable 02 - fraction</label><input id="fc-mal-sable2-fraction" class="field" type="text" placeholder="ex. 0/4" autocomplete="off"></div>
+                <div><label class="field-label" for="fc-mal-sable2-qte">Sable 02 - quantité (kg)</label><input id="fc-mal-sable2-qte" class="field" type="number" inputmode="decimal" placeholder="ex. 350" autocomplete="off"></div>
+                <div><label class="field-label" for="fc-mal-sable2-prov">Provenance sable 02</label><input id="fc-mal-sable2-prov" class="field" type="text" placeholder="ex. TERGA / TRANS CANAL" autocomplete="off"></div>
+              </div>
+            </div>
+            <div class="form-section">
+              <div class="form-section-title">Agrégats</div>
+              <div class="form-grid">
+                <div><label class="field-label" for="fc-mal-grav-38">3/8 - quantité (kg)</label><input id="fc-mal-grav-38" class="field" type="number" inputmode="decimal" placeholder="ex. 180" autocomplete="off"></div>
+                <div><label class="field-label" for="fc-mal-grav-38-prov">Provenance 3/8</label><input id="fc-mal-grav-38-prov" class="field" type="text" placeholder="ex. Carrière" autocomplete="off"></div>
+                <div></div>
+                <div><label class="field-label" for="fc-mal-grav-815">8/15 - quantité (kg)</label><input id="fc-mal-grav-815" class="field" type="number" inputmode="decimal" placeholder="ex. 700" autocomplete="off"></div>
+                <div><label class="field-label" for="fc-mal-grav-815-prov">Provenance 8/15</label><input id="fc-mal-grav-815-prov" class="field" type="text" placeholder="ex. Carrière" autocomplete="off"></div>
+                <div></div>
+                <div><label class="field-label" for="fc-mal-grav-1525">15/25 - quantité (kg)</label><input id="fc-mal-grav-1525" class="field" type="number" inputmode="decimal" placeholder="ex. 300" autocomplete="off"></div>
+                <div><label class="field-label" for="fc-mal-grav-1525-prov">Provenance 15/25</label><input id="fc-mal-grav-1525-prov" class="field" type="text" placeholder="ex. Carrière" autocomplete="off"></div>
+              </div>
+            </div>
+            <div class="form-section">
+              <div class="form-section-title">Eau et adjuvant</div>
+              <div class="form-grid">
+                <div><label class="field-label" for="fc-mal-eau">Eau (Litre)</label><input id="fc-mal-eau" class="field" type="number" inputmode="decimal" placeholder="ex. 175" autocomplete="off"></div>
+                <div class="form-span-2"><label class="field-label" for="fc-mal-eau-prov">Provenance eau</label><input id="fc-mal-eau-prov" class="field" type="text" placeholder="ex. SEOR" autocomplete="off"></div>
+                <div><label class="field-label" for="fc-mal-adjuvant">Adjuvant</label><select id="fc-mal-adjuvant" class="field" data-autre="fc-mal-adjuvant-autre"><option value="">— Aucun —</option><option>Superplastifiant</option><option>Hydrofuge</option><option>Entraîneur d'air</option><option value="autre">Autre…</option></select><input id="fc-mal-adjuvant-autre" class="field" type="text" placeholder="Préciser l'adjuvant" hidden></div>
+                <div><label class="field-label" for="fc-mal-adjuvant-dosage">Dosage adjuvant (%)</label><input id="fc-mal-adjuvant-dosage" class="field" type="number" inputmode="decimal" placeholder="ex. 0.9" autocomplete="off"></div>
+                <div><label class="field-label" for="fc-mal-adjuvant-prov">Provenance adjuvant</label><input id="fc-mal-adjuvant-prov" class="field" type="text" placeholder="ex. SIKA" autocomplete="off"></div>
+              </div>
+            </div>
 
             <button id="fc-mal-proposer" class="btn-text" type="button">&#128190; Proposer cette formulation comme modèle</button>
           </div>

@@ -378,6 +378,31 @@ body {
 .field:focus { outline: none; border-color: var(--caek-red); }
 select.field { appearance: none; -webkit-appearance: none; background-image: none; }
 
+.form-section {
+  margin: 14px 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--gray-line);
+}
+.form-section-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-dark);
+  text-transform: uppercase;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+.form-grid .field-label { margin-top: 0; }
+.form-span-2 { grid-column: span 2; }
+.form-span-3 { grid-column: 1 / -1; }
+@media (max-width: 620px) {
+  .form-grid { grid-template-columns: 1fr 1fr; }
+  .form-span-2, .form-span-3 { grid-column: 1 / -1; }
+}
+
 .ref-box {
   margin-top: 18px;
   padding: 14px 16px;
