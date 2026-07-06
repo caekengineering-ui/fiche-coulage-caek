@@ -110,6 +110,7 @@ var CAEKPush = (function () {
 
   function currentState() {
     if (!supported()) { return Promise.resolve("non_supporte"); }
+    if (!configured()) { return Promise.resolve("non_configure"); }
     if (isIOS() && !isStandalone()) { return Promise.resolve("ios_installer"); }
     if (Notification.permission === "denied") { return Promise.resolve("bloque"); }
     return navigator.serviceWorker.ready.then(function (reg) {
@@ -124,6 +125,10 @@ var CAEKPush = (function () {
     currentState().then(function (st) {
       if (st === "non_supporte") {
         setStatus("&#9888; Cet appareil / navigateur ne gère pas les notifications.", "is-error");
+        if (btn) { btn.hidden = true; }
+      } else if (st === "non_configure") {
+        // Message clair pour l'opérateur (pas d'erreur technique VAPID brute).
+        setStatus("&#128276; Notifications non configurées sur le serveur. Contactez l'administrateur.", "is-warn");
         if (btn) { btn.hidden = true; }
       } else if (st === "ios_installer") {
         setStatus("&#128241; Sur iPhone : ajoutez d'abord l'app à l'écran d'accueil (Partager &#8594; « Sur l'écran d'accueil »), puis rouvrez-la pour activer les notifications.", "is-warn");
@@ -152,7 +157,7 @@ var CAEKPush = (function () {
       if (turningOn && r && !r.ok) {
         var msgs = {
           refuse: "Permission refusée.", non_supporte: "Non supporté sur cet appareil.",
-          non_configure: "Notifications non configurées (clé VAPID manquante).",
+          non_configure: "Notifications non configurées sur le serveur. Contactez l'administrateur.",
           non_connecte: "Connectez-vous d'abord.", serveur: "Enregistrement serveur impossible."
         };
         setStatus("&#9888; " + (msgs[r.error] || ("Échec : " + r.error)), "is-error");

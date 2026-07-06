@@ -119,7 +119,7 @@ var CAEKValidation = (function () {
       malRows + codif + mediasHtml +
       "<div class=\"oper-actions\">" +
       "<button type=\"button\" class=\"btn-primary\" data-act=\"valider\" data-ref=\"" + escapeHtml(c.ref) + "\">&#9989; Valider ce coulage</button>" +
-      "<button type=\"button\" class=\"btn-secondary\" data-act=\"renvoyer\" data-ref=\"" + escapeHtml(c.ref) + "\">&#8617; Renvoyer pour correction</button>" +
+      "<button type=\"button\" class=\"btn-secondary\" data-act=\"renvoyer\" data-ref=\"" + escapeHtml(c.ref) + "\">&#9999;&#65039; Corriger</button>" +
       "</div>" +
       "<div class=\"valid-result result-card\" hidden></div>" +
       "</div>";

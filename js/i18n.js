@@ -317,10 +317,60 @@ var I18N = (function () {
     "Confirmer la sortie pour essai de ce lot ({n} éprouvette(s)) ?": "هل تريد تأكيد إخراج هذه المجموعة للاختبار ({n} عيّنة)؟",
     "Désactiver cet opérateur ? Il ne pourra plus se connecter.": "هل تريد تعطيل هذا المُشغّل؟ لن يستطيع تسجيل الدخول.",
     "Désactiver ce laboratoire ? Il n'apparaîtra plus dans les listes.": "هل تريد تعطيل هذا المخبر؟ لن يظهر في القوائم.",
-    "Confirmez-vous que le coulage est bien terminé ?": "هل تؤكد أن عملية الصبّ انتهت؟"
+    "Confirmez-vous que le coulage est bien terminé ?": "هل تؤكد أن عملية الصبّ انتهت؟",
+
+    // ---- Bassin : sortie / motifs / répartition ----
+    "Motif": "السبب",
+    "Observation": "ملاحظة",
+    "Le motif est obligatoire.": "السبب إجباري.",
+    "Motif obligatoire.": "السبب إجباري.",
+    "Précisez le motif :": "حدّد السبب:",
+    "Aucun lot à répartir.": "لا توجد مجموعة للتوزيع.",
+    "Âge invalide.": "عمر غير صالح.",
+    "Cette répartition ne peut plus être modifiée : un lot a déjà été sorti pour essai, testé ou archivé.": "لم يعد بالإمكان تعديل هذا التوزيع: تم إخراج مجموعة للاختبار أو اختبارها أو أرشفتها.",
+    "Enregistrer les corrections de cette répartition ?": "حفظ تصحيحات هذا التوزيع؟",
+    "Les lots encore en bassin de ce coulage seront remplacés.": "سيتم استبدال المجموعات التي لا تزال في حوض هذا الصبّ.",
+    "Confirmer la répartition des éprouvettes ?": "تأكيد توزيع العيّنات؟",
+    "Profil opérateur requis pour sortir un lot du bassin.": "ملف المُشغّل مطلوب لإخراج مجموعة من الحوض.",
+    "Profil opérateur requis. Veuillez renseigner votre nom et qualification.": "ملف المُشغّل مطلوب. يرجى إدخال الاسم والوظيفة.",
+    // Motifs de sortie (accord) et de retard
+    "Accord client": "موافقة الزبون",
+    "Accord chef labo": "موافقة رئيس المخبر",
+    "Contrainte planning": "قيد في البرنامج",
+    "Jour férié": "يوم عطلة",
+    "Autre": "أخرى",
+    "Presse indisponible": "المكبس غير متوفر",
+    "Oubli": "نسيان",
+    "Demande client": "طلب الزبون",
+    "Jour non ouvrable": "يوم غير عملي",
+
+    // ---- Compression : forçage / passage anticipé ----
+    "Forcer le passage maintenant": "فرض المرور الآن",
+    "Profil opérateur requis pour forcer le passage avant 24 h.": "ملف المُشغّل مطلوب لفرض المرور قبل 24 ساعة.",
+    "Passage anticipé (moins de 24 h hors bassin) — action exceptionnelle.": "مرور مبكر (أقل من 24 ساعة خارج الحوض) — إجراء استثنائي.",
+    "Indiquez le motif (numéro ou texte libre) :": "حدّد السبب (رقم أو نص حر):",
+    "Le motif est obligatoire pour forcer le passage.": "السبب إجباري لفرض المرور.",
+    "Confirmer le passage anticipé de ce lot en « À tester » ?": "تأكيد المرور المبكر لهذه المجموعة إلى «للاختبار»؟",
+    "Éprouvette ayant dépassé son séjour": "عيّنة تجاوزت مدة بقائها",
+    "Problème machine / presse": "عطل الآلة / المكبس",
+    "Contrainte exceptionnelle du laboratoire": "قيد استثنائي بالمخبر",
+    "Sortie anticipée (avant l'échéance d'essai) : motif obligatoire.": "إخراج مبكر (قبل موعد الاختبار): السبب إجباري.",
+
+    // ---- Notifications (message d'activation) ----
+    "Notifications non configurées sur le serveur. Contactez l'administrateur.": "الإشعارات غير مهيّأة على الخادم. اتصل بالمسؤول.",
+    "Permission refusée.": "تم رفض الإذن.",
+    "Non supporté sur cet appareil.": "غير مدعوم على هذا الجهاز.",
+    "Connectez-vous d'abord.": "سجّل الدخول أولاً.",
+    "Enregistrement serveur impossible.": "تعذّر التسجيل على الخادم.",
+
+    // ---- Validation coulage ----
+    "Corriger": "تصحيح",
+    "Corriger / renvoyer le coulage": "تصحيح / إعادة الصبّ"
   };
 
   var MIXED = [
+    ["Motif :", "السبب:"],
+    ["Nombre invalide", "عدد غير صالح"],
     ["Aucune alerte coulage en cours", "لا يوجد تنبيه صبّ حالياً"],
     ["Aucune alerte bassin en cours", "لا يوجد تنبيه حوض حالياً"],
     ["Aucun essai en attente", "لا يوجد اختبار في الانتظار"],
