@@ -365,11 +365,6 @@
       <div id="comp-atester-count" class="hint"></div>
       <div id="comp-atester-liste"></div>
 
-      <div id="comp-sechage-section" hidden>
-        <h3 class="block-subtitle">&#9203; En séchage (délai 24 h hors bassin)</h3>
-        <p class="hint">Ces lots viennent de sortir du bassin. Ils doivent rester 24 h hors bassin avant l'essai. Le passage anticipé est possible mais exceptionnel (motif obligatoire).</p>
-        <div id="comp-sechage-liste"></div>
-      </div>
     </section>
 
     <!-- COMPRESSION > HISTORIQUE -->
@@ -600,11 +595,12 @@
         </div>
         <div id="fc-mal-form">
           <div class="seg-switch" id="fc-mal-form-mode">
-            <button type="button" class="seg is-active" data-fmode="structure">&#9999;&#65039; Saisie</button>
-            <button type="button" class="seg" data-fmode="photo">&#128247; Photo BL</button>
+            <button type="button" class="seg" data-fmode="photo">&#128247; Photo formulation</button>
+            <button type="button" class="seg" data-fmode="structure">&#9999;&#65039; Saisie formulation</button>
           </div>
+          <p class="hint" id="fc-mal-form-hint">Choisissez : photographier la formulation (BL) ou la saisir (manuellement ou depuis un modèle enregistré).</p>
 
-          <div id="fc-mal-form-structure">
+          <div id="fc-mal-form-structure" hidden>
             <label class="field-label" for="fc-mal-modele">&#128218; Modèle enregistré</label>
             <select id="fc-mal-modele" class="field">
               <option value="">— Choisir un modèle (facultatif) —</option>
@@ -662,8 +658,10 @@
           </div>
 
           <div id="fc-mal-form-photo" hidden>
-            <label class="btn-secondary" for="fc-mal-form-photo-input">&#128247; Photo du BL / formulation</label>
+            <label class="btn-secondary" for="fc-mal-form-photo-input">&#128247; Prendre une photo</label>
             <input id="fc-mal-form-photo-input" type="file" accept="image/*" capture="environment" hidden>
+            <label class="btn-secondary" for="fc-mal-form-photo-galerie">&#128444;&#65039; Choisir dans la galerie</label>
+            <input id="fc-mal-form-photo-galerie" type="file" accept="image/*" hidden>
             <div id="fc-mal-form-photo-preview" class="photos-grid"></div>
             <p class="hint">La photo est compressée et stockée localement.</p>
           </div>

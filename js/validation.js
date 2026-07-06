@@ -197,11 +197,35 @@ var CAEKValidation = (function () {
       "</select>" +
       inp("ved-mode-coulage-autre", "Mode de coulage — autre", c.modeCoulageAutre || "");
 
+    // Modèles de formulation disponibles (catalogue validé, en cache local).
+    var modeles = (window.CAEKFormulations && CAEKFormulations.getCached)
+      ? CAEKFormulations.getCached() : [];
+    function modeleSelectHtml(i) {
+      var out = "<label class=\"field-label\" for=\"ved-m" + i + "-modele\">&#128218; Choisir une formulation enregistrée</label>" +
+        "<select id=\"ved-m" + i + "-modele\" class=\"field ved-modele\" data-mal=\"" + i + "\">" +
+        "<option value=\"\">— Choisir un modèle (facultatif) —</option>";
+      var byFour = {};
+      modeles.forEach(function (fm) {
+        var k = fm.fournisseur || "Autres";
+        (byFour[k] = byFour[k] || []).push(fm);
+      });
+      Object.keys(byFour).sort().forEach(function (four) {
+        out += "<optgroup label=\"" + escapeHtml(four) + "\">";
+        byFour[four].forEach(function (fm) {
+          out += "<option value=\"" + escapeHtml(fm.id) + "\">" + escapeHtml(four) + " — " + escapeHtml(fm.nom) + "</option>";
+        });
+        out += "</optgroup>";
+      });
+      return out + "</select>";
+    }
+
     (c.malaxeurs || []).forEach(function (m, i) {
       var f = m.formulation || {};
       html += "<div class=\"valid-mal\"><div class=\"valid-mal-head\"><strong>Malaxeur " + (i + 1) + "</strong>" +
         (m.preleve === true ? " · " + (m.prelNombre || 0) + " épr. " + escapeHtml(m.prelType || "cube") + " (non modifiable)" : "") +
-        "</div><div class=\"ved-grid\">" +
+        "</div>" +
+        (modeles.length ? modeleSelectHtml(i) : "") +
+        "<div class=\"ved-grid\">" +
         inp("ved-m" + i + "-heure", "Heure de prélèvement", m.heure || "") +
         inp("ved-m" + i + "-quantite", "Quantité de béton (m³)", m.quantite == null ? "" : m.quantite) +
         inp("ved-m" + i + "-affaissement", "Affaissement (cm)", m.affaissement == null ? "" : m.affaissement) +
@@ -209,7 +233,10 @@ var CAEKValidation = (function () {
       FORM_FIELDS.forEach(function (fd) {
         html += inp("ved-m" + i + "-" + fd[0], fd[1], f[fd[0]] == null ? "" : f[fd[0]]);
       });
-      html += "</div></div>";
+      html += "</div>" +
+        "<button type=\"button\" class=\"btn-text\" data-act=\"ved-save-modele\" data-mal=\"" + i + "\" data-ref=\"" + escapeHtml(c.ref) + "\">" +
+        "&#128190; Enregistrer cette formulation comme modèle</button>" +
+        "</div>";
     });
 
     html += mediasHtml +
@@ -225,6 +252,48 @@ var CAEKValidation = (function () {
   function vval(id) {
     var e = document.getElementById(id);
     return e ? e.value.trim() : "";
+  }
+  function vset(id, v) {
+    var e = document.getElementById(id);
+    if (e) { e.value = v == null ? "" : v; }
+  }
+
+  // Applique un modèle de formulation aux champs du malaxeur i (correction).
+  function applyModeleToVed(i, modeleId) {
+    if (!window.CAEKFormulations || !CAEKFormulations.getCached) { return; }
+    var list = CAEKFormulations.getCached();
+    var fm = null;
+    for (var k = 0; k < list.length; k++) { if (list[k].id === modeleId) { fm = list[k]; break; } }
+    if (!fm) { return; }
+    var p = fm.payload || {};
+    vset("ved-m" + i + "-fournisseur", fm.fournisseur || "");
+    FORM_FIELDS.forEach(function (fd) {
+      if (fd[0] === "fournisseur") { return; }
+      if (p[fd[0]] != null && p[fd[0]] !== "") { vset("ved-m" + i + "-" + fd[0], p[fd[0]]); }
+    });
+  }
+
+  // Enregistre la formulation saisie (malaxeur i) comme modèle réutilisable
+  // (admin -> directement validée dans le catalogue).
+  function saveModeleFromVed(i, itemEl) {
+    var fournisseur = vval("ved-m" + i + "-fournisseur");
+    if (!fournisseur) { resultBox(itemEl, "&#9888; Renseignez d'abord le fournisseur / la centrale.", true); return; }
+    var nom = window.prompt("Nom du modèle pour « " + fournisseur + " » (ex. N°01) :", "");
+    if (nom == null) { return; }
+    nom = String(nom).trim();
+    if (!nom) { return; }
+    var payload = {};
+    FORM_FIELDS.forEach(function (fd) {
+      if (fd[0] === "fournisseur") { return; }
+      payload[fd[0]] = vval("ved-m" + i + "-" + fd[0]);
+    });
+    CAEKServer.adminUpsertFormulation(CAEKOperateurs.token(), {
+      fournisseur: fournisseur, nom: nom, payload: payload, actif: true
+    }).then(function (r) {
+      if (!r || r.ok !== true) { resultBox(itemEl, "&#9888; Échec de l'enregistrement du modèle.", true); return; }
+      resultBox(itemEl, "&#10004; Modèle enregistré : « " + escapeHtml(fournisseur) + " — " + escapeHtml(nom) + " » (réutilisable).", false);
+      if (window.CAEKFormulations) { CAEKFormulations.refresh(); }
+    }).catch(function (e) { resultBox(itemEl, "&#9888; Réseau requis : " + escapeHtml(e && e.message || ""), true); });
   }
 
   // Reconstruit le payload corrigé depuis le formulaire (clone + surcharges).
@@ -541,6 +610,7 @@ var CAEKValidation = (function () {
     if (act) {
       var a = act.getAttribute("data-act");
       var ref = act.getAttribute("data-ref");
+      if (a === "ved-save-modele") { saveModeleFromVed(act.getAttribute("data-mal"), item); return; }
       if (a === "valider") { valider(ref, item); }
       else if (a === "corriger") { _editRef = ref; _openRef = ref; render(); }
       else if (a === "annuler-edit") { _editRef = null; render(); }
@@ -564,7 +634,16 @@ var CAEKValidation = (function () {
 
   function init() {
     var box = $("valid-liste");
-    if (box) { box.addEventListener("click", onClick); }
+    if (box) {
+      box.addEventListener("click", onClick);
+      // Choix d'un modèle de formulation dans le formulaire de correction.
+      box.addEventListener("change", function (ev) {
+        var sel = ev.target;
+        if (sel && sel.classList && sel.classList.contains("ved-modele") && sel.value) {
+          applyModeleToVed(sel.getAttribute("data-mal"), sel.value);
+        }
+      });
+    }
   }
 
   return { init: init, refresh: refresh, updateBadge: updateBadge };

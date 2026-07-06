@@ -332,7 +332,9 @@ var CAEKFiche = (function () {
       numCamion: "", numBL: "",
       preleve: false, prelType: "", prelNombre: "", prelObs: "",
       formulation: {
-        reprise: false, mode: "structure", fournisseur: "", classe: "", ciment: "",
+        // mode "" = pas encore choisi : les champs restent fermés tant que
+        // l'opérateur n'a pas choisi « Photo » ou « Saisie ».
+        reprise: false, mode: "", fournisseur: "", classe: "", ciment: "",
         cimentProvenance: "", dosage: "", dmax: "", adjuvant: "", adjuvantDosage: "", adjuvantProvenance: "",
         sable1Fraction: "", sable1Qte: "", sable1Provenance: "",
         sable2Fraction: "", sable2Qte: "", sable2Provenance: "",
@@ -516,10 +518,11 @@ var CAEKFiche = (function () {
       m.formulation.reprise = false;
       show("fc-mal-form", true);
     }
-    var mode = m.formulation.mode || "structure";
+    var mode = m.formulation.mode || "";
     setSeg("fc-mal-form-mode", "fmode", mode);
     show("fc-mal-form-structure", mode === "structure");
     show("fc-mal-form-photo", mode === "photo");
+    show("fc-mal-form-hint", mode === "");
     setVal("fc-mal-fournisseur", m.formulation.fournisseur);
     setSelectOrAutre("fc-mal-classe", m.formulation.classe, ["C25/30", "C30/37", "C35/45", "C40/50"]);
     setSelectOrAutre("fc-mal-ciment", m.formulation.ciment, ["CRS", "CPJ"]);
@@ -563,8 +566,9 @@ var CAEKFiche = (function () {
       }
     } else {
       m.formulation.reprise = false;
-      if (m.formulation.mode === "structure" || !m.formulation.mode) {
-        m.formulation.mode = "structure";
+      // Ne lire les champs manuels QUE si l'opérateur a choisi « Saisie »
+      // (mode "" = aucun choix : on ne touche pas à la formulation).
+      if (m.formulation.mode === "structure") {
         m.formulation.fournisseur = val("fc-mal-fournisseur").trim();
         m.formulation.classe = readSelectOrAutre("fc-mal-classe");
         m.formulation.ciment = readSelectOrAutre("fc-mal-ciment");
@@ -953,11 +957,9 @@ var CAEKFiche = (function () {
       malaxeurDraft.formulation.mode = v;
       show("fc-mal-form-structure", v === "structure");
       show("fc-mal-form-photo", v === "photo");
-      // Clic utilisateur sur "Photo BL" : ouvrir directement l'appareil photo.
-      if (v === "photo" && !pendingMalPhoto) {
-        var inp = $("fc-mal-form-photo-input");
-        if (inp) { inp.click(); }
-      }
+      show("fc-mal-form-hint", false);
+      // En mode photo, l'opérateur choisit lui-même : appareil OU galerie
+      // (deux boutons dans le panneau — plus d'ouverture automatique).
     });
 
     // Champs facultatifs : la case a cocher ouvre le champ (et le vide si decoche).
@@ -971,8 +973,10 @@ var CAEKFiche = (function () {
       s.addEventListener("change", function () { var a = $(id + "-autre"); if (a) { a.hidden = (s.value !== "autre"); } });
     });
 
-    var pi = $("fc-mal-form-photo-input");
-    if (pi) {
+    // Photo formulation : appareil photo OU image de la galerie (2 entrées).
+    ["fc-mal-form-photo-input", "fc-mal-form-photo-galerie"].forEach(function (pid) {
+      var pi = $(pid);
+      if (!pi) { return; }
       pi.addEventListener("change", function () {
         var f = pi.files && pi.files[0]; pi.value = "";
         if (!f) { return; }
@@ -980,7 +984,7 @@ var CAEKFiche = (function () {
         p.then(function (blob) { pendingMalPhoto = blob; renderMalFormPhotoPreview(); })
           .catch(function (e) { alert("Photo : " + (e && e.message || e)); });
       });
-    }
+    });
 
     var cont = $("fc-mal-continuer");
     if (cont) {

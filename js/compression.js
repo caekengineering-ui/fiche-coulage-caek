@@ -76,7 +76,6 @@ var CAEKCompression = (function () {
      CHARGEMENT / RAFRAICHISSEMENT
      ============================================================ */
   var _aTester = [];
-  var _enSechage = [];
   var _historique = [];
 
   // Délai conseillé hors bassin avant essai (24 h).
@@ -94,12 +93,6 @@ var CAEKCompression = (function () {
     if (t == null) { return true; }
     return (Date.now() - t) >= DELAI_SECHAGE_MS;
   }
-  function heuresRestantes(l) {
-    var t = sortiAtMs(l);
-    if (t == null) { return 0; }
-    var ms = DELAI_SECHAGE_MS - (Date.now() - t);
-    return ms > 0 ? Math.ceil(ms / 3600000) : 0;
-  }
 
   function refresh() {
     if (!window.CAEKDB) { return; }
@@ -108,15 +101,15 @@ var CAEKCompression = (function () {
       var lots = (all || []).filter(function (l) {
         return !window.CAEKLaboFilter || CAEKLaboFilter.match(l && l.laboId);
       });
+      // Les lots en séchage (< 24 h hors bassin, non forcés) N'APPARAISSENT
+      // PAS ici : ils restent affichés dans le module Bassin, où se trouve
+      // aussi l'action « Passage forcé à la machine ».
       var sortis = (lots || []).filter(function (l) { return l.statut === "sorti"; });
       _aTester = sortis.filter(pretATester);
-      _enSechage = sortis.filter(function (l) { return !pretATester(l); });
       _historique = (lots || []).filter(function (l) { return l.statut === "teste"; });
       _aTester.sort(function (a, b) { return String(a.datePrevue).localeCompare(String(b.datePrevue)); });
-      _enSechage.sort(function (a, b) { return String(a.sortiAt || "").localeCompare(String(b.sortiAt || "")); });
       _historique.sort(function (a, b) { return String(b.dateEssai || "").localeCompare(String(a.dateEssai || "")); });
       renderAtester();
-      renderSechage();
       renderHistorique();
     });
   }
@@ -170,67 +163,8 @@ var CAEKCompression = (function () {
     }).join("");
   }
 
-  /* ---------- Lots en séchage (délai 24 h hors bassin) ---------- */
-  var MOTIFS_FORCE = ["Éprouvette ayant dépassé son séjour", "Jour férié",
-    "Problème machine / presse", "Contrainte exceptionnelle du laboratoire", "Autre"];
-
-  function sechageCardInner(l) {
-    var h = heuresRestantes(l);
-    return "<div class=\"rep-top\"><span class=\"rep-ref\">" + escapeHtml(l.ref) + "</span>" +
-      "<span class=\"comp-type\">" + escapeHtml(formeLabel(defaultForme(l.type))) + " · " +
-      escapeHtml(l.age === "autre" ? l.ageJours + "j" : l.age) + "</span></div>" +
-      "<div class=\"rep-ent\">" + escapeHtml(l.client || "—") + "</div>" +
-      "<div class=\"rep-tot\">" + intOr0(l.nombre) + " éprouvette(s) · sortie le " +
-      escapeHtml(fmtDate(l.dateSortie)) + (l.heureSortie ? " à " + escapeHtml(l.heureSortie) : "") + "</div>" +
-      "<div class=\"comp-sechage-reste\">&#9203; Disponible pour essai dans ~<strong>" + h + " h</strong></div>" +
-      "<button type=\"button\" class=\"btn-text comp-forcer\" data-id=\"" + l.id + "\">&#9888; Forcer le passage maintenant</button>";
-  }
-
-  function renderSechage() {
-    var section = $("comp-sechage-section");
-    var box = $("comp-sechage-liste");
-    if (!section || !box) { return; }
-    if (!_enSechage.length) { section.hidden = true; box.innerHTML = ""; return; }
-    section.hidden = false;
-    box.innerHTML = _enSechage.map(function (l) {
-      return "<div class=\"comp-sechage-card\">" + sechageCardInner(l) + "</div>";
-    }).join("");
-  }
-
-  // Passage anticipé (avant 24 h) : exceptionnel, motif obligatoire + confirmation.
-  function forcer(id) {
-    var lot = findLot(_enSechage, id);
-    if (!lot) { return; }
-    var prof = window.CAEKProfil
-      ? CAEKProfil.require("Profil opérateur requis pour forcer le passage avant 24 h.")
-      : { nom: "", qualification: "" };
-    if (!prof) { return; }
-    var liste = MOTIFS_FORCE.map(function (m, i) { return (i + 1) + ". " + m; }).join("\n");
-    var rep = window.prompt("Passage anticipé (moins de 24 h hors bassin) — action exceptionnelle.\n\n" +
-      "Indiquez le motif (numéro ou texte libre) :\n" + liste);
-    if (rep == null) { return; }
-    rep = String(rep).trim();
-    if (!rep) { window.alert("Le motif est obligatoire pour forcer le passage."); return; }
-    var n = parseInt(rep, 10);
-    var motif = (!isNaN(n) && n >= 1 && n <= MOTIFS_FORCE.length) ? MOTIFS_FORCE[n - 1] : rep;
-    if (motif === "Autre") {
-      var autre = window.prompt("Précisez le motif :");
-      if (autre == null || !String(autre).trim()) { window.alert("Motif obligatoire."); return; }
-      motif = String(autre).trim();
-    }
-    if (!window.confirm("Confirmer le passage anticipé de ce lot en « À tester » ?\nMotif : " + motif)) { return; }
-    lot.forceTest = true;
-    lot.forceMotif = motif;
-    lot.forceAt = new Date().toISOString();
-    lot.forceOperateur = prof.nom || "";
-    CAEKDB.updateLot(lot).then(function () {
-      return CAEKDB.addJournal({ type: "forcage_essai", ref: lot.ref, lotId: lot.id,
-        operateur: prof.nom || "", qualification: prof.qualification || "", motif: motif });
-    }).then(function () {
-      refresh();
-      if (window.CAEKBadges) { CAEKBadges.refresh(); }
-    }).catch(function (err) { window.alert("Erreur : " + (err && err.message || err)); });
-  }
+  /* Les lots en séchage sont gérés dans le module BASSIN (zone « lots
+     sortis »), y compris le « Passage forcé à la machine ». */
 
   /* ============================================================
      SAISIE D'UN ESSAI (overlay)
@@ -791,15 +725,6 @@ var CAEKCompression = (function () {
       aBox.addEventListener("click", function (ev) {
         var b = ev.target.closest ? ev.target.closest(".comp-lot-card") : null;
         if (b) { openLotTest(intOr0(b.getAttribute("data-id"))); }
-      });
-    }
-
-    // Lots en séchage : bouton « forcer le passage ».
-    var sBox = $("comp-sechage-liste");
-    if (sBox) {
-      sBox.addEventListener("click", function (ev) {
-        var f = ev.target.closest ? ev.target.closest(".comp-forcer") : null;
-        if (f) { forcer(intOr0(f.getAttribute("data-id"))); }
       });
     }
 

@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 /* ============================================================
    Module Béton - CAEK — Bilingue FR / AR (parcours opérateur).
    Moteur repris de l'app « Essai de contrôle in situ » :
@@ -154,7 +154,7 @@ var I18N = (function () {
     "Lieu / désignation": "المكان / التسمية",
     "Code (racine de la référence)": "الرمز (أصل المرجع)",
     "Modèle enregistré": "نموذج محفوظ",
-    "Fournisseur / centrale": "المورّد / المحطة",
+    "Fournisseur / centrale": "الصيغة / محطة الخرسانة / مكونات الخرسانة",
     "Fournisseur / centrale béton": "المورّد / محطة الخرسانة",
     "Classe béton": "صنف الخرسانة",
     "Type de ciment": "نوع الإسمنت",
@@ -243,7 +243,7 @@ var I18N = (function () {
     "Données du malaxeur / toupie": "بيانات الخلّاطة / الشاحنة",
     "Heure de prélèvement": "وقت أخذ العيّنة",
     "Quantité de béton (m³)": "كمية الخرسانة (m³)",
-    "Formulation / Centrale": "الصيغة / المحطة الخرسانة / مكونات الخرسانة",
+    "Formulation / Centrale": "الصيغة / محطة الخرسانة / مكونات الخرسانة",
     "Saisie": "إدخال",
     "Photo BL": "صورة وصل التسليم",
     "Photo du BL / formulation": "صورة وصل التسليم / الصيغة",
@@ -417,7 +417,30 @@ var I18N = (function () {
     "Agrégat 3/8 (kg/m³)": "حصى 3/8 (kg/m³)",
     "Agrégat 8/15 (kg/m³)": "حصى 8/15 (kg/m³)",
     "Agrégat 15/25 (kg/m³)": "حصى 15/25 (kg/m³)",
-    "Lecture du formulaire impossible.": "تعذّرت قراءة النموذج."
+    "Lecture du formulaire impossible.": "تعذّرت قراءة النموذج.",
+
+    // ---- Formulation (choix photo / saisie) ----
+    "Photo formulation": "صورة الصيغة",
+    "Saisie formulation": "إدخال الصيغة",
+    "Choisissez : photographier la formulation (BL) ou la saisir (manuellement ou depuis un modèle enregistré).": "اختر: تصوير الصيغة (وصل التسليم) أو إدخالها (يدويًا أو من نموذج محفوظ).",
+    "Prendre une photo": "التقاط صورة",
+    "Choisir dans la galerie": "اختيار من المعرض",
+
+    // ---- Bassin : séchage + passage forcé ----
+    "En séchage (délai 24 h hors bassin)": "قيد التجفيف (مهلة 24 ساعة خارج الحوض)",
+    "Disponible pour essai dans ~": "متاح للاختبار بعد ~",
+    "Passage forcé à la machine": "مرور قسري إلى الآلة",
+    "Passage forcé": "مرور قسري",
+    "Motif obligatoire.": "السبب إجباري.",
+    "Saisie de l'essai dans le module « Test de compression ».": "إدخال الاختبار في وحدة «اختبار الضغط».",
+    "Aucun lot sorti pour essai. Sortez d'abord des lots depuis le bassin.": "لا توجد مجموعة خارجة للاختبار. أخرج المجموعات من الحوض أولاً.",
+
+    // ---- Correction : formulation depuis un modèle ----
+    "Choisir une formulation enregistrée": "اختيار صيغة محفوظة",
+    "Enregistrer cette formulation comme modèle": "حفظ هذه الصيغة كنموذج",
+    "Renseignez d'abord le fournisseur / la centrale.": "أدخل أولاً المورّد / المحطة.",
+    "Échec de l'enregistrement du modèle.": "فشل حفظ النموذج.",
+    "— Choisir un modèle (facultatif) —": "— اختر نموذجًا (اختياري) —"
   };
 
   var MIXED = [
@@ -437,6 +460,8 @@ var I18N = (function () {
     ["coulé le", "صُبّ بتاريخ"],
     ["éprouvette(s)", "عيّنة"],
     ["lot(s) à tester", "مجموعة للاختبار"],
+    ["éprouvettes restantes", "عيّنات متبقية"],
+    ["éprouvette restante", "عيّنة متبقية"],
     ["fiche(s) à répartir", "بطاقة للتوزيع"],
     ["éprouvettes cassées", "عيّنات مكسّرة"],
     ["kg estimés", "كغ تقديري"],
@@ -459,7 +484,7 @@ var I18N = (function () {
     ["Bloc / Étage", "بلوك / الطابق"],
     ["Ouvrages", "العناصر"],
     ["Totaux", "الإجماليات"],
-    ["Formulation / Centrale", "الصيغة / المحطة الخرسانة / مكونات الخرسانة"],
+    ["Formulation / Centrale", "الصيغة / محطة الخرسانة / مكونات الخرسانة"],
     ["Formulation / BL", "الصيغة / وصل التسليم"],
     ["Bon de livraison", "وصل التسليم"],
     ["Éprouvettes", "العيّنات"],

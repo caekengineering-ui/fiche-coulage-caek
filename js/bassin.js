@@ -620,6 +620,72 @@ var CAEKBassin = (function () {
     });
   }
 
+  /* ---------- Séchage 24 h + passage forcé à la machine ---------- */
+  var DELAI_SECHAGE_MS = 24 * 60 * 60 * 1000;
+  var MOTIFS_FORCE = ["Éprouvette ayant dépassé son séjour", "Jour férié",
+    "Problème machine / presse", "Contrainte exceptionnelle du laboratoire", "Autre"];
+
+  function TT(s) { return (window.I18N && I18N.T) ? I18N.T(s) : s; }
+
+  function sortiAtMs(l) {
+    var t = l && l.sortiAt ? Date.parse(l.sortiAt) : NaN;
+    return isNaN(t) ? null : t;
+  }
+  // Prêt pour l'essai : forcé, sans horodatage (ancienne donnée), ou 24 h écoulées.
+  function lotPretEssai(l) {
+    if (l.forceTest) { return true; }
+    var t = sortiAtMs(l);
+    if (t == null) { return true; }
+    return (Date.now() - t) >= DELAI_SECHAGE_MS;
+  }
+  function heuresRestantesSechage(l) {
+    var t = sortiAtMs(l);
+    if (t == null) { return 0; }
+    var ms = DELAI_SECHAGE_MS - (Date.now() - t);
+    return ms > 0 ? Math.ceil(ms / 3600000) : 0;
+  }
+
+  // Passage anticipé (avant 24 h) : exceptionnel, motif obligatoire.
+  // L'action se fait DEPUIS LE BASSIN (zone des lots sortis), pas depuis
+  // le module compression. Les motifs sont traduits (TT) avant affichage.
+  function forcerPassage(id) {
+    var lot = null;
+    for (var i = 0; i < _lots.length; i++) { if (_lots[i].id === id) { lot = _lots[i]; break; } }
+    if (!lot || lot.statut !== "sorti" || lotPretEssai(lot)) { return; }
+    var prof = window.CAEKProfil
+      ? CAEKProfil.require("Profil opérateur requis pour forcer le passage avant 24 h.")
+      : { nom: "", qualification: "" };
+    if (!prof) { return; }
+    var liste = MOTIFS_FORCE.map(function (m, i2) { return (i2 + 1) + ". " + TT(m); }).join("\n");
+    var rep = window.prompt("Passage anticipé (moins de 24 h hors bassin) — action exceptionnelle.\n\n" +
+      "Indiquez le motif (numéro ou texte libre) :\n" + liste);
+    if (rep == null) { return; }
+    rep = String(rep).trim();
+    if (!rep) { window.alert("Le motif est obligatoire pour forcer le passage."); return; }
+    var n = parseInt(rep, 10);
+    var motif = (!isNaN(n) && n >= 1 && n <= MOTIFS_FORCE.length) ? MOTIFS_FORCE[n - 1] : rep;
+    if (motif === "Autre") {
+      var autre = window.prompt("Précisez le motif :");
+      if (autre == null || !String(autre).trim()) { window.alert("Motif obligatoire."); return; }
+      motif = String(autre).trim();
+    }
+    if (!window.confirm("Confirmer le passage anticipé de ce lot en « À tester » ?\n" +
+      TT("Motif :") + " " + TT(motif))) { return; }
+    lot.forceTest = true;
+    lot.forceMotif = motif;
+    lot.forceAt = new Date().toISOString();
+    lot.forceOperateur = prof.nom || "";
+    CAEKDB.updateLot(lot).then(function () {
+      return CAEKDB.addJournal({ type: "forcage_essai", ref: lot.ref, lotId: lot.id,
+        operateur: prof.nom || "", qualification: prof.qualification || "", motif: motif });
+    }).then(function () {
+      $("bassin-detail").hidden = true;
+      refreshBassin();
+      if (window.CAEKBadges) { CAEKBadges.refresh(); }
+      if (window.CAEKCompression) { CAEKCompression.refresh(); }
+    }).catch(function (err) { window.alert("Erreur : " + (err && err.message || err)); });
+  }
+
   // Forme selon le type : carré=cube, cercle=cylindre, hexagone=mixte.
   function shapeFormClass(type) {
     if (type === "cylindre") { return "shape-cyl"; }
@@ -745,8 +811,22 @@ var CAEKBassin = (function () {
         " à " + escapeHtml(lot.heureSortie || "") + " par " + escapeHtml(lot.operateurSortie || "") +
         (lot.motifSortie ? "<br>Motif : " + escapeHtml(lot.motifSortie) : "") +
         (lot.observationSortie ? "<br>Obs. : " + escapeHtml(lot.observationSortie) : "") +
-        "<br><span class=\"opt\">Saisie de l'essai dans le module « Test de compression ».</span>" +
         "</div>";
+      if (!lotPretEssai(lot)) {
+        // Encore en séchage : l'essai n'est pas proposé dans le module
+        // compression ; le passage forcé se fait ICI (exceptionnel, motif).
+        action += "<div class=\"result-card is-warn\">&#9203; En séchage (délai 24 h hors bassin)<br>" +
+          "Disponible pour essai dans ~<strong>" + heuresRestantesSechage(lot) + " h</strong></div>" +
+          "<button type=\"button\" class=\"btn-primary bassin-forcer\" data-id=\"" + lot.id + "\">" +
+          "&#128296; Passage forcé à la machine</button>";
+      } else {
+        if (lot.forceTest) {
+          action += "<div class=\"result-card\">&#128296; Passage forcé" +
+            (lot.forceOperateur ? " par " + escapeHtml(lot.forceOperateur) : "") +
+            (lot.forceMotif ? "<br>Motif : " + escapeHtml(lot.forceMotif) : "") + "</div>";
+        }
+        action += "<div class=\"result-card\"><span class=\"opt\">Saisie de l'essai dans le module « Test de compression ».</span></div>";
+      }
     } else {
       action = sortieFormHtml(st);
     }
@@ -1030,6 +1110,8 @@ var CAEKBassin = (function () {
         if (ev.target === overlay) { overlay.hidden = true; return; }
         if (ev.target.closest && ev.target.closest("#bassin-detail-close")) { overlay.hidden = true; return; }
         if (ev.target.closest && ev.target.closest("#sortie-valider")) { confirmSortie(); return; }
+        var fb = ev.target.closest ? ev.target.closest(".bassin-forcer") : null;
+        if (fb) { forcerPassage(intOr0(fb.getAttribute("data-id"))); return; }
         var rev = ev.target.closest ? ev.target.closest(".bassin-revoir") : null;
         if (rev) {
           overlay.hidden = true;
