@@ -37,7 +37,8 @@ var CAEKSync = (function () {
       clientId: c.client_id, nom: c.nom || "",
       adresse: c.adresse || "", ville: c.ville || "",
       contactNom: c.contact_nom || "", contactTel: c.contact_tel || "",
-      email: c.email || "", actif: c.actif !== false,
+      email: c.email || "", labo: c.labo || "",
+      actif: c.actif !== false,
       dateMaj: new Date().toISOString()
     };
   }
@@ -53,7 +54,10 @@ var CAEKSync = (function () {
       referenceCommande: p.reference_commande || "",
       referenceDossier: p.reference_dossier || "",
       resistance: res,
+      conversionDefaut: p.conversion_defaut || "",
+      facteurConversion: p.facteur_conversion || "",
       agesEssai: Array.isArray(p.ages_essai) ? p.ages_essai : [7, 28],
+      labo: p.labo || "",
       actif: p.actif !== false,
       dateMaj: new Date().toISOString()
     };
@@ -126,6 +130,7 @@ var CAEKSync = (function () {
       return CAEKServer.adminUpsertClient(token, {
         clientId: c.clientId, nom: c.nom, adresse: c.adresse, ville: c.ville,
         contactNom: c.contactNom, contactTel: c.contactTel, email: c.email,
+        labo: c.labo || "",
         notes: "", actif: c.actif !== false
       });
     }).then(function (nC) {
@@ -134,8 +139,11 @@ var CAEKSync = (function () {
           codeProjet: p.codeProjet, clientId: p.clientId, nomProjet: p.nomProjet,
           localisation: p.localisation,
           resistanceMpa: (p.resistance === "" || p.resistance == null) ? "" : String(p.resistance),
+          conversionDefaut: p.conversionDefaut || "",
+          facteurConversion: p.facteurConversion || "",
           referenceCommande: p.referenceCommande, referenceDossier: p.referenceDossier,
           agesEssai: Array.isArray(p.agesEssai) && p.agesEssai.length ? p.agesEssai : [7, 28],
+          labo: p.labo || "",
           actif: p.actif !== false
         });
       }).then(function (nP) { return { nC: nC, nP: nP }; });

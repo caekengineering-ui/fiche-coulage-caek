@@ -20,6 +20,8 @@ var CAEKCompression = (function () {
   var DEF_CYL = { d1: 160, d2: 320 };        // diametre x hauteur (mm)
 
   function $(id) { return document.getElementById(id); }
+  function tr(s) { return window.I18N ? I18N.T(s) : s; }
+  function trf(s, vars) { return window.I18N ? I18N.f(s, vars) : s.replace(/\{(\w+)\}/g, function (_, k) { return vars[k] || ""; }); }
   function intOr0(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
   function num(v) { var n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? 0 : n; }
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
@@ -41,7 +43,7 @@ var CAEKCompression = (function () {
     if (!a || !b) { return ""; }
     return Math.round((toD(b) - toD(a)) / 86400000);
   }
-  function formeLabel(f) { return f === "cylindre" ? "Cylindre" : "Cube"; }
+  function formeLabel(f) { return tr(f === "cylindre" ? "Cylindre" : "Cube"); }
 
   // Forme physique d'une eprouvette a partir du type de codification.
   // "mixte" est ambigu pour une eprouvette isolee -> cube par defaut (modifiable).
@@ -176,31 +178,31 @@ var CAEKCompression = (function () {
 
   function rowHtml(e, i) {
     var isCyl = (e.forme === "cylindre");
-    var l1 = isCyl ? "Ø (mm)" : "Larg. (mm)";
-    var l2 = isCyl ? "Haut. (mm)" : "Long. (mm)";
+    var l1 = isCyl ? "Ø (mm)" : tr("Larg. (mm)");
+    var l2 = isCyl ? tr("Haut. (mm)") : tr("Long. (mm)");
     return "<div class=\"comp-row\" data-code=\"" + escapeHtml(e.code) + "\" data-i=\"" + i + "\">" +
       "<div class=\"comp-row-head\"><span class=\"comp-code\">" + escapeHtml(e.code) +
         " <span class=\"comp-num\">n°" + (i + 1) + "</span></span>" +
         "<select class=\"field comp-forme\">" +
-          "<option value=\"cube\"" + (isCyl ? "" : " selected") + ">Cube</option>" +
-          "<option value=\"cylindre\"" + (isCyl ? " selected" : "") + ">Cylindre</option>" +
+          "<option value=\"cube\"" + (isCyl ? "" : " selected") + ">" + tr("Cube") + "</option>" +
+          "<option value=\"cylindre\"" + (isCyl ? " selected" : "") + ">" + tr("Cylindre") + "</option>" +
         "</select></div>" +
       "<div class=\"comp-grid\">" +
         "<label class=\"comp-f\"><span class=\"comp-f-lbl comp-l1\">" + l1 + "</span>" +
           "<input class=\"field comp-d1\" type=\"number\" inputmode=\"decimal\" step=\"any\" min=\"0\" value=\"" + (e.dim1 || "") + "\"></label>" +
         "<label class=\"comp-f\"><span class=\"comp-f-lbl comp-l2\">" + l2 + "</span>" +
           "<input class=\"field comp-d2\" type=\"number\" inputmode=\"decimal\" step=\"any\" min=\"0\" value=\"" + (e.dim2 || "") + "\"></label>" +
-        "<label class=\"comp-f\"><span class=\"comp-f-lbl\">Masse (kg)</span>" +
+        "<label class=\"comp-f\"><span class=\"comp-f-lbl\">" + tr("Masse (kg)") + "</span>" +
           "<input class=\"field comp-masse\" type=\"number\" inputmode=\"decimal\" step=\"any\" min=\"0\" value=\"" + (e.masse || "") + "\"></label>" +
-        "<label class=\"comp-f\"><span class=\"comp-f-lbl\">Date essai</span>" +
+        "<label class=\"comp-f\"><span class=\"comp-f-lbl\">" + tr("Date essai") + "</span>" +
           "<input class=\"field comp-date\" type=\"date\" value=\"" + (e.dateEssai || todayStr()) + "\"></label>" +
-        "<label class=\"comp-f\"><span class=\"comp-f-lbl\">Force (kN)</span>" +
+        "<label class=\"comp-f\"><span class=\"comp-f-lbl\">" + tr("Force (kN)") + "</span>" +
           "<input class=\"field comp-force\" type=\"number\" inputmode=\"decimal\" step=\"any\" min=\"0\" value=\"" + (e.force || "") + "\"></label>" +
-        "<label class=\"comp-f\"><span class=\"comp-f-lbl\">Rc (MPa)</span>" +
+        "<label class=\"comp-f\"><span class=\"comp-f-lbl\">" + tr("Rc (MPa)") + "</span>" +
           "<input class=\"field comp-rc\" type=\"number\" inputmode=\"decimal\" step=\"any\" min=\"0\" value=\"" + (e.rc || "") + "\"></label>" +
       "</div>" +
       "<div class=\"comp-row-foot\"><span class=\"comp-surface\"></span>" +
-        "<input class=\"field comp-obs\" type=\"text\" placeholder=\"Observation\" value=\"" + escapeHtml(e.observation || "") + "\"></div>" +
+        "<input class=\"field comp-obs\" type=\"text\" placeholder=\"" + tr("Observation") + "\" value=\"" + escapeHtml(e.observation || "") + "\"></div>" +
       "</div>";
   }
 
@@ -242,23 +244,23 @@ var CAEKCompression = (function () {
 
     var rows = _editEssais.map(rowHtml).join("");
     body.innerHTML =
-      "<h2 class=\"block-title\">Essai du lot " + escapeHtml(lot.ref) + "</h2>" +
+      "<h2 class=\"block-title\">" + tr("Essai du lot") + " " + escapeHtml(lot.ref) + "</h2>" +
       "<div class=\"det-grid\">" +
-        detRow("Client", lot.client) +
-        detRow("Projet", lot.nomProjet) +
-        detRow("Ouvrage", [lot.ouvrage, [lot.bloc, lot.etage].filter(Boolean).join(" / ")].filter(Boolean).join(" — ")) +
-        detRow("Âge", lot.age === "autre" ? lot.ageJours + " jours" : lot.age) +
-        detRow("Date de coulage", fmtDate(lot.dateCoulage)) +
-        detRow("Nombre", intOr0(lot.nombre) + " éprouvette(s)") +
+        detRow(tr("Client"), lot.client) +
+        detRow(tr("Projet"), lot.nomProjet) +
+        detRow(tr("Ouvrage"), [lot.ouvrage, [lot.bloc, lot.etage].filter(Boolean).join(" / ")].filter(Boolean).join(" — ")) +
+        detRow(tr("Âge"), lot.age === "autre" ? lot.ageJours + " " + tr("jours") : lot.age) +
+        detRow(tr("Date de coulage"), fmtDate(lot.dateCoulage)) +
+        detRow(tr("Nombre"), intOr0(lot.nombre) + " " + tr("éprouvette(s)")) +
       "</div>" +
       "<div class=\"comp-defaults\">" +
-        "<p class=\"hint\">Dimensions par défaut — Cube : <strong>150×150 mm</strong> · Cylindre : <strong>Ø160×320 mm</strong>.</p>" +
-        "<button type=\"button\" class=\"btn-secondary\" id=\"comp-apply-all\">&#128203; Appliquer ces dimensions à tout le lot</button>" +
+        "<p class=\"hint\">" + tr("Dimensions par défaut") + " — " + tr("Cube") + " : <strong>150×150 mm</strong> · " + tr("Cylindre") + " : <strong>Ø160×320 mm</strong>.</p>" +
+        "<button type=\"button\" class=\"btn-secondary\" id=\"comp-apply-all\">&#128203; " + tr("Appliquer ces dimensions à tout le lot") + "</button>" +
       "</div>" +
       "<div id=\"comp-rows\">" + rows + "</div>" +
       "<div class=\"comp-valider-wrap\">" +
-        "<button type=\"button\" class=\"btn-secondary\" id=\"comp-save-draft\">&#128190; Enregistrer (brouillon)</button>" +
-        "<button type=\"button\" class=\"btn-primary\" id=\"comp-valider\">&#10004; Valider l'essai du lot</button>" +
+        "<button type=\"button\" class=\"btn-secondary\" id=\"comp-save-draft\">&#128190; " + tr("Enregistrer (brouillon)") + "</button>" +
+        "<button type=\"button\" class=\"btn-primary\" id=\"comp-valider\">&#10004; " + tr("Valider l'essai du lot") + "</button>" +
       "</div>" +
       "<div id=\"comp-detail-result\" class=\"result-card\" hidden></div>";
 
@@ -281,7 +283,7 @@ var CAEKCompression = (function () {
     var d2 = rowEl.querySelector(".comp-d2").value;
     var s = surfaceMm2(forme, d1, d2);
     var span = rowEl.querySelector(".comp-surface");
-    if (span) { span.textContent = s > 0 ? ("Surface : " + Math.round(s) + " mm²") : "Surface : —"; }
+    if (span) { span.textContent = s > 0 ? (tr("Surface") + " : " + Math.round(s) + " mm²") : (tr("Surface") + " : —"); }
   }
 
   // Recalcule en gardant la grandeur saisie en dernier (force prioritaire).
@@ -306,8 +308,8 @@ var CAEKCompression = (function () {
 
   function relabelRow(rowEl) {
     var isCyl = rowEl.querySelector(".comp-forme").value === "cylindre";
-    rowEl.querySelector(".comp-l1").textContent = isCyl ? "Ø (mm)" : "Larg. (mm)";
-    rowEl.querySelector(".comp-l2").textContent = isCyl ? "Haut. (mm)" : "Long. (mm)";
+    rowEl.querySelector(".comp-l1").textContent = isCyl ? "Ø (mm)" : tr("Larg. (mm)");
+    rowEl.querySelector(".comp-l2").textContent = isCyl ? tr("Haut. (mm)") : tr("Long. (mm)");
   }
 
   function applyDefaultsAll() {
@@ -563,21 +565,21 @@ var CAEKCompression = (function () {
       return "<div class=\"comp-hist-item\">" +
         "<div class=\"rep-top\"><span class=\"rep-ref\">&#10004; " + escapeHtml(l.ref) + "</span>" +
         "<span class=\"comp-type\">" + escapeHtml(l.age === "autre" ? l.ageJours + "j" : l.age) +
-        " · essai le " + escapeHtml(fmtDate(l.dateEssai)) + "</span></div>" +
+        " · " + tr("essai le") + " " + escapeHtml(fmtDate(l.dateEssai)) + "</span></div>" +
         "<div class=\"rep-ent\">" + escapeHtml(l.client || "—") + "</div>" +
         "<div class=\"rep-sub\">" + escapeHtml(l.nomProjet || "") +
         (l.ouvrage ? " · " + escapeHtml(l.ouvrage) : "") +
         (zone ? " · " + escapeHtml(zone) : "") + "</div>" +
-        "<div class=\"comp-hist-ctx\">Coulé le " + escapeHtml(fmtDate(l.dateCoulage)) +
-        (l.ouvrageAutre ? " · Autres : " + escapeHtml(l.ouvrageAutre) : "") + "</div>" +
+        "<div class=\"comp-hist-ctx\">" + tr("Coulé le") + " " + escapeHtml(fmtDate(l.dateCoulage)) +
+        (l.ouvrageAutre ? " · " + tr("Autres") + " : " + escapeHtml(l.ouvrageAutre) : "") + "</div>" +
         (l.ecartEssai ? "<div class=\"comp-hist-ecart\">&#9888; Essai hors date prévue (prévu " +
           intOr0(l.agePrevu) + " j" + (l.datePrevue ? ", le " + escapeHtml(fmtDate(l.datePrevue)) : "") + ")" +
-          (l.motifEcart ? " — " + escapeHtml(l.motifEcart) : "") +
+          (l.motifEcart ? " — " + escapeHtml(tr(l.motifEcart)) : "") +
           (l.justificationEcart ? " : " + escapeHtml(l.justificationEcart) : "") + "</div>" : "") +
         "<div class=\"comp-hist-table-wrap\"><table class=\"comp-hist-table\">" +
-        "<thead><tr><th>N°</th><th>Code</th><th>Type</th><th>Dim.</th><th>Masse</th><th>F (kN)</th><th>Rc</th><th>Date (âge)</th><th>Obs.</th></tr></thead>" +
+        "<thead><tr><th>N°</th><th>Code</th><th>" + tr("Type") + "</th><th>" + tr("Dim.") + "</th><th>" + tr("Masse") + "</th><th>F (kN)</th><th>Rc</th><th>" + tr("Date (âge)") + "</th><th>" + tr("Obs.") + "</th></tr></thead>" +
         "<tbody>" + lignes + "</tbody></table></div>" +
-        "<div class=\"comp-hist-meta\">Opérateur : " + escapeHtml(l.operateurEssai || "—") +
+        "<div class=\"comp-hist-meta\">" + tr("Opérateur") + " : " + escapeHtml(l.operateurEssai || "—") +
         (l.qualificationEssai ? " (" + escapeHtml(l.qualificationEssai) + ")" : "") + "</div>" +
         "</div>";
     }).join("");

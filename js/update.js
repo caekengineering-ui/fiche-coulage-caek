@@ -76,6 +76,7 @@ var CAEKUpdate = (function () {
     contacttel: "contactTel", telephone: "contactTel", tel: "contactTel",
     email: "email",
     notes: "notes",
+    laboratoire: "labo", labo: "labo",
     actif: "actif"
   };
 
@@ -86,12 +87,24 @@ var CAEKUpdate = (function () {
     nomprojet: "nomProjet", projet: "nomProjet",
     localisation: "localisation", adresse: "localisation", ville: "localisation",
     resistancerequisempa: "resistance", resistancerequise: "resistance", resistance: "resistance", resistancempa: "resistance",
+    conversiondefaut: "conversionDefaut", conversion: "conversionDefaut",
+    facteurconversion: "facteurConversion", facteur: "facteurConversion",
     referencecommande: "referenceCommande", refcommande: "referenceCommande",
     referencedossier: "referenceDossier", refdossier: "referenceDossier",
     agesessai: "agesEssai", agesdessai: "agesEssai", ageessai: "agesEssai", agedessai: "agesEssai",
     ages: "agesEssai", echeances: "agesEssai", echeancesessai: "agesEssai",
+    laboratoire: "labo", labo: "labo",
     entreprise: "entreprise", societe: "entreprise"
   };
+
+  // Laboratoire lié (liste déroulante Béchar / Oran) : libellé normalisé.
+  function cleanLabo(v) {
+    var s = cleanStr(v).toLowerCase();
+    if (!s) { return ""; }
+    if (s.indexOf("bechar") >= 0 || s.indexOf("béchar") >= 0) { return "Béchar"; }
+    if (s.indexOf("oran") >= 0) { return "Oran"; }
+    return cleanStr(v);
+  }
 
   // Pseudo-clientId pour l'ancien format (base sur le nom d'entreprise).
   function slugClient(nom) {
@@ -139,6 +152,7 @@ var CAEKUpdate = (function () {
             contactNom: cleanStr(cell(rC, colC, "contactNom")),
             contactTel: cleanStr(cell(rC, colC, "contactTel")),
             email: cleanStr(cell(rC, colC, "email")),
+            labo: cleanLabo(cell(rC, colC, "labo")),
             actif: isActif(cell(rC, colC, "actif")),
             dateMaj: nowIso
           };
@@ -197,7 +211,10 @@ var CAEKUpdate = (function () {
         referenceCommande: cleanStr(cell(rP, colP, "referenceCommande")),
         referenceDossier: cleanStr(cell(rP, colP, "referenceDossier")),
         resistance: res,
+        conversionDefaut: cleanStr(cell(rP, colP, "conversionDefaut")),
+        facteurConversion: cleanStr(cell(rP, colP, "facteurConversion")),
         agesEssai: parseAges(cell(rP, colP, "agesEssai")),
+        labo: cleanLabo(cell(rP, colP, "labo")),
         actif: isActif(cell(rP, colP, "actif")),
         dateMaj: nowIso
       };

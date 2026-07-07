@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#CC0000">
   <title>Module Béton - CAEK</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="assets/icons/icon-192.png">
-  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <link rel="icon" href="assets/icons/favicon.png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -756,17 +756,17 @@
         <div class="status-line"><span class="status-label">Dernière synchro :</span> <span id="status-date">—</span></div>
         <div class="status-line"><span class="status-label">Clients :</span> <span id="status-count-clients">0</span></div>
         <div class="status-line"><span class="status-label">Projets :</span> <span id="status-count">0</span></div>
-        <div class="status-line"><span class="status-label">Dernier fichier importé :</span> <span id="status-file">—</span></div>
+        <div class="status-line"><span class="status-label">Dernière synchro fichier :</span> <span id="status-file">—</span></div>
       </div>
 
       <button id="btn-sync" class="btn-primary" type="button">&#128260; Synchroniser depuis le serveur</button>
       <p class="hint">Récupère les clients et projets gérés par l'administrateur (réseau requis). La saisie fonctionne ensuite hors-ligne sur le terrain.</p>
 
       <div class="admin-only">
-        <h3 class="block-subtitle">&#128229; Import bureau (administrateur)</h3>
-        <label class="btn-secondary" for="update-file">&#128229; Importer client.xlsx vers le serveur</label>
+        <h3 class="block-subtitle">&#128229; Secours bureau (administrateur)</h3>
+        <label class="btn-secondary" for="update-file">&#128229; Importer client.xlsx manuellement</label>
         <input id="update-file" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden>
-        <p class="hint">Fichier Excel <strong>client.xlsx</strong> du bureau : feuilles <strong>CLIENTS</strong> et <strong>PROJETS</strong> (jointure par ClientID). Le contenu est envoyé sur le serveur puis partagé avec tous les laboratoires.</p>
+        <p class="hint">Option de secours uniquement. Le flux normal est : modifier dans l'application bureau, enregistrer, puis synchroniser depuis le serveur sur le téléphone.</p>
       </div>
 
       <div id="update-result" class="result-card" hidden></div>
