@@ -23,6 +23,7 @@ var I18N = (function () {
     "Bassin de conservation": "حوض الحفظ",
     "Test de compression": "اختبار الضغط",
     "Validation des coulages": "اعتماد عمليات الصبّ",
+    "Validation": "الاعتماد",
     "Vue laboratoire": "عرض المخبر",
     "Tous les laboratoires": "كل المخابر",
 

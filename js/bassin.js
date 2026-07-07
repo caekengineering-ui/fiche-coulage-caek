@@ -170,8 +170,12 @@ var CAEKBassin = (function () {
       });
       eligibles = eligibles.filter(laboOk);
       _repList = eligibles.filter(function (c) { return !c.bassinReparti; });
-      _doneList = eligibles.filter(function (c) { return !!c.bassinReparti; });
-      _doneList.forEach(function (c) { c._editable = !locked[c.ref]; });
+      // Répartitions déjà faites : on n'affiche QUE celles encore corrigibles
+      // (aucun lot écrasé/sorti/archivé). Les répartitions verrouillées
+      // (déjà écrasées ou archivées) sortent de cette vue pour la désencombrer ;
+      // les données restent en base, seul l'affichage change.
+      _doneList = eligibles.filter(function (c) { return !!c.bassinReparti && !locked[c.ref]; });
+      _doneList.forEach(function (c) { c._editable = true; });
 
       var byDate = function (a, b) {
         return String(b.dateRepartition || b.dateValidation || b.dateModification || "")
@@ -226,15 +230,14 @@ var CAEKBassin = (function () {
       }).join("");
     }
 
-    // Section « Répartitions déjà faites » : modifiable tant qu'aucun
-    // lot n'est écrasé ni archivé ; sinon verrouillée.
+    // Section « Répartitions déjà faites » : seules les répartitions encore
+    // corrigibles (aucun lot écrasé/sorti/archivé) sont listées ici. Les
+    // répartitions verrouillées ne sont plus affichées (désencombrement).
     if (_doneList.length) {
       html += "<div class=\"repb-section-titre\">Répartitions déjà faites</div>";
       html += _doneList.map(function (c) {
         var ref = escapeHtml(c.ref);
-        var action = c._editable
-          ? "<button type=\"button\" class=\"btn-text repb-revoir\" data-ref=\"" + ref + "\">&#9998; Revoir / corriger</button>"
-          : "<span class=\"repb-lock\">&#128274; Verrouillée : un lot a déjà été écrasé ou archivé.</span>";
+        var action = "<button type=\"button\" class=\"btn-text repb-revoir\" data-ref=\"" + ref + "\">&#9998; Revoir / corriger</button>";
         return "<div class=\"repb-item repb-done\" data-ref=\"" + ref + "\">" +
           "<div class=\"repb-head\">" + repCardInner(c) + "</div>" +
           action +

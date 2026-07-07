@@ -34,6 +34,12 @@ var CAEKPush = (function () {
   function isIOS() {
     return /iP(hone|ad|od)/.test(navigator.userAgent);
   }
+  // Navigateurs "in-app" (WebView Facebook, Instagram, Messenger, TikTok…)
+  // qui NE supportent PAS le Web Push : on redirige l'operateur vers Chrome.
+  function isInApp() {
+    var ua = navigator.userAgent || "";
+    return /(FBAN|FBAV|FB_IAB|Instagram|Messenger|MicroMessenger|Line\/|TikTok|Twitter|Snapchat|Pinterest)/i.test(ua);
+  }
 
   function urlBase64ToUint8Array(base64String) {
     var padding = "=".repeat((4 - base64String.length % 4) % 4);
@@ -52,23 +58,55 @@ var CAEKPush = (function () {
     return "Appareil";
   }
 
+  // Compare la cle de l'abonnement existant a la cle VAPID courante.
+  // Si une ANCIENNE cle est encore enregistree, l'abonnement echoue
+  // (InvalidStateError) : il faut alors se desabonner puis se reabonner.
+  function sameKey(existing) {
+    try {
+      var cur = urlBase64ToUint8Array(CAEK_CONFIG.VAPID_PUBLIC);
+      var old = existing && existing.options && existing.options.applicationServerKey;
+      if (!old) { return true; }
+      var ob = new Uint8Array(old);
+      if (ob.length !== cur.length) { return false; }
+      for (var i = 0; i < ob.length; i++) { if (ob[i] !== cur[i]) { return false; } }
+      return true;
+    } catch (e) { return true; }
+  }
+
+  // Abonnement robuste : reabonnement propre si l'ancienne cle differe, et
+  // 1 nouvel essai en cas d'erreur transitoire du service push (FCM).
+  function doSubscribe(reg, attempt) {
+    return reg.pushManager.getSubscription().then(function (existing) {
+      if (existing && sameKey(existing)) { return existing; }
+      var pre = existing ? existing.unsubscribe() : Promise.resolve();
+      return pre.then(function () {
+        return reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(CAEK_CONFIG.VAPID_PUBLIC)
+        });
+      });
+    }).catch(function (e) {
+      var msg = (e && e.message) || "";
+      if (attempt < 1 && /push service|Registration failed|AbortError|network/i.test(msg)) {
+        return new Promise(function (res) { setTimeout(res, 1500); })
+          .then(function () { return doSubscribe(reg, attempt + 1); });
+      }
+      throw e;
+    });
+  }
+
   // Abonne l'appareil et enregistre l'abonnement sur le serveur.
   function subscribe() {
     if (!supported()) { return Promise.resolve({ ok: false, error: "non_supporte" }); }
     if (!configured()) { return Promise.resolve({ ok: false, error: "non_configure" }); }
+    if (isInApp()) { return Promise.resolve({ ok: false, error: "inapp" }); }
     if (!window.CAEKOperateurs || !CAEKOperateurs.isLogged()) {
       return Promise.resolve({ ok: false, error: "non_connecte" });
     }
     return Notification.requestPermission().then(function (perm) {
       if (perm !== "granted") { return { ok: false, error: "refuse" }; }
       return navigator.serviceWorker.ready.then(function (reg) {
-        return reg.pushManager.getSubscription().then(function (existing) {
-          if (existing) { return existing; }
-          return reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(CAEK_CONFIG.VAPID_PUBLIC)
-          });
-        });
+        return doSubscribe(reg, 0);
       }).then(function (sub) {
         var json = sub.toJSON();
         return CAEKServer.savePushSubscription(CAEKOperateurs.token(), {
@@ -80,7 +118,11 @@ var CAEKPush = (function () {
         });
       });
     }).catch(function (e) {
-      return { ok: false, error: (e && e.message) || "erreur" };
+      var msg = (e && e.message) || "";
+      if (/push service|Registration failed|AbortError|network/i.test(msg)) {
+        return { ok: false, error: "push_service" };
+      }
+      return { ok: false, error: msg || "erreur" };
     });
   }
 
@@ -111,6 +153,7 @@ var CAEKPush = (function () {
   function currentState() {
     if (!supported()) { return Promise.resolve("non_supporte"); }
     if (!configured()) { return Promise.resolve("non_configure"); }
+    if (isInApp()) { return Promise.resolve("inapp"); }
     if (isIOS() && !isStandalone()) { return Promise.resolve("ios_installer"); }
     if (Notification.permission === "denied") { return Promise.resolve("bloque"); }
     return navigator.serviceWorker.ready.then(function (reg) {
@@ -129,6 +172,9 @@ var CAEKPush = (function () {
       } else if (st === "non_configure") {
         // Message clair pour l'opérateur (pas d'erreur technique VAPID brute).
         setStatus("&#128276; Notifications non configurées sur le serveur. Contactez l'administrateur.", "is-warn");
+        if (btn) { btn.hidden = true; }
+      } else if (st === "inapp") {
+        setStatus("&#128241; Les notifications ne fonctionnent pas dans le navigateur de Facebook. Ouvrez l'application dans <strong>Chrome</strong> (menu &#8942; &#8594; « Ouvrir dans le navigateur / Chrome »), puis installez-la sur l'écran d'accueil et réessayez.", "is-warn");
         if (btn) { btn.hidden = true; }
       } else if (st === "ios_installer") {
         setStatus("&#128241; Sur iPhone : ajoutez d'abord l'app à l'écran d'accueil (Partager &#8594; « Sur l'écran d'accueil »), puis rouvrez-la pour activer les notifications.", "is-warn");
@@ -156,11 +202,16 @@ var CAEKPush = (function () {
       btn.disabled = false;
       if (turningOn && r && !r.ok) {
         var msgs = {
-          refuse: "Permission refusée.", non_supporte: "Non supporté sur cet appareil.",
+          refuse: "Permission refusée. Autorisez les notifications dans les réglages du navigateur puis réessayez.",
+          non_supporte: "Cet appareil / navigateur ne gère pas les notifications.",
           non_configure: "Notifications non configurées sur le serveur. Contactez l'administrateur.",
-          non_connecte: "Connectez-vous d'abord.", serveur: "Enregistrement serveur impossible."
+          non_connecte: "Connectez-vous d'abord.",
+          serveur: "Enregistrement serveur impossible. Vérifiez votre connexion puis réessayez.",
+          inapp: "Ouvrez l'application dans Chrome (menu ⋮ → « Ouvrir dans le navigateur »), pas dans Facebook, puis réessayez.",
+          push_service: "Impossible de joindre le service de notifications. Ouvrez l'app dans Chrome (pas dans Facebook), vérifiez votre connexion, puis réessayez."
         };
-        setStatus("&#9888; " + (msgs[r.error] || ("Échec : " + r.error)), "is-error");
+        var cls = (r.error === "inapp") ? "is-warn" : "is-error";
+        setStatus("&#9888; " + (msgs[r.error] || "Activation impossible pour le moment. Réessayez dans un instant."), cls);
         return;
       }
       renderState();
