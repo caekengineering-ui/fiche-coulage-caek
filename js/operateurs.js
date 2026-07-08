@@ -345,6 +345,17 @@ var CAEKOperateurs = (function () {
       var cur = addLabo.value;
       addLabo.innerHTML = laboOptions(cur, true);
     }
+    // Cases « laboratoires vérifiés » du formulaire d'ajout (pour créer un
+    // admin de validation scopé directement, sans repasser par l'édition).
+    var addChecks = $("oper-add-adminlabo-checks");
+    if (addChecks) { addChecks.innerHTML = laboCheckboxes([], "oper-add-adminlabo"); }
+    toggleAddAdminLabo();
+  }
+
+  // Affiche les cases « laboratoires vérifiés » seulement pour le rôle Admin.
+  function toggleAddAdminLabo() {
+    var wrap = $("oper-add-adminlabo-wrap");
+    if (wrap) { wrap.hidden = (val("oper-add-role") !== "admin"); }
   }
 
   // Charge opérateurs + labos depuis le serveur (écran Administration).
@@ -451,7 +462,9 @@ var CAEKOperateurs = (function () {
       fonction: val("oper-add-qualif").trim(),
       is_admin: isAdm,
       actif: true,
-      labo_id: laboSel || null
+      labo_id: laboSel || null,
+      // Admin scopé (validation) si des labos sont cochés ; sinon principal.
+      admin_labos: isAdm ? readChecked(document, "oper-add-adminlabo") : null
     }, function () {
       clearVal("oper-add-nom", "oper-add-username", "oper-add-qualif", "oper-add-pin");
       operResult("&#10004; Opérateur ajouté.", false);
@@ -589,6 +602,7 @@ var CAEKOperateurs = (function () {
     var lp = $("login-pin");
     if (lp) { lp.addEventListener("keydown", function (e) { if (e.key === "Enter") { onLoginGo(); } }); }
     var addBtn = $("oper-add-btn"); if (addBtn) { addBtn.addEventListener("click", onAdd); }
+    var addRole = $("oper-add-role"); if (addRole) { addRole.addEventListener("change", toggleAddAdminLabo); }
     var lst = $("oper-liste"); if (lst) { lst.addEventListener("click", onListClick); }
     var lbl = $("labo-liste"); if (lbl) { lbl.addEventListener("click", onListClick); }
     var lba = $("labo-add-btn"); if (lba) { lba.addEventListener("click", onLaboAdd); }

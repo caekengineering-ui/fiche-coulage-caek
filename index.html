@@ -127,7 +127,7 @@
       <div id="profil-active"></div>
       <button id="profil-changer" class="btn-primary" type="button">&#128260; Changer d'opérateur</button>
       <button id="profil-pin" class="btn-secondary" type="button">&#128273; Changer mon code PIN</button>
-      <button class="btn-secondary admin-only" data-goto="screen-operateurs" type="button">&#9881;&#65039; Administration</button>
+      <button class="btn-secondary principal-only" data-goto="screen-operateurs" type="button">&#9881;&#65039; Administration</button>
       <div id="profil-result" class="result-card" hidden></div>
 
       <h3 class="block-subtitle">&#128276; Notifications</h3>
@@ -159,9 +159,9 @@
       <button class="btn-back" id="oper-back" type="button">&#8592; Retour</button>
       <h1 class="screen-title">Administration</h1>
       <p class="hint">Opérateurs et laboratoires — gérés en ligne. Chaque opérateur est affecté à un laboratoire (bassin + machine d'écrasement) : il ne voit que les éprouvettes de son labo.</p>
-      <div id="oper-admin-note" class="result-card is-error" hidden>&#128274; Écran réservé à l'administrateur.</div>
+      <div id="oper-admin-note" class="result-card is-error" hidden>&#128274; Écran réservé à l'administrateur principal.</div>
 
-      <div class="admin-only">
+      <div class="principal-only">
         <h3 class="block-subtitle">&#128101; Opérateurs</h3>
         <div id="oper-liste"><p class="hint">Chargement…</p></div>
 
@@ -179,6 +179,10 @@
         </select>
         <label class="field-label" for="oper-add-labo">Laboratoire d'affectation</label>
         <select id="oper-add-labo" class="field"></select>
+        <div id="oper-add-adminlabo-wrap" hidden>
+          <label class="field-label">Laboratoires vérifiés (administrateur — aucun coché = tous les labos = admin principal)</label>
+          <div id="oper-add-adminlabo-checks" class="oper-labo-checks"></div>
+        </div>
         <label class="field-label" for="oper-add-pin">Code PIN (4 à 6 chiffres)</label>
         <input id="oper-add-pin" class="field" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" placeholder="••••">
         <button id="oper-add-btn" class="btn-primary" type="button">&#10133; Ajouter l'opérateur</button>
@@ -750,7 +754,7 @@
       <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
       <h1 class="screen-title">Données &amp; synchronisation</h1>
 
-      <button class="btn-secondary" data-goto="screen-operateurs" type="button">&#128101; Administration (opérateurs &amp; laboratoires)</button>
+      <button class="btn-secondary principal-only" data-goto="screen-operateurs" type="button">&#128101; Administration (opérateurs &amp; laboratoires)</button>
 
       <div id="update-status" class="status-card">
         <div class="status-line"><span class="status-label">Dernière synchro :</span> <span id="status-date">—</span></div>

@@ -9,6 +9,11 @@
 --  - statuts  : en_bassin -> sorti -> teste (opérateur) -> valide (ADMIN,
 --    validation des résultats d'écrasement, immuable ensuite).
 --  Le scope par laboratoire vient du coulage parent.
+--
+--  DÉPENDANCE : ce fichier utilise _lot_scope_ok(), _admin_can() et la colonne
+--  operators.admin_labos, définis dans supabase_labos_permissions.sql. Appliquer
+--  CE DERNIER EN PREMIER (ou re-exécuter les deux) pour que le scope par labo
+--  d'un « admin de validation » soit réellement appliqué à ces RPC bassin.
 -- ============================================================================
 
 alter table public.lots add column if not exists lot_key text unique;
@@ -27,7 +32,14 @@ begin
   v_new_statut := coalesce(p_lot->>'statut', 'en_bassin');
   select * into c from public.coulages where ref = v_ref;
   if not found then return json_build_object('ok', false, 'error', 'coulage_introuvable'); end if;
-  if r.is_admin is not true and (r.labo_id is null or c.labo_id <> r.labo_id) then
+  -- Scope labo : opérateur -> son labo ; admin -> ses labos autorisés
+  -- (admin_labos vide/NULL = admin principal = tous). Un admin de validation
+  -- scopé NE peut PAS agir sur le lot d'un autre laboratoire.
+  if not (
+       (r.is_admin is true and (r.admin_labos is null or cardinality(r.admin_labos) = 0
+                                or c.labo_id = any(r.admin_labos)))
+    or (r.is_admin is not true and r.labo_id is not null and c.labo_id = r.labo_id)
+  ) then
     return json_build_object('ok', false, 'error', 'autre_labo');
   end if;
   select * into ex from public.lots where lot_key = p_key;
@@ -79,7 +91,8 @@ begin
   select * into ex from public.lots where lot_key = p_key;
   if not found then return json_build_object('ok', true); end if;
   if ex.statut = 'valide' then return json_build_object('ok', false, 'error', 'verrouille'); end if;
-  if r.is_admin is not true and (r.labo_id is null or ex.labo_id <> r.labo_id) then
+  -- Scope labo (admin scopé inclus) : réutilise le prédicat commun.
+  if not public._lot_scope_ok(r, ex) then
     return json_build_object('ok', false, 'error', 'autre_labo');
   end if;
   delete from public.lots where lot_key = p_key;
@@ -92,11 +105,13 @@ returns json language plpgsql security definer set search_path = public as $$
 declare r public.operators; l public.lots; v text;
 begin
   r := public._op_by_token(p_token);
-  if r.id is null or r.is_admin is not true then
-    return json_build_object('ok', false, 'error', 'admin');
-  end if;
+  if r.id is null then return json_build_object('ok', false, 'error', 'auth'); end if;
   select * into l from public.lots where lot_key = p_key;
   if not found then return json_build_object('ok', false, 'error', 'introuvable'); end if;
+  -- Réservé à l'admin, ET scopé à ses labos autorisés (admin de validation).
+  if not public._admin_can(p_token, l.labo_id) then
+    return json_build_object('ok', false, 'error', 'admin');
+  end if;
   if l.statut = 'valide' then return json_build_object('ok', false, 'error', 'deja_valide'); end if;
   if l.statut <> 'teste' then return json_build_object('ok', false, 'error', 'statut'); end if;
   v := to_char(now(), 'DD/MM/YYYY');

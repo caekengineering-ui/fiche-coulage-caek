@@ -1,6 +1,6 @@
 /* ============================================================
    Module Béton - CAEK
-   validation.js - V3 : écran ADMIN « Validation des coulages ».
+   validation.js - V3 : écran ADMIN « Validation ».
 
    Rôle de la validation (jamais bloquante pour le terrain) :
    confirmer la désignation exacte de l'ouvrage coulé et la
