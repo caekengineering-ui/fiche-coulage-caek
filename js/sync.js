@@ -58,6 +58,7 @@ var CAEKSync = (function () {
       facteurConversion: p.facteur_conversion || "",
       agesEssai: Array.isArray(p.ages_essai) ? p.ages_essai : [7, 28],
       labo: p.labo || "",
+      laboId: p.labo_id || "",
       actif: p.actif !== false,
       dateMaj: new Date().toISOString()
     };

@@ -206,13 +206,15 @@ var CAEKNouveau = (function () {
       email: "",
       referenceCommande: "",
       referenceDossier: "",
-      resistance: ""
+      resistance: "",
+      laboId: ""                 // labo réel (hérité du projet) -> filtrage/validation
     };
 
     if (mode === "projet") {
       if (activeProjet) {
         var cli = activeClient || findClient(activeProjet.clientId);
         coulage.clientId = activeProjet.clientId || "";
+        coulage.laboId = activeProjet.laboId || "";   // labo du projet -> coulage
         coulage.nomProjet = activeProjet.nomProjet || "";
         coulage.localisation = activeProjet.localisation || "";
         coulage.referenceCommande = activeProjet.referenceCommande || "";

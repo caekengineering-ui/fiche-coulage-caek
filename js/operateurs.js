@@ -63,6 +63,28 @@ var CAEKOperateurs = (function () {
   function canSupervise() { return isAdmin(); }
   function laboId() { var s = session(); return s ? (s.labo_id || null) : null; }
   function laboNom() { var s = session(); return s ? (s.labo_nom || "") : ""; }
+  // Ensemble de labos qu'un admin peut vérifier. null/[] = admin PRINCIPAL (tous).
+  function adminLabos() {
+    var s = session();
+    return (s && Array.isArray(s.admin_labos) && s.admin_labos.length) ? s.admin_labos : null;
+  }
+  // Admin principal : admin sans restriction de labos.
+  function isPrincipal() { return isAdmin() && adminLabos() === null; }
+
+  // Cases à cocher « laboratoires vérifiés » (droits admin par labo).
+  function laboCheckboxes(selected, cls) {
+    var sel = selected || [];
+    return _labos.map(function (b) {
+      var on = sel.indexOf(b.id) >= 0 ? " checked" : "";
+      return "<label class=\"oper-labo-check\"><input type=\"checkbox\" class=\"" + cls +
+        "\" value=\"" + escapeHtml(b.id) + "\"" + on + "> " + escapeHtml(b.nom) + "</label>";
+    }).join("");
+  }
+  function readChecked(scope, cls) {
+    var out = [];
+    (scope || document).querySelectorAll("." + cls + ":checked").forEach(function (c) { out.push(c.value); });
+    return out;
+  }
 
   function requireAdmin(label) {
     if (isAdmin()) { return true; }
@@ -97,6 +119,11 @@ var CAEKOperateurs = (function () {
     var admin = isAdmin();
     var els = document.querySelectorAll(".admin-only");
     for (var i = 0; i < els.length; i++) { els[i].hidden = !admin; }
+    // Fonctions réservées à l'ADMIN PRINCIPAL (gestion opérateurs/labos) :
+    // masquées pour un admin de validation scopé, qui ne les voit même pas.
+    var principal = isPrincipal();
+    var pels = document.querySelectorAll(".principal-only");
+    for (var j = 0; j < pels.length; j++) { pels[j].hidden = !principal; }
   }
 
   /* ---------- Connexion / déconnexion ---------- */
@@ -120,7 +147,8 @@ var CAEKOperateurs = (function () {
       _session = {
         token: r.token, identifiant: r.identifiant, nom: r.nom,
         fonction: r.fonction || "", is_admin: r.is_admin === true,
-        labo_id: r.labo_id || null, labo_nom: r.labo_nom || ""
+        labo_id: r.labo_id || null, labo_nom: r.labo_nom || "",
+        admin_labos: r.admin_labos || null   // null/[] = admin principal (tous)
       };
       writeSession(_session);
       applyActive();
@@ -156,6 +184,7 @@ var CAEKOperateurs = (function () {
         s.nom = r.nom; s.identifiant = r.identifiant;
         s.is_admin = r.is_admin === true;
         s.labo_id = r.labo_id || null; s.labo_nom = r.labo_nom || "";
+        s.admin_labos = r.admin_labos || null;
         _session = s; writeSession(s);
         applyActive();
         renderAll();
@@ -247,6 +276,8 @@ var CAEKOperateurs = (function () {
         "<select class=\"field oper-edit-role\">" + roleOptions(o.is_admin ? "admin" : "operateur") + "</select>" +
         "<label class=\"field-label\">Laboratoire d'affectation</label>" +
         "<select class=\"field oper-edit-labo\">" + laboOptions(o.labo_id || "", true) + "</select>" +
+        "<label class=\"field-label\">Laboratoires vérifiés (administrateur — aucun coché = tous)</label>" +
+        "<div class=\"oper-labo-checks\">" + laboCheckboxes(o.admin_labos || [], "oper-edit-adminlabo") + "</div>" +
         "<div class=\"oper-actions\">" +
           "<button type=\"button\" class=\"btn-primary\" data-act=\"enregistrer\" data-id=\"" + escapeHtml(o.id) + "\">&#128190; Enregistrer</button>" +
           "<button type=\"button\" class=\"btn-text\" data-act=\"reset-pin\" data-id=\"" + escapeHtml(o.id) + "\">Réinitialiser le PIN</button>" +
@@ -319,8 +350,10 @@ var CAEKOperateurs = (function () {
   // Charge opérateurs + labos depuis le serveur (écran Administration).
   function refreshAdmin() {
     var note = $("oper-admin-note");
-    if (note) { note.hidden = isAdmin(); }
-    if (!isAdmin() || !window.CAEKServer || !CAEKServer.configured()) { return Promise.resolve(); }
+    // Écran réservé à l'admin PRINCIPAL : la note s'affiche pour un opérateur
+    // ET pour un admin de validation scopé (le serveur refuse admin_list_*).
+    if (note) { note.hidden = isPrincipal(); }
+    if (!isPrincipal() || !window.CAEKServer || !CAEKServer.configured()) { return Promise.resolve(); }
     return Promise.all([
       CAEKServer.adminListOperators(token()),
       CAEKServer.adminListLabos(token())
@@ -447,7 +480,8 @@ var CAEKOperateurs = (function () {
         fonction: item.querySelector(".oper-edit-qualif").value.trim(),
         is_admin: item.querySelector(".oper-edit-role").value === "admin",
         actif: o.actif !== false,
-        labo_id: item.querySelector(".oper-edit-labo").value || null
+        labo_id: item.querySelector(".oper-edit-labo").value || null,
+        admin_labos: readChecked(item, "oper-edit-adminlabo")
       }, function () {
         _editing = null;
         operResult("&#10004; Opérateur mis à jour.", false);
@@ -465,7 +499,8 @@ var CAEKOperateurs = (function () {
       saveOperator({
         id: id, identifiant: o2.identifiant, pin: p1, nom: o2.nom,
         fonction: o2.fonction || "", is_admin: o2.is_admin === true,
-        actif: o2.actif !== false, labo_id: o2.labo_id || null
+        actif: o2.actif !== false, labo_id: o2.labo_id || null,
+        admin_labos: o2.admin_labos || null   // préserver les droits labo
       }, function () {
         _editing = null;
         operResult("&#10004; PIN réinitialisé.", false);
@@ -597,6 +632,8 @@ var CAEKOperateurs = (function () {
     session: session,
     laboId: laboId,
     laboNom: laboNom,
+    adminLabos: adminLabos,
+    isPrincipal: isPrincipal,
     verifyOnline: verifyOnline,
     ROLE_LABEL: ROLE_LABEL
   };

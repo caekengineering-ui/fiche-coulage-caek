@@ -173,7 +173,8 @@ var CAEKServer = (function () {
     return _rpc("admin_upsert_operator", {
       p_token: token, p_id: op.id || null, p_identifiant: op.identifiant,
       p_pin: op.pin || "", p_nom: op.nom, p_fonction: op.fonction || "",
-      p_is_admin: !!op.is_admin, p_actif: op.actif !== false, p_labo: op.labo_id || null
+      p_is_admin: !!op.is_admin, p_actif: op.actif !== false, p_labo: op.labo_id || null,
+      p_admin_labos: (op.admin_labos && op.admin_labos.length) ? op.admin_labos : null
     });
   }
   function adminSetOperatorActive(token, id, actif) {

@@ -769,6 +769,7 @@ var I18N = (function () {
     "Choisissez le laboratoire d'affectation.": "اختر مخبر التعيين.",
     "Choisissez un laboratoire d'affectation (obligatoire pour un opérateur).": "اختر مخبر التعيين (إجباري للمُشغّل).",
     "Laboratoire d'affectation": "مخبر التعيين",
+    "Laboratoires vérifiés (administrateur — aucun coché = tous)": "المخابر المُصرَّح بالتحقق منها (للمسؤول — بدون تحديد = الكل)",
     "Laboratoire ajouté :": "أُضيف المخبر:",
     "Laboratoire mis à jour.": "حُدّث المخبر.",
     "Laboratoire désactivé.": "عُطّل المخبر.",

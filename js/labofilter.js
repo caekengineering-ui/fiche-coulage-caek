@@ -67,6 +67,13 @@ var CAEKLaboFilter = (function () {
     }
     return CAEKServer.adminListLabos(CAEKOperateurs.token()).then(function (r) {
       _labos = (r && r.labos) || [];
+      // Admin scopé : ne proposer QUE ses laboratoires autorisés.
+      var allowed = CAEKOperateurs.adminLabos ? CAEKOperateurs.adminLabos() : null;
+      if (allowed && allowed.length) {
+        _labos = _labos.filter(function (b) { return allowed.indexOf(b.id) >= 0; });
+        var cur = get();
+        if (cur && allowed.indexOf(cur) < 0) { set(""); }   // filtre invalide -> réinit
+      }
       fillSelect();
     }).catch(function () { fillSelect(); });
   }
