@@ -523,23 +523,37 @@ var CAEKRepertoire = (function () {
           if (dref && window.confirm(deleteMsg)) {
             var isAdmin = window.CAEKOperateurs && CAEKOperateurs.isAdmin && CAEKOperateurs.isAdmin();
             var onlineAdminDelete = isAdmin && window.CAEKServer && CAEKServer.configured && CAEKServer.configured();
-            var removeLocal = function () { return CAEKDB.deleteCoulage(dref).then(refresh); };
-            if (onlineAdminDelete) {
-              CAEKServer.adminDeleteCoulage(CAEKOperateurs.token(), dref).then(function (r) {
-                if (!r || r.ok !== true) {
-                  window.alert("Suppression impossible côté serveur.");
-                  return;
-                }
-                removeLocal();
+            // Un brouillon sans accusé serveur (ex. laboratoire manquant)
+            // n'existe pas côté serveur. Il doit pouvoir être supprimé
+            // localement, même par un administrateur.
+            var removeLocal = function () {
+              var clearOutbox = CAEKDB.outboxByRef && CAEKDB.outboxDelete
+                ? CAEKDB.outboxByRef(dref).then(function (entries) {
+                  return Promise.all((entries || []).map(function (entry) {
+                    return CAEKDB.outboxDelete(entry.key);
+                  }));
+                })
+                : Promise.resolve();
+              return clearOutbox.then(function () { return CAEKDB.deleteCoulage(dref); }).then(refresh);
+            };
+            CAEKDB.getCoulage(dref).then(function (localCoulage) {
+              var mustDeleteOnServer = onlineAdminDelete && localCoulage &&
+                !!localCoulage._syncedAt && !!localCoulage.laboId;
+              if (!mustDeleteOnServer) {
+                return removeLocal().then(function () {
+                  // Parcours opérateur historique : la suppression locale est
+                  // immédiate, puis le serveur est prévenu en arrière-plan.
+                  if (!isAdmin && window.CAEKCoulages) { return CAEKCoulages.deleteOnServer(dref); }
+                });
+              }
+              return CAEKServer.adminDeleteCoulage(CAEKOperateurs.token(), dref).then(function (r) {
+                // Déjà absent côté serveur : la copie locale peut être nettoyée.
+                if (r && (r.ok === true || r.error === "introuvable")) { return removeLocal(); }
+                window.alert("Suppression impossible côté serveur.");
               }).catch(function (e) {
                 window.alert("Suppression admin impossible : " + (e && e.message || e));
               });
-            } else {
-              CAEKDB.deleteCoulage(dref).then(function () {
-                if (window.CAEKCoulages) { CAEKCoulages.deleteOnServer(dref); }
-                refresh();
-              });
-            }
+            });
           }
           return;
         }
