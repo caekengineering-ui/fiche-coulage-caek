@@ -37,13 +37,18 @@ async function rest(path: string, init: RequestInit = {}) {
   return res.status === 204 ? null : res.json();
 }
 
-// Abonnements destinataires selon la cible ('admins' | 'labo:<uuid>').
+// Abonnements destinataires selon la cible
+// ('admins' | 'labo:<uuid>' | 'operateur:<uuid>').
+// 'operateur:' vise UNE personne précise : utilisé par les alertes de coulage
+// non prises en charge, qui remontent au responsable qui les a créées.
 async function subsForCible(cible: string) {
   let opFilter = "";
   if (cible === "admins") {
     opFilter = "is_admin=eq.true";
   } else if (cible.startsWith("labo:")) {
     opFilter = `labo_id=eq.${cible.slice(5)}`;
+  } else if (cible.startsWith("operateur:")) {
+    opFilter = `id=eq.${cible.slice(10)}`;
   } else {
     return [];
   }

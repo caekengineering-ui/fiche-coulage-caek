@@ -1070,7 +1070,55 @@ var I18N = (function () {
     "Agrégat 3/8 (kg)": "حصى 3/8 (kg)",
     "Agrégat 8/15 (kg)": "حصى 8/15 (kg)",
     "Agrégat 15/25 (kg)": "حصى 15/25 (kg)",
-    "(facultatif — coulage en plusieurs reprises)": "(اختياري — صبّ على عدة مراحل)"
+    "(facultatif — coulage en plusieurs reprises)": "(اختياري — صبّ على عدة مراحل)",
+
+    // ---- Alerte coulage (BF-001), 07/2026 ----
+    "Alerte coulage": "تنبيه الصبّ",
+    "Informe le laboratoire d'un coulage à venir. N'ouvre, ne préremplit et ne modifie aucune fiche de coulage.":
+      "يُعلم المخبر بعملية صبّ مرتقبة. لا يفتح ولا يُعبّئ مسبقًا ولا يُعدّل أي بطاقة صبّ.",
+    "Nouvelle alerte coulage": "تنبيه صبّ جديد",
+    "Modifier / reporter l'alerte": "تعديل / تأجيل التنبيه",
+    "Le laboratoire est déduit automatiquement du projet.": "يُحدَّد المخبر تلقائيًا حسب المشروع.",
+    "Ouvrage à couler": "المنشأ المراد صبّه",
+    "— Choisir un ouvrage —": "— اختر منشأً —",
+    "Niveau / étage": "المستوى / الطابق",
+    "Date et heure prévues": "التاريخ والوقت المقرران",
+    "Quantité de béton prévue (m³)": "كمية الخرسانة المقررة (m³)",
+    "Urgent / dernière minute": "عاجل / اللحظة الأخيرة",
+    "Nom du demandeur": "اسم الطالب",
+    "Fonction du demandeur": "صفة الطالب",
+    "Observations": "ملاحظات",
+    "Créer l'alerte": "إنشاء التنبيه",
+    "Coulages annoncés": "عمليات الصبّ المُعلَنة",
+    "Aucune alerte de coulage active.": "لا يوجد تنبيه صبّ نشط.",
+    "Voir l'historique": "عرض السجلّ",
+    "Masquer l'historique": "إخفاء السجلّ",
+    "Historique (terminées / annulées)": "السجلّ (منتهية / ملغاة)",
+    "Aucune alerte terminée ou annulée.": "لا توجد تنبيهات منتهية أو ملغاة.",
+    "Connectez-vous pour voir les alertes de coulage.": "سجّل الدخول لعرض تنبيهات الصبّ.",
+    "Réseau requis pour créer ou modifier une alerte coulage.": "الشبكة مطلوبة لإنشاء أو تعديل تنبيه صبّ.",
+    "Réseau requis pour prendre en charge une alerte.": "الشبكة مطلوبة لتولّي تنبيه.",
+    "Choisissez un projet.": "اختر مشروعًا.",
+    "Indiquez la date et l'heure prévues.": "حدّد التاريخ والوقت المقررين.",
+    "Indiquez la quantité de béton prévue (m³).": "حدّد كمية الخرسانة المقررة (m³).",
+    "Rôle insuffisant pour planifier une alerte coulage.": "الدور غير كافٍ لبرمجة تنبيه صبّ.",
+    "Alerte mise à jour.": "تم تحديث التنبيه.",
+    "Alerte créée et notification envoyée au laboratoire.": "أُنشئ التنبيه وأُرسل إشعار إلى المخبر.",
+    "Prise en charge confirmée.": "تم تأكيد التولّي.",
+    "Annuler cette alerte de coulage ?": "إلغاء تنبيه الصبّ هذا؟",
+    "À prendre en charge": "بانتظار التولّي",
+    "Prise en charge": "تم التولّي",
+    "Reportée": "مؤجَّلة",
+    "Annulée": "ملغاة",
+    "URGENT": "عاجل",
+    "J'ai pris en charge": "توليت الأمر",
+    "Modifier / reporter": "تعديل / تأجيل",
+    "Pris en charge par": "تولّاه",
+    "Non pris en charge": "لم يُتولَّ بعد",
+    "Demandé par": "طلبه",
+    "moule(s) à préparer": "قالبًا يجب تجهيزه",
+    "coulage(s) URGENT annoncé(s) — prise en charge requise.": "عملية صبّ عاجلة مُعلَنة — التولّي مطلوب.",
+    "alerte(s) de coulage sans prise en charge — personne n'a accusé réception.": "تنبيه صبّ دون تولٍّ — لم يُؤكّد أحد الاستلام."
   };
 
   var MIXED = [
@@ -1257,10 +1305,16 @@ var I18N = (function () {
     ["Éprouvettes récupérées", "عيّنات مسترجعة"],
     ["début", "البداية"],
     ["aujourd'hui", "اليوم"],
-    ["ex. ", "مثال: "]
+    ["ex. ", "مثال: "],
+    // ---- Alerte coulage (BF-001) : fragments à suffixe dynamique ----
+    ["Échec : ", "فشل: "],
+    ["Déjà pris en charge par", "تولّاه من قبل"],
+    ["un autre opérateur", "مُشغّل آخر"]
   ];
 
   var RULES = [
+    { re: /≈ (\d+) moule\(s\) à préparer \(calcul définitif à l'enregistrement\)\./g,
+      ar: "≈ $1 قالبًا يجب تجهيزه (الحساب النهائي عند التسجيل)." },
     { re: /(\d+)\s+fiche\(s\)\s+à répartir/g, ar: "$1 بطاقة للتوزيع" },
     { re: /(\d+)\s+fiche(s)?\s+à valider/g, ar: "$1 بطاقة للاعتماد" },
     { re: /éprouvettes?\s+restantes?\s+(\d+)/g, ar: "$1 عيّنة متبقية" },

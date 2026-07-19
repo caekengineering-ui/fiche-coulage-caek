@@ -40,6 +40,9 @@
     <span class="profil-bar-edit" aria-hidden="true">&#9999;&#65039;</span>
   </button>
 
+  <!-- Bandeau ALERTE COULAGE (visible partout, masque tant que rien a signaler) -->
+  <button class="alertes-coulage-banner" id="alertes-coulage-banner" type="button" hidden></button>
+
   <main class="app-main">
 
     <!-- ECRAN ACCUEIL -->
@@ -71,6 +74,11 @@
           <img class="big-card-img" src="assets/icons/menu/profil.png" alt="">
           <span class="big-card-label">Validation</span>
           <span class="menu-badge" id="badge-validation" hidden></span>
+        </button>
+        <button class="big-card" data-goto="screen-alertes-coulage">
+          <span class="big-card-icon" aria-hidden="true">&#128276;</span>
+          <span class="big-card-label">Alerte coulage</span>
+          <span class="menu-badge" id="badge-alertes" hidden></span>
         </button>
       </div>
     </section>
@@ -775,6 +783,82 @@
       <div id="rep-liste"></div>
     </section>
 
+    <!-- ECRAN ALERTE COULAGE (BF-001) — independant de la fiche de coulage -->
+    <section id="screen-alertes-coulage" class="screen">
+      <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
+      <h1 class="screen-title">Alerte coulage</h1>
+      <p class="hint">Informe le laboratoire d'un coulage à venir. N'ouvre, ne préremplit et ne modifie aucune fiche de coulage.</p>
+
+      <button id="ac-btn-nouveau" class="btn-primary" type="button" hidden>&#10133; Nouvelle alerte coulage</button>
+
+      <!-- Formulaire creation / modification (role responsable/ingenieur/admin) -->
+      <div id="ac-form" class="alerte-form" hidden>
+        <h3 id="ac-form-titre" class="block-subtitle">Nouvelle alerte coulage</h3>
+
+        <label class="field-label" for="ac-projet">Projet</label>
+        <select id="ac-projet" class="field"><option value="">— Choisir un projet —</option></select>
+        <p class="hint">Le laboratoire est déduit automatiquement du projet.</p>
+
+        <label class="field-label" for="ac-ouvrage">Ouvrage à couler</label>
+        <select id="ac-ouvrage" class="field"><option value="">— Choisir un ouvrage —</option></select>
+        <input id="ac-ouvrage-autre" class="field" type="text" placeholder="Préciser l'ouvrage" autocomplete="off" hidden>
+
+        <div class="alerte-form-row">
+          <div>
+            <label class="field-label" for="ac-bloc">Bloc <span class="opt">(facultatif)</span></label>
+            <input id="ac-bloc" class="field" type="text" placeholder="ex. A, Bloc 5" autocomplete="off">
+          </div>
+          <div>
+            <label class="field-label" for="ac-etage">Niveau / étage <span class="opt">(facultatif)</span></label>
+            <select id="ac-etage" class="field"><option value="">— Aucun —</option></select>
+          </div>
+        </div>
+
+        <div class="alerte-form-row">
+          <div>
+            <label class="field-label" for="ac-date">Date et heure prévues</label>
+            <input id="ac-date" class="field" type="datetime-local">
+          </div>
+          <div>
+            <label class="field-label" for="ac-quantite">Quantité de béton prévue (m³)</label>
+            <input id="ac-quantite" class="field" type="number" min="0.1" step="0.1" inputmode="decimal">
+          </div>
+        </div>
+        <div id="ac-apercu-moules" class="hint"></div>
+
+        <label class="opt-toggle" for="ac-urgent"><input type="checkbox" id="ac-urgent"><span>&#128680; Urgent / dernière minute</span></label>
+
+        <div class="alerte-form-row">
+          <div>
+            <label class="field-label" for="ac-demandeur-nom">Nom du demandeur</label>
+            <input id="ac-demandeur-nom" class="field" type="text" autocomplete="off">
+          </div>
+          <div>
+            <label class="field-label" for="ac-demandeur-fonction">Fonction du demandeur</label>
+            <input id="ac-demandeur-fonction" class="field" type="text" autocomplete="off">
+          </div>
+        </div>
+
+        <label class="field-label" for="ac-observations">Observations <span class="opt">(facultatif)</span></label>
+        <input id="ac-observations" class="field" type="text" autocomplete="off">
+
+        <div class="alerte-form-actions">
+          <button id="ac-form-valider" class="btn-primary" type="button">&#10004; Créer l'alerte</button>
+          <button id="ac-form-annuler" class="btn-secondary" type="button">Annuler</button>
+        </div>
+        <div id="ac-result" class="result-card" hidden></div>
+      </div>
+
+      <h3 class="block-subtitle">Coulages annoncés</h3>
+      <div id="ac-liste"><p class="hint">Chargement…</p></div>
+
+      <button id="ac-btn-historique" class="btn-secondary" type="button">Voir l'historique</button>
+      <div id="ac-historique-box" hidden>
+        <h3 class="block-subtitle">Historique (terminées / annulées)</h3>
+        <div id="ac-historique"></div>
+      </div>
+    </section>
+
     <!-- ECRAN VALIDATION DES COULAGES (ADMIN) -->
     <section id="screen-validation" class="screen">
       <button class="btn-back" data-goto="screen-accueil">&#8592; Retour</button>
@@ -858,6 +942,7 @@
   <script src="js/dechets.js"></script>
   <script src="js/compression.js"></script>
   <script src="js/badges.js"></script>
+  <script src="js/alertes.js"></script>
   <script src="js/demo.js"></script>
   <script src="js/app.js"></script>
 </body>

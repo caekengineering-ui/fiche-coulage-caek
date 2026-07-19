@@ -37,6 +37,7 @@
     if (id === "screen-repertoire" && window.CAEKRepertoire) { CAEKRepertoire.refresh(); }
     if (id === "screen-validation" && window.CAEKValidation) { CAEKValidation.refresh(); }
     if (id === "screen-accueil" && window.CAEKValidation) { CAEKValidation.updateBadge(); }
+    if (id === "screen-accueil" && window.CAEKAlertes) { CAEKAlertes.refresh(); }
     if (id === "screen-accueil" && window.CAEKLaboFilter) { CAEKLaboFilter.refresh(); }
     if (id === "screen-profil" && window.CAEKProfil) { CAEKProfil.fillForm(); }
     if (id === "screen-profil" && window.CAEKPush) { CAEKPush.renderState(); }
@@ -49,6 +50,9 @@
       if (id === "screen-repartir") { CAEKBassin.refreshRepartir(); }
     }
     if (id === "screen-dechets" && window.CAEKDechets) { CAEKDechets.refresh(); }
+    if (id === "screen-alertes-coulage" && window.CAEKAlertes) {
+      CAEKAlertes.refresh(); CAEKAlertes.refreshReferentiels();
+    }
     if (window.CAEKCompression) {
       if (id === "screen-compression" || id === "screen-comp-atester" ||
         id === "screen-comp-historique") { CAEKCompression.refresh(); }
@@ -256,6 +260,7 @@
     if (window.CAEKBassin) { CAEKBassin.init(); }
     if (window.CAEKDechets) { CAEKDechets.init(); }
     if (window.CAEKCompression) { CAEKCompression.init(); }
+    if (window.CAEKAlertes) { CAEKAlertes.init(); }
     if (window.CAEKBadges) { CAEKBadges.refresh(); }
   });
 
