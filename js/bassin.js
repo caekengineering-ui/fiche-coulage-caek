@@ -143,9 +143,18 @@ var CAEKBassin = (function () {
   var _repList = [];
   var _doneList = [];
   var _pendingRevoirRef = null;
+  // Coulage explicitement rappelé « à répartir » via « Revoir la répartition »
+  // depuis le bassin virtuel. Un coulage déjà réparti ne figure plus dans cet
+  // écran par défaut ; il y revient seulement sur désignation explicite, puis
+  // en ressort une fois la nouvelle répartition enregistrée.
+  var _revoirRef = null;
 
   function refreshRepartir() {
     if (!window.CAEKDB) { return; }
+    // Une demande explicite de révision (venue du bassin) devient le coulage
+    // courant à re-répartir. Les rafraîchissements ordinaires (filtre labo,
+    // synchro) ne touchent pas à ce choix ; seul l'enregistrement le libère.
+    if (_pendingRevoirRef) { _revoirRef = _pendingRevoirRef; }
     Promise.all([
       CAEKDB.getAllCoulages(),
       CAEKDB.getAllLots(),
@@ -180,12 +189,13 @@ var CAEKBassin = (function () {
       var hasLot = {};
       lots.forEach(function (l) { if (l && l.ref) { hasLot[l.ref] = true; } });
       _repList = eligibles.filter(function (c) { return !hasLot[c.ref] && !c.bassinReparti; });
-      // Répartitions déjà faites : cette liste ne dépend volontairement pas des
-      // critères de première répartition (récupération/codification). Un lot
-      // en bassin doit toujours pouvoir être revu tant qu'il n'est pas engagé.
-      _doneList = list.filter(function (c) {
-        return !!hasLot[c.ref] && !locked[c.ref] && laboOk(c);
-      });
+      // Coulage rappelé pour révision : UNIQUEMENT celui explicitement désigné
+      // via « Revoir la répartition » (bassin virtuel). Il doit encore avoir des
+      // lots, n'être pas engagé (aucun sorti/testé/écrasé/archivé) et rester
+      // dans le périmètre labo courant. Sinon, aucun coulage réparti n'apparaît.
+      _doneList = _revoirRef ? list.filter(function (c) {
+        return c.ref === _revoirRef && !!hasLot[c.ref] && !locked[c.ref] && laboOk(c);
+      }) : [];
       _doneList.forEach(function (c) { c._editable = true; });
 
       var byDate = function (a, b) {
@@ -241,11 +251,11 @@ var CAEKBassin = (function () {
       }).join("");
     }
 
-    // Section « Répartitions déjà faites » : seules les répartitions encore
-    // corrigibles (aucun lot écrasé/sorti/archivé) sont listées ici. Les
-    // répartitions verrouillées ne sont plus affichées (désencombrement).
+    // Section « Répartition à revoir » : n'apparaît QUE pour le coulage rappelé
+    // depuis le bassin virtuel (« Revoir la répartition »). Elle disparaît dès
+    // que la nouvelle répartition est enregistrée.
     if (_doneList.length) {
-      html += "<div class=\"repb-section-titre\">Répartitions déjà faites</div>";
+      html += "<div class=\"repb-section-titre\">Répartition à revoir</div>";
       html += _doneList.map(function (c) {
         var ref = escapeHtml(c.ref);
         var action = "<button type=\"button\" class=\"btn-text repb-revoir\" data-ref=\"" + ref + "\">&#9998; Revoir / corriger</button>";
@@ -577,6 +587,7 @@ var CAEKBassin = (function () {
       });
       if (bloque || archives.length) {
         window.alert("Cette répartition ne peut plus être modifiée : un lot a déjà été sorti pour essai, testé ou archivé.");
+        _revoirRef = null;
         refreshRepartir();
         return Promise.reject({ handled: true });
       }
@@ -603,6 +614,10 @@ var CAEKBassin = (function () {
         nbLots: lots.length, total: total
       });
     }).then(function () {
+      // Nouvelle répartition enregistrée : le coulage a de nouveau des lots et
+      // ressort de l'écran « À répartir » (il faudra repasser par le bassin
+      // virtuel pour le revoir).
+      _revoirRef = null;
       refreshRepartir();
     }).catch(function (err) {
       if (err && err.handled) { return; }
@@ -662,6 +677,9 @@ var CAEKBassin = (function () {
 
   function refreshBassin() {
     if (!window.CAEKDB) { return; }
+    // Entrée dans le bassin : on repart d'un état neutre. Une révision se
+    // (re)déclenche explicitement par « Revoir la répartition » sur un lot.
+    _revoirRef = null;
     CAEKDB.getAllLots().then(function (lots) {
       return autoArchive(lots).then(function (changed) {
         return changed ? CAEKDB.getAllLots() : lots;

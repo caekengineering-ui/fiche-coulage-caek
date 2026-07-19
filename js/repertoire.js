@@ -45,6 +45,16 @@ var CAEKRepertoire = (function () {
   // Un coulage « engagé » (non brouillon) alimente le bassin.
   function isEngagee(st) { return st === "soumis" || st === "valide" || st === "validee" || st === "envoyee"; }
 
+  // Messages lisibles pour les codes d'erreur techniques conservés dans
+  // l'outbox (ob.lastError) : l'opérateur ne doit jamais voir un code brut.
+  var SYNC_ERROR_LABEL = {
+    labo_requis: "Laboratoire introuvable pour ce projet (contactez un administrateur)",
+    reseau: "Connexion réseau indisponible",
+    "réseau": "Connexion réseau indisponible",
+    inconnu: "Erreur du serveur, nouvelle tentative automatique"
+  };
+  function syncErrorLabel(code) { return SYNC_ERROR_LABEL[code] || code; }
+
   function num(v) { var s = window.CAEKModel ? CAEKModel.normDigits(v) : String(v == null ? "" : v); var n = parseFloat(s.replace(",", ".")); return isNaN(n) ? 0 : n; }
 
   function pad2(n) { n = parseInt(n, 10) || 0; return (n < 10 ? "0" : "") + n; }
@@ -293,7 +303,7 @@ var CAEKRepertoire = (function () {
         retour += "<div class=\"result-card rep-attente\">&#8987; " +
           (ob.action === "soumettre" ? "Soumission" : "Sauvegarde") + " en attente de synchronisation" +
           (ob.attempts ? " · " + ob.attempts + " tentative(s)" : "") +
-          (ob.lastError ? " · <strong>Dernière erreur :</strong> " + escapeHtml(ob.lastError) : "") +
+          (ob.lastError ? " · <strong>Dernière erreur :</strong> " + escapeHtml(syncErrorLabel(ob.lastError)) : "") +
           "</div>";
       }
 
