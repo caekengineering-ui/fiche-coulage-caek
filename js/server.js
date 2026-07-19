@@ -174,6 +174,13 @@ var CAEKServer = (function () {
   function ackAlerteCoulage(token, id) {
     return _rpc("resp_ack_alerte_coulage", { p_token: token, p_id: id });
   }
+  // Clôture / report par l'opérateur EN CHARGE (statut : terminee | annulee |
+  // reportee ; prevuAt obligatoire pour un report).
+  function statutAlerteCoulage(token, id, statut, prevuAt) {
+    return _rpc("op_statut_alerte_coulage", {
+      p_token: token, p_id: id, p_statut: statut, p_prevu_at: prevuAt || null
+    });
+  }
 
   /* ---------- Notifications (abonnements push) ---------- */
   function savePushSubscription(token, sub) {
@@ -284,7 +291,7 @@ var CAEKServer = (function () {
     getLaboSettings: getLaboSettings, adminSetLaboSettings: adminSetLaboSettings,
     listAlertesCoulage: listAlertesCoulage, createAlerteCoulage: createAlerteCoulage,
     updateAlerteCoulage: updateAlerteCoulage, prendreEnChargeAlerte: prendreEnChargeAlerte,
-    ackAlerteCoulage: ackAlerteCoulage,
+    ackAlerteCoulage: ackAlerteCoulage, statutAlerteCoulage: statutAlerteCoulage,
     savePushSubscription: savePushSubscription, deletePushSubscription: deletePushSubscription,
     adminValiderCoulage: adminValiderCoulage, adminMarquerMediasPurges: adminMarquerMediasPurges,
     adminRenvoyerCoulage: adminRenvoyerCoulage,

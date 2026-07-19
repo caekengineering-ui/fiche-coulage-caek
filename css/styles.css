@@ -202,6 +202,32 @@ body {
 .alerte-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .alerte-actions button { flex: 1 1 auto; font-size: 13px; padding: 8px 10px; }
 
+/* Depannage responsable : volontairement discret (lien, pas bouton) pour
+   rester une exception et non le geste courant. */
+.alerte-depannage {
+  display: block;
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.alerte-depannage:active { color: var(--caek-red); }
+
+/* Report par l'operateur en charge : champ revele au clic. */
+.alerte-report {
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--gray-bg, #f6f6f6);
+  border-radius: 10px;
+}
+.alerte-report .field { margin-bottom: 8px; }
+.alerte-report .field-label { margin-top: 0; }
+
 /* ---------- Accueil : grandes cartes module ---------- */
 .big-cards {
   display: flex; flex-direction: column; gap: 16px;

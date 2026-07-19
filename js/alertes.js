@@ -351,6 +351,7 @@ var CAEKAlertes = (function () {
       : "&#9203; <span>Non pris en charge</span>";
 
     var actions = "";
+    var depannage = "";
     if (!closable) {
       // La prise en charge est un geste d'OPÉRATEUR : accuser réception du
       // travail à faire. Un responsable / ingénieur / admin planifie et suit,
@@ -358,12 +359,33 @@ var CAEKAlertes = (function () {
       if (!a.prisePar && !canPlanifier()) {
         actions += "<button class=\"btn-primary alerte-btn-prendre\" type=\"button\" data-id=\"" + a.id + "\">&#10004; J'ai pris en charge</button>";
       }
+      // Dépannage : un responsable PEUT prendre en charge à la place d'un
+      // opérateur absent, mais l'action reste discrète — un simple lien, pas
+      // un bouton, pour qu'elle ne devienne pas le geste habituel.
+      if (!a.prisePar && canPlanifier()) {
+        depannage = "<button class=\"alerte-depannage alerte-btn-prendre\" type=\"button\" data-id=\"" +
+          a.id + "\">Prendre en charge à la place d'un opérateur</button>";
+      }
+      // L'opérateur EN CHARGE clôt ou reporte lui-même son intervention.
+      if (a.prisParMoi && !canPlanifier()) {
+        actions += "<button class=\"btn-secondary alerte-btn-op-terminer\" type=\"button\" data-id=\"" + a.id + "\">&#10004; Terminé</button>" +
+          "<button class=\"btn-secondary alerte-btn-op-reporter\" type=\"button\" data-id=\"" + a.id + "\">&#128197; Reporté</button>" +
+          "<button class=\"btn-secondary alerte-btn-op-annuler\" type=\"button\" data-id=\"" + a.id + "\">&#10005; Annulé</button>";
+      }
       if (canPlanifier()) {
         actions += "<button class=\"btn-secondary alerte-btn-modifier\" type=\"button\" data-id=\"" + a.id + "\">&#9998; Modifier / reporter</button>" +
           "<button class=\"btn-secondary alerte-btn-terminer\" type=\"button\" data-id=\"" + a.id + "\">&#10004; Terminé</button>" +
           "<button class=\"btn-secondary alerte-btn-annuler\" type=\"button\" data-id=\"" + a.id + "\">&#10005; Annuler</button>";
       }
     }
+    // Champ de report, révélé au clic sur « Reporté » (opérateur en charge).
+    var reportBox = (!closable && a.prisParMoi && !canPlanifier())
+      ? "<div class=\"alerte-report\" data-report=\"" + a.id + "\" hidden>" +
+        "<label class=\"field-label\">Nouvelle date et heure prévues</label>" +
+        "<input class=\"field alerte-report-date\" type=\"datetime-local\">" +
+        "<button class=\"btn-primary alerte-btn-op-reporter-ok\" type=\"button\" data-id=\"" + a.id + "\">&#10004; Confirmer le report</button>" +
+        "</div>"
+      : "";
 
     return "<div class=\"alerte-card" + urgentCls + "\">" +
       (a.urgent ? "<div class=\"alerte-tag-urgent\">&#128680; <span>URGENT</span></div>" : "") +
@@ -381,6 +403,8 @@ var CAEKAlertes = (function () {
       (a.observations ? "<div class=\"alerte-ligne hint\">&#128221; " + escapeHtml(a.observations) + "</div>" : "") +
       "<div class=\"alerte-ligne\">" + prise + "</div>" +
       (actions ? "<div class=\"alerte-actions\">" + actions + "</div>" : "") +
+      reportBox +
+      depannage +
       "</div>";
   }
 
@@ -534,6 +558,26 @@ var CAEKAlertes = (function () {
     }).catch(function (e) { result("&#9888; " + escapeHtml((e && e.message) || "erreur réseau"), true); });
   }
 
+  // Clôture / report par l'opérateur EN CHARGE (RPC dédiée : le serveur
+  // vérifie que c'est bien lui, et prévient le responsable créateur).
+  function changerStatutOperateur(id, statut, prevuAt) {
+    if (statut === "annulee" && !window.confirm("Déclarer ce coulage annulé ?")) { return; }
+    if (!serverReady()) { result("&#9888; Réseau requis.", true); return; }
+    CAEKServer.statutAlerteCoulage(CAEKOperateurs.token(), id, statut, prevuAt || null).then(function (r) {
+      if (!r || r.ok !== true) {
+        var msgs = {
+          pas_en_charge: "Vous n'êtes pas l'opérateur en charge de cette alerte.",
+          date_requise: "Indiquez la nouvelle date et heure prévues.",
+          alerte_close: "Cette alerte est déjà close."
+        };
+        result("&#9888; " + escapeHtml((r && msgs[r.error]) || "Échec : " + ((r && r.error) || "erreur")), true);
+        return;
+      }
+      result("&#10004; Le responsable a été prévenu.", false);
+      refresh();
+    }).catch(function (e) { result("&#9888; " + escapeHtml((e && e.message) || "erreur réseau"), true); });
+  }
+
   function findAlerte(id) {
     for (var i = 0; i < _alertes.length; i++) { if (_alertes[i].id === id) { return _alertes[i]; } }
     return null;
@@ -597,10 +641,36 @@ var CAEKAlertes = (function () {
         var btn = ev.target.closest ? ev.target.closest("button[data-id]") : null;
         if (!btn) { return; }
         var id = btn.getAttribute("data-id");
-        if (btn.classList.contains("alerte-btn-prendre")) { prendreEnCharge(id); }
+        if (btn.classList.contains("alerte-btn-prendre")) {
+          // Dépannage par un responsable : confirmation explicite, car il
+          // s'attribue une intervention qui revient normalement à un opérateur.
+          if (canPlanifier() &&
+              !window.confirm("Prendre en charge cette alerte à la place d'un opérateur ?")) { return; }
+          prendreEnCharge(id);
+        }
         else if (btn.classList.contains("alerte-btn-modifier")) { openForm(findAlerte(id)); }
         else if (btn.classList.contains("alerte-btn-terminer")) { changerStatut(id, "terminee"); }
         else if (btn.classList.contains("alerte-btn-annuler")) { changerStatut(id, "annulee"); }
+        else if (btn.classList.contains("alerte-btn-op-terminer")) { changerStatutOperateur(id, "terminee"); }
+        else if (btn.classList.contains("alerte-btn-op-annuler")) { changerStatutOperateur(id, "annulee"); }
+        else if (btn.classList.contains("alerte-btn-op-reporter")) {
+          var box = liste.querySelector("[data-report=\"" + id + "\"]");
+          if (box) {
+            box.hidden = !box.hidden;
+            var champ = box.querySelector(".alerte-report-date");
+            if (!box.hidden && champ && !champ.value) {
+              var cur = findAlerte(id);
+              champ.value = cur ? isoToLocalInput(cur.prevuAt) : "";
+            }
+          }
+        }
+        else if (btn.classList.contains("alerte-btn-op-reporter-ok")) {
+          var boite = liste.querySelector("[data-report=\"" + id + "\"]");
+          var val = boite ? boite.querySelector(".alerte-report-date").value : "";
+          var iso = localInputToIso(val);
+          if (!iso) { result("&#9888; Indiquez la nouvelle date et heure prévues.", true); return; }
+          changerStatutOperateur(id, "reportee", iso);
+        }
       });
     }
 
