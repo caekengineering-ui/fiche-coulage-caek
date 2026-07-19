@@ -324,22 +324,6 @@
         <div class="dechets-stat"><span class="dechets-num" id="dechets-seuil-aff">300</span><span class="dechets-lbl">seuil d'alerte</span></div>
       </div>
 
-      <div class="admin-only">
-        <h3 class="block-subtitle">&#9881;&#65039; Paramètres <span class="admin-tag">Admin</span></h3>
-        <label class="field-label" for="dechets-seuil">Seuil d'alerte (éprouvettes)</label>
-        <input id="dechets-seuil" class="field" type="number" min="1" step="1" inputmode="numeric">
-        <label class="field-label" for="dechets-poidsmoyen">Poids moyen (kg / éprouvette)</label>
-        <input id="dechets-poidsmoyen" class="field" type="number" min="0" step="any" inputmode="decimal">
-        <h4 class="block-subtitle">Règle de recommandation des éprouvettes</h4>
-        <div class="form-grid">
-          <div><label class="field-label" for="dechets-echant-v1">Première tranche (m³)</label><input id="dechets-echant-v1" class="field" type="number" min="1" step="1" inputmode="decimal"></div>
-          <div><label class="field-label" for="dechets-echant-n1">Éprouvettes première tranche</label><input id="dechets-echant-n1" class="field" type="number" min="1" step="1" inputmode="numeric"></div>
-          <div><label class="field-label" for="dechets-echant-v2">Tranche suivante (m³)</label><input id="dechets-echant-v2" class="field" type="number" min="1" step="1" inputmode="decimal"></div>
-          <div><label class="field-label" for="dechets-echant-n2">Éprouvettes par tranche suivante</label><input id="dechets-echant-n2" class="field" type="number" min="1" step="1" inputmode="numeric"></div>
-        </div>
-        <button id="dechets-params-save" class="btn-secondary" type="button">&#128190; Enregistrer les paramètres</button>
-      </div>
-
       <h3 class="block-subtitle">&#128667; Confirmer une évacuation</h3>
       <label class="field-label" for="dechets-evac-qte">Quantité évacuée (éprouvettes)</label>
       <input id="dechets-evac-qte" class="field" type="number" min="1" step="1" inputmode="numeric">
