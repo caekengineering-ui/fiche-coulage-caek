@@ -66,13 +66,15 @@ var CAEKValidation = (function () {
     var s = clientConfirmationSnapshot(c);
     return [
       "Bonjour, merci de confirmer les informations provisoires du coulage :",
-      "Référence : " + (s.reference || "—"),
-      "Client / projet : " + [s.client, s.projet].filter(Boolean).join(" — "),
-      "Ouvrage : " + (s.ouvrage || "—"),
-      "Bloc / étage / partie : " + [s.bloc, s.etage, s.partie].filter(Boolean).join(" / "),
-      "Date du coulage : " + (fmtDate(s.dateCoulage) || "—"),
-      "Quantité de béton : " + (s.quantite === "" ? "—" : s.quantite + " m³"),
-      "Fournisseur du béton : " + (s.fournisseur || "—"),
+      "📄 Référence : " + (s.reference || "—"),
+      "👤 Client / projet : " + [s.client, s.projet].filter(Boolean).join(" — "),
+      "🏗️ Ouvrage : " + (s.ouvrage || "—"),
+      "📍 Bloc : " + (s.bloc || "—"),
+      "🏢 Étage : " + (s.etage || "—"),
+      "▪️ Partie : " + (s.partie || "—"),
+      "📅 Date du coulage : " + (fmtDate(s.dateCoulage) || "—"),
+      "🧱 Quantité de béton : " + (s.quantite === "" ? "—" : s.quantite + " m³"),
+      "🚚 Fournisseur du béton : " + (s.fournisseur || "—"),
       "Merci de répondre « Je confirme » ou d'indiquer les corrections nécessaires."
     ].join("\n");
   }
