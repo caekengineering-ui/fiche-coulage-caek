@@ -790,6 +790,17 @@ var CAEKBassin = (function () {
       rTag + "</button>";
   }
 
+  // Le titre contient des nombres dynamiques : il ne peut pas être traduit
+  // correctement par le traducteur textuel après rendu. On le construit donc
+  // directement dans la langue active afin d'éviter un mélange FR / AR.
+  function ageGroupTitle(age, nbLots, nbEprouvettes) {
+    var isAr = window.I18N && I18N.lang && I18N.lang() === "ar";
+    if (isAr) {
+      return "&#9203; " + age + " أيام — " + nbLots + " مجموعة · " + nbEprouvettes + " عيّنة";
+    }
+    return "&#9203; " + age + " jours — " + nbLots + " lot(s) · " + nbEprouvettes + " éprouvette(s)";
+  }
+
   function renderBassin() {
     var grid = $("bassin-grille");
     if (!grid) { return; }
@@ -832,8 +843,7 @@ var CAEKBassin = (function () {
         var g = byAge[a];
         var nEpr = g.reduce(function (s, l) { return s + (l.nombre || 0); }, 0);
         return "<div class=\"bassin-age-group\">" +
-          "<h4 class=\"bassin-age-titre\">&#9203; " + a + " jours — " + g.length +
-          " lot(s) · " + nEpr + " éprouvette(s)</h4>" +
+          "<h4 class=\"bassin-age-titre\">" + ageGroupTitle(a, g.length, nEpr) + "</h4>" +
           "<div class=\"bassin-age-grid\">" + g.map(shapeBtnHtml).join("") + "</div>" +
           "</div>";
       }).join("");
