@@ -58,6 +58,12 @@ var CAEKPush = (function () {
     return "Appareil";
   }
 
+  function setLocalEnabled(on) {
+    if (window.CAEKNotifLocale && CAEKNotifLocale.setEnabled) {
+      CAEKNotifLocale.setEnabled(on);
+    }
+  }
+
   // Compare la cle de l'abonnement existant a la cle VAPID courante.
   // Si une ANCIENNE cle est encore enregistree, l'abonnement echoue
   // (InvalidStateError) : il faut alors se desabonner puis se reabonner.
@@ -114,7 +120,12 @@ var CAEKPush = (function () {
           keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
           appareil: deviceLabel()
         }).then(function (r) {
-          return (r && r.ok === true) ? { ok: true } : { ok: false, error: "serveur" };
+          if (r && r.ok === true) {
+            setLocalEnabled(true);
+            if (window.CAEKBadges) { CAEKBadges.refresh(); }
+            return { ok: true };
+          }
+          return { ok: false, error: "serveur" };
         });
       });
     }).catch(function (e) {
@@ -127,6 +138,7 @@ var CAEKPush = (function () {
   }
 
   function unsubscribe() {
+    setLocalEnabled(false);
     if (!supported()) { return Promise.resolve(); }
     return navigator.serviceWorker.ready.then(function (reg) {
       return reg.pushManager.getSubscription().then(function (sub) {
@@ -183,6 +195,9 @@ var CAEKPush = (function () {
         setStatus("&#128683; Notifications bloquées dans les réglages du navigateur. Autorisez-les puis réessayez.", "is-error");
         if (btn) { btn.hidden = true; }
       } else if (st === "actives") {
+        // Migration des appareils abonnes avant l'ajout des alertes locales :
+        // un abonnement push existant vaut consentement aux notifications.
+        setLocalEnabled(true);
         setStatus("&#128276; Notifications <strong>activées</strong> sur cet appareil.", "is-ok");
         if (btn) { btn.hidden = false; btn.textContent = "🔕 Désactiver sur cet appareil"; btn.dataset.on = "1"; }
       } else {

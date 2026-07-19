@@ -70,9 +70,43 @@ var CAEKLots = (function () {
     });
   }
 
+  /* ---------- Phase 3 : allocation serveur ATOMIQUE des numéros E ---------- */
+  var _allocRpcAbsent = false;
+  function isRpcMissing(e) {
+    var m = String((e && e.message) || "");
+    return m.indexOf("404") >= 0 || m.toLowerCase().indexOf("could not find the function") >= 0;
+  }
+  // Enregistre le prélèvement + les éprouvettes du lot côté serveur
+  // (idempotent par uuid). Si le serveur alloue un numéro E différent
+  // (création concurrente sur un autre appareil), le numéro et les codes
+  // SERVEUR sont adoptés — jamais deux E identiques pour un même coulage.
+  function allocIfNeeded(l) {
+    if (_allocRpcAbsent || !CAEKServer.allocPrels) { return Promise.resolve(); }
+    if (!l.prelUuid || l._prelAlloue) { return Promise.resolve(); }
+    var eprUuids = (l.codes || []).map(function (x) { return x.eprUuid; }).filter(Boolean);
+    return CAEKServer.allocPrels(token(), l.ref, [{
+      uuid: l.prelUuid, type: l.type, nombre: l.nombre, eprUuids: eprUuids
+    }]).then(function (r) {
+      if (r && r.ok === true && r.prels && r.prels.length) {
+        var srv = r.prels[0];
+        l._prelAlloue = true;
+        if (srv.e && srv.e !== l.prel) {
+          l.prel = srv.e;
+          (srv.codes || []).forEach(function (sc) {
+            (l.codes || []).forEach(function (x) {
+              if (x.eprUuid === sc.uuid) { x.code = sc.code; }
+            });
+          });
+        }
+        return rawUpdate(l);
+      }
+    }).catch(function (e) { if (isRpcMissing(e)) { _allocRpcAbsent = true; } });
+  }
+
   function pushLot(l) {
     if (!l || !l.lotKey || isDemo(l.ref)) { return Promise.resolve(); }
     if (!ready() || !online()) { return enqueue(l.lotKey, "upsert"); }
+    return allocIfNeeded(l).then(function () {
     return CAEKServer.upsertLot(token(), l.lotKey, l).then(function (r) {
       if (r && r.ok === true) {
         l._syncedAt = new Date().toISOString();
@@ -86,6 +120,7 @@ var CAEKLots = (function () {
       // on garde en file, rejoué après la synchro des coulages.
       return enqueue(l.lotKey, "upsert");
     }).catch(function () { return enqueue(l.lotKey, "upsert"); });
+    });   // fin allocIfNeeded
   }
 
   function pushDelete(key) {
@@ -231,6 +266,8 @@ var CAEKLots = (function () {
     init: init,
     pull: pull,
     processQueue: processQueue,
+    // Phase 3 : clés en attente de synchro (affichage des états).
+    pendingKeys: function () { return getQueue(); },
     autoSync: autoSync
   };
 })();

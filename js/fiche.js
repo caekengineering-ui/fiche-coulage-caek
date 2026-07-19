@@ -23,7 +23,7 @@ var CAEKFiche = (function () {
   function val(id) { var e = $(id); return e ? e.value : ""; }
   function setVal(id, v) { var e = $(id); if (e) { e.value = (v == null ? "" : v); } }
   function show(id, b) { var e = $(id); if (e) { e.hidden = !b; } }
-  function num(v) { var n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? 0 : n; }
+  function num(v) { var s = window.CAEKModel ? CAEKModel.normDigits(v) : String(v == null ? "" : v); var n = parseFloat(s.replace(",", ".")); return isNaN(n) ? 0 : n; }
   function intOr0(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
   function todayDate() { var d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
@@ -203,7 +203,14 @@ var CAEKFiche = (function () {
       if (!c.malaxeurs) { c.malaxeurs = []; }
       populateProjet();
       var locked = (c.statut || "brouillon") !== "brouillon";
-      if (locked || c.malaxeurs.length > 0) { gotoStep("recap"); }
+      if (!locked && c.statutSaisie === "incomplete" && c.saisieEnCours && c.saisieEnCours.malaxeur) {
+        malaxeurIdx = intOr0(c.saisieEnCours.index);
+        malaxeurDraft = JSON.parse(JSON.stringify(c.saisieEnCours.malaxeur));
+        if (!malaxeurDraft.formulation) { malaxeurDraft.formulation = emptyMalaxeur().formulation; }
+        pendingMalPhoto = null;
+        populateMalaxeur();
+        gotoStep("malaxeur");
+      } else if (locked || c.malaxeurs.length > 0) { gotoStep("recap"); }
       else { gotoStep("projet"); }
       if (window.CAEKApp) { CAEKApp.navigate("screen-fiche"); }
     });
@@ -300,8 +307,56 @@ var CAEKFiche = (function () {
     setOptToggle("fc-bloc-on", "fc-bloc", !!c.bloc);
     setOptToggle("fc-etage-on", "fc-etage", !!c.etage);
     setOptToggle("fc-partie-on", "fc-partie", !!c.partie);
+
+    // Phase 2 : centrale + formulation portées par le COULAGE.
+    if (window.CAEKCentrales) { CAEKCentrales.fillSelect(); }
+    populateFormulationModele();
+    var centrales = window.CAEKCentrales ? CAEKCentrales.getCached().map(function (x) { return x.nom; }) : [];
+    setSelectOrAutre("fc-centrale", c.centrale || "", centrales);
+    if ($("fc-formulation-modele")) { $("fc-formulation-modele").value = c.formulationId || ""; }
+    setVal("fc-quantite-estimee", c.quantiteEstimee == null ? "" : c.quantiteEstimee);
+    updateSamplingRecommendation(c.quantiteEstimee);
+
     setVal("fc-operateur", c.signatureOperateur || profilNom());
     refreshOperateurHint();
+  }
+
+  // Options du sélecteur de formulation (niveau coulage) depuis le catalogue.
+  function populateFormulationModele() {
+    var sel = $("fc-formulation-modele");
+    if (!sel || !window.CAEKFormulations) { return; }
+    var cur = sel.value;
+    var html = "<option value=\"\">— Choisir un modèle —</option>";
+    var byFour = {};
+    CAEKFormulations.getCached().forEach(function (f) {
+      var k = f.fournisseur || "Autres";
+      (byFour[k] = byFour[k] || []).push(f);
+    });
+    Object.keys(byFour).sort().forEach(function (four) {
+      html += "<optgroup label=\"" + escapeHtml(four) + "\">";
+      byFour[four].forEach(function (f) {
+        html += "<option value=\"" + escapeHtml(f.id) + "\">" + escapeHtml(four) + " — " + escapeHtml(f.nom) + "</option>";
+      });
+      html += "</optgroup>";
+    });
+    sel.innerHTML = html;
+    if (cur) { sel.value = cur; }
+  }
+
+  function updateSamplingRecommendation(value) {
+    var box = $("fc-recommandation-epr");
+    if (!box || !window.CAEKModel || !CAEKModel.loadLaboSettings) { return; }
+    var q = num(value);
+    if (q <= 0) { box.hidden = true; box.textContent = ""; return; }
+    CAEKModel.loadLaboSettings(current && current.laboId).then(function (settings) {
+      if (!current) { return; }
+      var n = CAEKModel.recommendationEprouvettes(q, settings);
+      current.recommandationEprouvettes = n;
+      current.regleEchantillonnage = settings;
+      box.hidden = false;
+      box.innerHTML = "&#129514; Recommandation du laboratoire : <strong>" + n +
+        " éprouvettes</strong> pour " + q + " m³.";
+    });
   }
 
   function gatherProjetStep() {
@@ -322,6 +377,17 @@ var CAEKFiche = (function () {
     if (current.etage) { parts.push(current.etage); }
     if (current.partie) { parts.push(current.partie); }
     current.ouvrageZonePartie = parts.join(" · ");
+    // Phase 2 : centrale + formulation + quantité estimée au niveau coulage ;
+    // désignation TERRAIN séparée de la désignation OFFICIELLE (posée à la
+    // validation/au bureau, jamais écrasée ici).
+    current.centrale = readSelectOrAutre("fc-centrale");
+    current.formulationId = val("fc-formulation-modele") || "";
+    current.quantiteEstimee = val("fc-quantite-estimee").trim();
+    if (window.CAEKModel && current.regleEchantillonnage) {
+      current.recommandationEprouvettes = CAEKModel.recommendationEprouvettes(
+        current.quantiteEstimee, current.regleEchantillonnage);
+    }
+    current.designationTerrain = current.ouvrageCoule || "";
     current.dateModification = new Date().toISOString();
   }
 
@@ -444,8 +510,21 @@ var CAEKFiche = (function () {
       m.prelType = currentMoldType();
       m.prelNombre = intOr0(val("fc-mal-prel-nb"));
       m.prelObs = ($("fc-mal-prel-obs-on") && $("fc-mal-prel-obs-on").checked) ? val("fc-mal-prel-obs").trim() : "";
+      // Phase 3 : identité UUID du prélèvement + de chaque éprouvette
+      // (stable hors-ligne ; le n° E officiel est alloué par le serveur).
+      if (!m.prelUuid) {
+        m.prelUuid = (window.CAEKCoulages && CAEKCoulages.newUuid) ? CAEKCoulages.newUuid()
+          : String(Date.now()) + "-" + Math.random().toString(16).slice(2);
+      }
+      m.eprUuids = Array.isArray(m.eprUuids) ? m.eprUuids : [];
+      while (m.eprUuids.length < m.prelNombre) {
+        m.eprUuids.push((window.CAEKCoulages && CAEKCoulages.newUuid) ? CAEKCoulages.newUuid()
+          : String(Date.now()) + "-" + Math.random().toString(16).slice(2));
+      }
+      m.eprUuids = m.eprUuids.slice(0, m.prelNombre);
     } else {
       m.preleve = false; m.prelType = ""; m.prelNombre = ""; m.prelObs = "";
+      m.prelUuid = null; m.eprUuids = [];
     }
   }
 
@@ -546,6 +625,9 @@ var CAEKFiche = (function () {
     setVal("fc-mal-grav-1525-prov", m.formulation.gravier1525Provenance);
     setVal("fc-mal-eau", m.formulation.eau);
     setVal("fc-mal-eau-prov", m.formulation.eauProvenance);
+    // Observation générale du malaxeur.
+    setVal("fc-mal-observation", m.observation || "");
+    setOptToggle("fc-mal-observation-on", "fc-mal-observation", !!m.observation);
     renderMalFormPhotoPreview();
     populatePrelevement(m);
   }
@@ -558,6 +640,8 @@ var CAEKFiche = (function () {
     m.temperature = val("fc-mal-temperature");
     m.numCamion = val("fc-mal-camion").trim();
     m.numBL = val("fc-mal-bl").trim();
+    m.observation = ($("fc-mal-observation-on") && $("fc-mal-observation-on").checked)
+      ? val("fc-mal-observation").trim() : "";
     if (m.formulation.reprise && malaxeurIdx > 0) {
       var prev = current.malaxeurs[malaxeurIdx - 1];
       if (prev) {
@@ -597,16 +681,21 @@ var CAEKFiche = (function () {
     gatherPrelevement(m);
   }
 
+  function attachPendingMalPhoto() {
+    if (!pendingMalPhoto || !window.CAEKDB || !CAEKDB.addPhoto) { return Promise.resolve(); }
+    return CAEKDB.addPhoto(current.ref, "formulation", pendingMalPhoto, { malaxeur: malaxeurIdx })
+      .then(function (id) {
+        if (typeof id === "number") { malaxeurDraft.formulation.photoId = id; }
+        pendingMalPhoto = null;
+      }).catch(function () {});
+  }
+
   function saveMalaxeurToCoulage() {
     gatherMalaxeur();
     current.malaxeurs[malaxeurIdx] = malaxeurDraft;
-    var attach = Promise.resolve();
-    if (pendingMalPhoto && window.CAEKDB && CAEKDB.addPhoto) {
-      attach = CAEKDB.addPhoto(current.ref, "formulation", pendingMalPhoto, { malaxeur: malaxeurIdx })
-        .then(function (id) { if (typeof id === "number") { malaxeurDraft.formulation.photoId = id; } pendingMalPhoto = null; })
-        .catch(function () {});
-    }
-    return attach.then(function () {
+    if (current.origineDuplication) { current.copieIntacte = false; }
+    delete current.saisieEnCours;
+    return attachPendingMalPhoto().then(function () {
       computeTotals();
       current.dateModification = new Date().toISOString();
       return CAEKDB.updateCoulage(current);
@@ -617,6 +706,9 @@ var CAEKFiche = (function () {
     var totQ = 0;
     (current.malaxeurs || []).forEach(function (m) { totQ += num(m.quantite); });
     current.totalQuantite = Math.round(totQ * 100) / 100;
+    // Phase 2 : la quantité OBSERVÉE = somme des malaxeurs (dual-write) ;
+    // estimée = saisie identification ; validée = posée par le vérificateur.
+    current.quantiteObservee = current.totalQuantite;
     current.totalEprouvettes = window.CAEKModel ? CAEKModel.totalEprouvettes(current) : 0;
   }
 
@@ -661,6 +753,12 @@ var CAEKFiche = (function () {
     html += "<div><span class=\"ro-label\">Malaxeurs</span><span class=\"ro-val\">" + (c.malaxeurs || []).length + "</span></div>";
     html += "<div><span class=\"ro-label\">Quantité totale</span><span class=\"ro-val\">" + (c.totalQuantite || 0) + " m³</span></div>";
     html += "<div><span class=\"ro-label\">Total éprouvettes</span><span class=\"ro-val\">" + (c.totalEprouvettes || 0) + "</span></div>";
+    if (intOr0(c.recommandationEprouvettes) > 0) {
+      var manque = Math.max(0, intOr0(c.recommandationEprouvettes) - intOr0(c.totalEprouvettes));
+      html += "<div><span class=\"ro-label\">Recommandation laboratoire</span><span class=\"ro-val\">" +
+        intOr0(c.recommandationEprouvettes) + " éprouvette(s)" +
+        (manque ? " · <strong>reste recommandé : " + manque + "</strong>" : " · atteint") + "</span></div>";
+    }
     html += "</div>";
 
     html += "<h3 class=\"block-subtitle\">Détail des malaxeurs</h3>";
@@ -915,6 +1013,48 @@ var CAEKFiche = (function () {
     }, 2500);
   }
 
+  function closeFinDialog() { show("fc-fin-dialog", false); }
+  function finishIntervention(assisteTout) {
+    if (!current || !malaxeurDraft) { return; }
+    var note = val("fc-fin-note").trim();
+    current.finIntervention = {
+      assisteTout: assisteTout === true,
+      // Champs historiques conservés pour les anciens exports.
+      etat: assisteTout === true ? "termine" : "en_cours",
+      par: profilNom() || (current.signatureOperateur || ""),
+      date: new Date().toISOString(),
+      note: note
+    };
+    current.statutSaisie = "terminee";
+    delete current.interruption;
+    closeFinDialog();
+    saveMalaxeurToCoulage().then(function () { gotoStep("recap"); });
+  }
+  function interruptSaisie() {
+    if (!current || !malaxeurDraft) { return; }
+    var msg = "Interrompre la saisie ?\n\nLa fiche restera INCOMPLÈTE dans le Répertoire. " +
+      "Elle ne sera pas soumise au laboratoire et vous pourrez la reprendre à tout moment.";
+    if (!window.confirm(msg)) { return; }
+    gatherMalaxeur();
+    attachPendingMalPhoto().then(function () {
+      current.statutSaisie = "incomplete";
+      if (current.origineDuplication) { current.copieIntacte = false; }
+      current.interruption = {
+        par: profilNom() || (current.signatureOperateur || ""),
+        date: new Date().toISOString(), etape: "malaxeur", index: malaxeurIdx
+      };
+      current.saisieEnCours = {
+        index: malaxeurIdx,
+        malaxeur: JSON.parse(JSON.stringify(malaxeurDraft))
+      };
+      current.dateModification = new Date().toISOString();
+      return CAEKDB.updateCoulage(current);
+    }).then(function () {
+      if (window.CAEKRepertoire) { CAEKRepertoire.refresh(); }
+      if (window.CAEKApp) { CAEKApp.navigate("screen-repertoire"); }
+    }).catch(function (e) { showResult("&#9888; Interruption non enregistrée : " + escapeHtml(e && e.message || e), true); });
+  }
+
   function init() {
     loadIconsManifest();
 
@@ -967,8 +1107,9 @@ var CAEKFiche = (function () {
     bindOptToggle("fc-mal-bl-on", "fc-mal-bl");
     bindOptToggle("fc-bloc-on", "fc-bloc");
     bindOptToggle("fc-etage-on", "fc-etage");
+    bindOptToggle("fc-mal-observation-on", "fc-mal-observation");
 
-    ["fc-mal-classe", "fc-mal-ciment", "fc-mal-dosage", "fc-mal-dmax", "fc-mal-adjuvant"].forEach(function (id) {
+    ["fc-mal-classe", "fc-mal-ciment", "fc-mal-dosage", "fc-mal-dmax", "fc-mal-adjuvant", "fc-centrale"].forEach(function (id) {
       var s = $(id); if (!s) { return; }
       s.addEventListener("change", function () { var a = $(id + "-autre"); if (a) { a.hidden = (s.value !== "autre"); } });
     });
@@ -990,6 +1131,8 @@ var CAEKFiche = (function () {
     if (cont) {
       cont.addEventListener("click", function () {
         var err = prelError(); if (err) { alert(err); return; }
+        current.statutSaisie = "en_cours";
+        delete current.interruption;
         saveMalaxeurToCoulage().then(function () {
           malaxeurIdx = current.malaxeurs.length;
           malaxeurDraft = emptyMalaxeur();
@@ -1000,16 +1143,19 @@ var CAEKFiche = (function () {
         });
       });
     }
+    var interrupt = $("fc-mal-interrompre");
+    if (interrupt) { interrupt.addEventListener("click", interruptSaisie); }
     var term = $("fc-mal-terminer");
     if (term) {
       term.addEventListener("click", function () {
         var err = prelError(); if (err) { alert(err); return; }
-        if (!window.confirm(window.I18N && I18N.f ? I18N.f("Confirmez-vous que le coulage est bien terminé ?") : "Confirmez-vous que le coulage est bien terminé ?")) { return; }
-        saveMalaxeurToCoulage().then(function () { gotoStep("recap"); });
+        setVal("fc-fin-note", "");
+        show("fc-fin-dialog", true);
       });
     }
-    var ann = $("fc-mal-annuler");
-    if (ann) { ann.addEventListener("click", function () { gotoStep((current.malaxeurs || []).length ? "recap" : "projet"); }); }
+    var finOui = $("fc-fin-oui"); if (finOui) { finOui.addEventListener("click", function () { finishIntervention(true); }); }
+    var finNon = $("fc-fin-non"); if (finNon) { finNon.addEventListener("click", function () { finishIntervention(false); }); }
+    var finCancel = $("fc-fin-cancel"); if (finCancel) { finCancel.addEventListener("click", closeFinDialog); }
 
     var add = $("fc-recap-add");
     if (add) { add.addEventListener("click", function () { goMalaxeur(); }); }
@@ -1037,6 +1183,9 @@ var CAEKFiche = (function () {
     // Ouvrage "Autres" + Partie (champs facultatifs de l'etape projet).
     bindOptToggle("fc-ouvrage-autre-on", "fc-ouvrage-autre");
     bindOptToggle("fc-partie-on", "fc-partie");
+
+    var qEst = $("fc-quantite-estimee");
+    if (qEst) { qEst.addEventListener("input", function () { updateSamplingRecommendation(qEst.value); }); }
 
     var apx = $("fc-anomalie-photo-input");
     if (apx) {

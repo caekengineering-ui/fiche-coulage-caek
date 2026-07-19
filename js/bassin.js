@@ -165,6 +165,10 @@ var CAEKBassin = (function () {
       var eligibles = list.filter(function (c) {
         var st = c.statut || "brouillon";
         if (st !== "soumis" && st !== "valide" && st !== "validee" && st !== "envoyee") { return false; }
+        // Référence PROVISOIRE (hors-ligne, Phase 1) : répartition bloquée
+        // tant que la référence officielle n'est pas allouée par le serveur
+        // (les codes d'éprouvettes REF-Ei-NN en dérivent).
+        if (c.refProvisoire === true) { return false; }
         if (specimenInfo(c).total <= 0) { return false; }
         return window.CAEKModel ? CAEKModel.recuperationOk(c) : true;
       });
@@ -274,8 +278,40 @@ var CAEKBassin = (function () {
     return "<select class=\"field lot-age\">" + opt("7j", "7 jours") + opt("28j", "28 jours") + opt("autre", "Autre…") + "</select>";
   }
 
+  // Identité métier d'un lot : un coulage et une échéance. Les codes individuels
+  // conservent leur prélèvement d'origine ; celui-ci ne doit pas fragmenter le
+  // bassin ni le PV lorsque l'échéance est identique.
+  function mergeLotsByEcheance(lots) {
+    var byAge = {}, order = [];
+    (lots || []).forEach(function (lot) {
+      var age = intOr0(lot.ageJours) || 28;
+      if (!byAge[age]) { byAge[age] = []; order.push(age); }
+      byAge[age].push(lot);
+    });
+    return order.sort(function (a, b) { return a - b; }).map(function (age) {
+      var group = byAge[age], first = group[0], codes = [], prels = [], types = {};
+      group.forEach(function (lot) {
+        (lot.codes || []).forEach(function (code) { codes.push(code); });
+        var p = intOr0(lot.prel);
+        if (p && prels.indexOf(p) < 0) { prels.push(p); }
+        if (lot.type) { types[lot.type] = true; }
+      });
+      codes.sort(function (a, b) { return String(a.code).localeCompare(String(b.code)); });
+      var typeList = Object.keys(types);
+      return {
+        prel: prels[0] || first.prel || 0,
+        prels: prels,
+        type: typeList.length === 1 ? typeList[0] : "mixte",
+        codes: codes,
+        nombre: codes.length || group.reduce(function (n, lot) { return n + (lot.nombre || 0); }, 0),
+        age: first.age || (age === 7 ? "7j" : (age === 28 ? "28j" : "autre")),
+        ageJours: age
+      };
+    });
+  }
+
   // Lots proposés (défaut, depuis le modèle) ou reconstruits depuis une
-  // répartition existante (révision). Chaque lot = sous-ensemble d'UN prélèvement.
+  // répartition existante (révision), regroupés par échéance.
   function buildRepLots(coulage, existingLots) {
     if (existingLots && existingLots.length) {
       return existingLots.slice().sort(function (a, b) {
@@ -283,13 +319,13 @@ var CAEKBassin = (function () {
       }).map(function (l) {
         var codes = (l.codes || []).slice();
         return {
-          prel: l.prel, type: l.type, codes: codes,
+          prel: l.prel, prels: l.prels || [l.prel], type: l.type, codes: codes,
           nombre: codes.length || l.nombre || 0,
           age: l.age || "28j", ageJours: l.ageJours || 28
         };
       });
     }
-    return window.CAEKModel ? CAEKModel.proposeRepartition(coulage) : [];
+    return mergeLotsByEcheance(window.CAEKModel ? CAEKModel.proposeRepartition(coulage) : []);
   }
 
   function lotCodesPlage(lot) {
@@ -307,7 +343,9 @@ var CAEKBassin = (function () {
       ? "<button type=\"button\" class=\"btn-text lot-split\" data-idx=\"" + idx + "\">&#9986; Diviser (âge client)</button>"
       : "";
     return "<div class=\"prel-rep-row\" data-idx=\"" + idx + "\">" +
-      "<div class=\"prel-rep-head\"><span class=\"prel-num\">E" + lot.prel + "</span> " +
+      "<div class=\"prel-rep-head\"><span class=\"prel-num\">" +
+      escapeHtml((lot.prels && lot.prels.length ? lot.prels : [lot.prel]).map(function (p) { return "E" + p; }).join(" + ")) +
+      "</span> " +
       escapeHtml(typeLabel(lot.type)) + " · <strong>" + lot.nombre + "</strong> épr." +
       ((lot.codes && lot.codes[0] && lot.codes[0].malaxeur) ? " · Malaxeur " + lot.codes[0].malaxeur : "") + "</div>" +
       "<div class=\"prel-rep-codes\">" + escapeHtml(lotCodesPlage(lot)) + "</div>" +
@@ -328,7 +366,6 @@ var CAEKBassin = (function () {
 
   // Divise un lot : détache K éprouvettes vers un nouvel âge (ex. 3 j exigé
   // par le client). Le lot d'origine conserve le reste (28 j par défaut).
-  // On ne mélange jamais deux prélèvements : la division reste dans E<prel>.
   // Recopie les échéances actuellement choisies dans le DOM vers _repLots
   // (sinon une division réécrit les lignes et perdrait ces choix).
   function syncAgesToLots(form) {
@@ -362,10 +399,18 @@ var CAEKBassin = (function () {
     var head = codes.slice(0, k);
     var tail = codes.slice(k);
     var age = (j === 7) ? "7j" : (j === 28 ? "28j" : "autre");
-    var nouveau = { prel: lot.prel, type: lot.type, codes: head, nombre: head.length,
+    var nouveau = { prel: lot.prel, prels: lot.prels || [lot.prel], type: lot.type, codes: head, nombre: head.length,
       age: age, ageJours: j };
     lot.codes = tail; lot.nombre = tail.length;
     lots.splice(idx, 0, nouveau);   // le nouvel âge s'affiche avant le reste
+    renderRepRows(form);
+  }
+
+  // Action explicite pour les anciennes répartitions déjà fragmentées :
+  // mêmes coulage + échéance => un lot unique, avec tous les codes conservés.
+  function regrouperLots(form) {
+    syncAgesToLots(form);
+    form._repLots = mergeLotsByEcheance(form._repLots || []);
     renderRepRows(form);
   }
 
@@ -380,8 +425,9 @@ var CAEKBassin = (function () {
 
     var rows = lots.map(lotRepRowHtml).join("");
 
-    var titre = "<p class=\"hint\">Répartition en <strong>lots d'essai</strong>. On ne mélange pas deux " +
-      "prélèvements dans un même lot. Par défaut : <strong>3 à 7 jours</strong>, le reste à " +
+    var titre = "<p class=\"hint\">Règle d'or : les éprouvettes d'un même coulage et d'une même " +
+      "échéance forment <strong>un seul lot et un seul PV</strong>. Les codes individuels et leurs " +
+      "prélèvements d'origine restent traçables. Par défaut : <strong>3 à 7 jours</strong>, le reste à " +
       "<strong>28 jours</strong>. Vous pouvez changer l'échéance de chaque lot, ou " +
       "<strong>&#9986; Diviser</strong> un lot pour un âge exigé par le client (ex. 3 j) — " +
       "le reste garde son échéance.</p>";
@@ -389,6 +435,7 @@ var CAEKBassin = (function () {
     form.innerHTML = titre +
       "<div class=\"prel-rep-editor\">" + rows + "</div>" +
       "<div class=\"repb-sum\"></div>" +
+      (isEdit ? "<button type=\"button\" class=\"btn-text repb-regrouper\">&#8644; Regrouper les lots de même échéance</button>" : "") +
       "<button type=\"button\" class=\"btn-primary repb-valider\">&#10004; " +
         (isEdit ? "Enregistrer les corrections" : "Confirmer la répartition") + "</button>" +
       "<div class=\"repb-result\" hidden></div>";
@@ -408,10 +455,10 @@ var CAEKBassin = (function () {
       if (!base) { continue; }
       var ageSel = r.querySelector(".lot-age").value;
       var ageJours = ageSel === "7j" ? 7 : (ageSel === "28j" ? 28 : intOr0(r.querySelector(".lot-jours").value));
-      out.push({ prel: base.prel, type: base.type, codes: base.codes,
+      out.push({ prel: base.prel, prels: base.prels || [base.prel], type: base.type, codes: base.codes,
         nombre: base.nombre, age: ageSel, ageJours: ageJours });
     }
-    return out;
+    return mergeLotsByEcheance(out);
   }
 
   // Affiche/masque les champs « jours » et valide le formulaire.
@@ -432,7 +479,7 @@ var CAEKBassin = (function () {
       box.className = "repb-sum " + (bad ? "is-warn" : "is-ok");
       box.innerHTML = bad
         ? "&#9888; Indiquez l'âge (jours) pour chaque lot « Autre… »."
-        : rows.length + " lot(s) d'essai — aucun mélange de prélèvements.";
+        : rows.length + " lot(s) d'essai — un seul lot par échéance.";
     }
     if (btn) { btn.disabled = bad || rows.length === 0; }
   }
@@ -477,10 +524,12 @@ var CAEKBassin = (function () {
     var lots = kept.map(function (l) {
       var datePrevue = addDaysStr(coulage.dateCoulage || todayStr(), l.ageJours);
       var codes = (l.codes || []).map(function (x) {
-        return { code: x.code, type: x.type, prel: x.prel, numInterne: x.numInterne, malaxeur: x.malaxeur };
+        return { code: x.code, type: x.type, prel: x.prel, numInterne: x.numInterne,
+          malaxeur: x.malaxeur, eprUuid: x.eprUuid || null };
       });
       return {
         ref: coulage.ref,
+        prelUuid: l.prelUuid || null,
         client: coulage.client || coulage.entreprise || "",
         nomProjet: coulage.nomProjet || "",
         ouvrage: coulage.ouvrageCoule || coulage.ouvrage || "",
@@ -525,6 +574,13 @@ var CAEKBassin = (function () {
       coulage.dateRepartition = now;
       coulage.dateModification = now;
       return CAEKDB.updateCoulage(coulage);
+    }).then(function () {
+      // Phase 3 : la répartition devient aussi un ÉVÉNEMENT SERVEUR
+      // idempotent (op_coulage_event) — plus seulement un champ local.
+      if (window.CAEKCoulages && CAEKCoulages.sendEvent) {
+        CAEKCoulages.sendEvent(coulage.ref, "bassin_reparti", { date: now });
+      }
+      return null;
     }).then(function () {
       return CAEKDB.addJournal({
         type: isEdit ? "repartition_revue" : "repartition", ref: coulage.ref,
@@ -740,7 +796,23 @@ var CAEKBassin = (function () {
         if (order[sa] !== order[sb]) { return order[sa] - order[sb]; }
         return String(a.datePrevue).localeCompare(String(b.datePrevue));
       });
-      grid.innerHTML = sorted.map(shapeBtnHtml).join("");
+      // Phase 3 : groupement DYNAMIQUE par âge d'essai (age_jours), sans
+      // aucune limite fonctionnelle (3 j, 7 j, 14 j, 90 j… tout âge client).
+      var byAge = {};
+      sorted.forEach(function (l) {
+        var a = l.ageJours || 28;
+        (byAge[a] = byAge[a] || []).push(l);
+      });
+      var ages = Object.keys(byAge).map(Number).sort(function (x, y) { return x - y; });
+      grid.innerHTML = ages.map(function (a) {
+        var g = byAge[a];
+        var nEpr = g.reduce(function (s, l) { return s + (l.nombre || 0); }, 0);
+        return "<div class=\"bassin-age-group\">" +
+          "<h4 class=\"bassin-age-titre\">&#9203; " + a + " jours — " + g.length +
+          " lot(s) · " + nEpr + " éprouvette(s)</h4>" +
+          "<div class=\"bassin-age-grid\">" + g.map(shapeBtnHtml).join("") + "</div>" +
+          "</div>";
+      }).join("");
       if (window.I18N) { I18N.translate(grid); }
     }
 
@@ -805,8 +877,16 @@ var CAEKBassin = (function () {
       detRow("Codification", lotCodesText(lot)) +
       detRow("Âge", lot.age === "autre" ? lot.ageJours + " jours" : lot.age) +
       detRow("Date prévue d'essai", fmtDate(lot.datePrevue)) +
+      (lot.revisionAgeRequise ? detRow("Alerte date", "Date de coulage corrigée après engagement — révision des âges requise") : "") +
       detRow("Statut", stLabel) +
-      detRow("Opérateur (répartition)", lot.operateurRepartition);
+      detRow("Opérateur (répartition)", lot.operateurRepartition) +
+      // Phase 3 : état de synchronisation VISIBLE (local / en attente /
+      // synchronisé / conflit / erreur), complété en asynchrone.
+      "<div class=\"det-row\"><span class=\"det-label\">Synchronisation</span>" +
+      "<span class=\"det-val\" id=\"bassin-sync-etat\">" +
+      (lot._conflit || lot._prelConflit ? "&#9888; Conflit"
+        : (lot._syncedAt ? "&#10004; Synchronisé" : "&#128244; Local")) +
+      "</span></div>";
 
     var action;
     if (lot.statut === "sorti") {
@@ -846,6 +926,16 @@ var CAEKBassin = (function () {
       "<div id=\"bassin-sortie-zone\" data-id=\"" + lot.id + "\" data-st=\"" + st + "\">" + action + "</div>" +
       revoir;
 
+    // État « en attente » / « erreur » depuis la file de synchro des lots.
+    if (window.CAEKLots && CAEKLots.pendingKeys && lot.lotKey) {
+      CAEKLots.pendingKeys().then(function (q) {
+        var el = $("bassin-sync-etat");
+        if (el && q && q[lot.lotKey]) {
+          el.innerHTML = "&#8987; En attente de synchronisation";
+        }
+      }).catch(function () {});
+    }
+
     $("bassin-detail").hidden = false;
   }
 
@@ -870,7 +960,10 @@ var CAEKBassin = (function () {
     if (needMotif) {
       html += "<label class=\"field-label\" for=\"sortie-motif\">Motif</label>" +
         "<select id=\"sortie-motif\" class=\"field\"><option value=\"\">— Choisir —</option>" +
-        motifs.map(function (m) { return "<option>" + m + "</option>"; }).join("") + "</select>";
+        motifs.map(function (m) {
+          // value = motif français stable : en AR seul le texte affiché change.
+          return "<option value=\"" + escapeHtml(m) + "\">" + escapeHtml(m) + "</option>";
+        }).join("") + "</select>";
     }
     html += "<label class=\"field-label\" for=\"sortie-heure\">Heure de sortie</label>" +
       "<input id=\"sortie-heure\" class=\"field\" type=\"time\">" +
@@ -1079,6 +1172,11 @@ var CAEKBassin = (function () {
         if (splitBtn) {
           var f = t.closest(".repb-form");
           if (f) { splitLot(f, intOr0(splitBtn.getAttribute("data-idx"))); }
+          return;
+        }
+        if (t.closest(".repb-regrouper")) {
+          var regroupForm = t.closest(".repb-form");
+          if (regroupForm) { regrouperLots(regroupForm); }
           return;
         }
         if (t.closest(".repb-valider")) { validerRepartition(item.querySelector(".repb-form"), coulage); return; }

@@ -1061,6 +1061,18 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
   grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
   gap: 12px;
 }
+/* Phase 3 : groupement dynamique du bassin par âge d'essai. */
+.bassin-grille:has(.bassin-age-group) { display: block; }
+.bassin-age-group { margin-bottom: 14px; }
+.bassin-age-titre {
+  margin: 0 0 8px; font-size: 0.92rem; font-weight: 700; color: var(--text-dark);
+  border-bottom: 1px dashed var(--gray-line); padding-bottom: 4px;
+}
+.bassin-age-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 12px;
+}
 .bassin-shape {
   position: relative;
   width: 100%;
@@ -1703,3 +1715,35 @@ body.lang-ar .field-label, body.lang-ar .hint, body.lang-ar .app-subtitle { lett
 .ved-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
 .valid-edit .field { margin-bottom: 6px; }
 .valid-edit .valid-mal { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 8px; }
+
+/* Phase 5 : actions peu fréquentes et parcours terrain simplifié. */
+.rep-more-wrap { position: relative; display: flex; justify-content: flex-end; margin: .2rem .6rem .55rem; }
+.rep-more-toggle { min-height: 40px; font-size: .88rem; }
+.rep-more-menu {
+  position: absolute; z-index: 20; right: 0; top: 100%; min-width: 230px;
+  padding: .45rem; border: 1px solid var(--gray-line, #d8dee6); border-radius: 10px;
+  background: var(--white, #fff); box-shadow: 0 8px 24px rgba(0,0,0,.16);
+}
+.rep-more-menu[hidden] { display: none; }
+.rep-more-menu .rep-act { width: 100%; text-align: left; }
+.badge-incomplete { background: #fff3cd; color: #7a5200; }
+.badge-copy { background: #eef2ff; color: #35459a; }
+.sampling-recommendation {
+  margin-top: -.35rem; margin-bottom: .8rem; padding: .65rem .8rem;
+  border-left: 4px solid #3267d6; border-radius: 7px; background: #eef4ff; color: #173b80;
+}
+.mission-hint { margin-top: 1rem; }
+.fc-mission-actions { align-items: stretch; }
+.fc-mission-actions .btn-xl { flex: 1.4; }
+.mission-dialog-card { max-width: 560px; }
+.mission-dialog-actions { display: grid; gap: .65rem; margin-top: 1rem; }
+.valid-client-confirm { margin: .75rem 0; padding: .8rem; border: 1px solid #d8dee6; border-radius: 10px; background: #f8fafc; }
+.valid-client-confirm[hidden] { display: none; }
+.client-confirm-preview { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.5; background: #fff; padding: .75rem; border-radius: 7px; }
+.client-status-actions { border-top: 1px solid #d8dee6; padding-top: .55rem; }
+.dechets-sync.is-ok { color: #18733c; }
+.dechets-sync.is-warn { color: #8a5a00; }
+@media (max-width: 560px) {
+  .fc-mission-actions { display: grid; grid-template-columns: 1fr; }
+  .rep-more-menu { min-width: min(250px, 80vw); }
+}

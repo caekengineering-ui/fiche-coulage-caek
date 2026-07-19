@@ -45,7 +45,7 @@ var CAEKRepertoire = (function () {
   // Un coulage « engagé » (non brouillon) alimente le bassin.
   function isEngagee(st) { return st === "soumis" || st === "valide" || st === "validee" || st === "envoyee"; }
 
-  function num(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  function num(v) { var s = window.CAEKModel ? CAEKModel.normDigits(v) : String(v == null ? "" : v); var n = parseFloat(s.replace(",", ".")); return isNaN(n) ? 0 : n; }
 
   function pad2(n) { n = parseInt(n, 10) || 0; return (n < 10 ? "0" : "") + n; }
 
@@ -130,6 +130,8 @@ var CAEKRepertoire = (function () {
     return { qte: qte, epr: epr };
   }
 
+  var _outbox = {};   // ref -> entrée outbox en attente (état de synchro visible)
+
   function loadLocal() {
     return CAEKDB.getAllCoulages().then(function (list) {
       list.sort(function (a, b) {
@@ -138,6 +140,81 @@ var CAEKRepertoire = (function () {
         return db.localeCompare(da);
       });
       _all = list;
+      _outbox = {};
+      if (!CAEKDB.outboxAll) { return; }
+      return CAEKDB.outboxAll().then(function (entries) {
+        (entries || []).forEach(function (e) {
+          if (!e.ackAt) { _outbox[e.ref] = e; }
+        });
+      }).catch(function () {});
+    });
+  }
+
+  /* ---------- Phase 2 : « Dupliquer les informations » ----------
+     Nouvelle fiche brouillon pré-remplie avec l'IDENTIFICATION du coulage
+     source. VIDÉS volontairement : référence, malaxeurs, prélèvements,
+     résultats, médias, validations et traces d'audit. */
+  function dupliquerFiche(ref) {
+    if (!window.CAEKDB) { return; }
+    CAEKDB.getCoulage(ref).then(function (src) {
+      if (!src) { return; }
+      var confirmMsg = "Créer une fiche similaire depuis " + ref + " ?\n\n" +
+        "Seront copiés : client, projet, ouvrage, centrale et formulation.\n" +
+        "Ne seront PAS copiés : date, malaxeurs, prélèvements, résultats, médias et validations.\n\n" +
+        "La nouvelle fiche restera un brouillon supprimable jusqu'à sa soumission.";
+      if (!window.confirm(confirmMsg)) { return; }
+      var uuid = (window.CAEKCoulages && CAEKCoulages.newUuid) ? CAEKCoulages.newUuid()
+        : String(Date.now()) + "-" + Math.random().toString(16).slice(2);
+      var base = {
+        uuid: uuid,
+        codeProjet: src.codeProjet || "",
+        mode: src.mode || "projet",
+        statut: "brouillon",
+        dateCreation: new Date().toISOString(),
+        dateCoulage: "",
+        origineDuplication: ref,
+        copieIntacte: true,
+        statutSaisie: "incomplete",
+        // Identification conservée
+        clientId: src.clientId || "", entreprise: src.entreprise || "", client: src.client || "",
+        nomProjet: src.nomProjet || "", localisation: src.localisation || "",
+        adresse: src.adresse || "", ville: src.ville || "",
+        contact: src.contact || "", contactNom: src.contactNom || "", contactTel: src.contactTel || "",
+        email: src.email || "",
+        referenceCommande: src.referenceCommande || "", referenceDossier: src.referenceDossier || "",
+        resistance: src.resistance === undefined ? "" : src.resistance,
+        laboId: src.laboId || "",
+        agesEssai: Array.isArray(src.agesEssai) ? src.agesEssai.slice() : [7, 28],
+        // Contexte terrain conservé (re-modifiable)
+        modeCoulage: src.modeCoulage || "", modeCoulageAutre: src.modeCoulageAutre || "",
+        ouvrages: Array.isArray(src.ouvrages) ? src.ouvrages.slice() : [],
+        ouvrageFamilies: Array.isArray(src.ouvrageFamilies) ? src.ouvrageFamilies.slice() : [],
+        ouvrageAutre: src.ouvrageAutre || "", ouvrageCoule: src.ouvrageCoule || "",
+        bloc: src.bloc || "", etage: src.etage || "", partie: "",
+        ouvrageZonePartie: src.ouvrageZonePartie || "",
+        designationTerrain: src.designationTerrain || src.ouvrageCoule || "",
+        // Phase 2 : centrale / formulation / quantité estimée conservées
+        centrale: src.centrale || "", formulationId: src.formulationId || "",
+        quantiteEstimee: src.quantiteEstimee || "",
+        // VIDÉS : mesures, prélèvements, résultats, médias, validations, audit
+        malaxeurs: []
+      };
+      function creer(newRef, numero, prov) {
+        base.ref = newRef;
+        base.numero = numero;
+        base.refProvisoire = prov;
+        CAEKDB.saveCoulage(base).then(function (res) {
+          if (!res.ok) { window.alert(res.error || "Duplication impossible."); return; }
+          if (window.CAEKCoulages && CAEKCoulages.registerLocalDraft) {
+            CAEKCoulages.registerLocalDraft(newRef).catch(function () {});
+          }
+          if (window.CAEKFiche) { CAEKFiche.open(newRef); }
+          else { refresh(); }
+        });
+      }
+      // La référence reste clairement provisoire à la création. La Phase 1
+      // l'échange atomiquement contre une référence officielle au serveur.
+      creer((base.codeProjet || "FICHE") + "-P" + String(uuid).replace(/-/g, "").slice(0, 6).toUpperCase(), null, true);
     });
   }
 
@@ -198,9 +275,35 @@ var CAEKRepertoire = (function () {
           escapeHtml(c.retourAdmin) + "</div>"
         : "";
 
+      // Phase 1 : CONFLIT DE VERSIONS visible, à résoudre explicitement.
+      if (c._conflit) {
+        var srvC = c._conflit;
+        retour += "<div class=\"result-card is-error rep-conflit\">&#9888; <strong>Conflit de versions :</strong> " +
+          "cette fiche a été modifiée sur un autre appareil" +
+          (srvC.operateur ? " par " + escapeHtml(srvC.operateur) : "") +
+          (srvC.version ? " (version serveur " + escapeHtml(String(srvC.version)) + ")" : "") + "." +
+          "<div class=\"rep-actions\">" +
+          "<button type=\"button\" class=\"rep-act rep-conflit-serveur\" data-ref=\"" + ref + "\">&#11015; Prendre la version serveur</button>" +
+          "<button type=\"button\" class=\"rep-act rep-conflit-local\" data-ref=\"" + ref + "\">&#11014; Garder mes modifications et renvoyer</button>" +
+          "</div></div>";
+      }
+      // État de synchronisation : en attente / erreur consignée (outbox).
+      var ob = _outbox[c.ref];
+      if (ob && !c._conflit) {
+        retour += "<div class=\"result-card rep-attente\">&#8987; " +
+          (ob.action === "soumettre" ? "Soumission" : "Sauvegarde") + " en attente de synchronisation" +
+          (ob.attempts ? " · " + ob.attempts + " tentative(s)" : "") +
+          (ob.lastError ? " · <strong>Dernière erreur :</strong> " + escapeHtml(ob.lastError) : "") +
+          "</div>";
+      }
+
       var actions = "<div class=\"rep-actions\">";
       if (st === "brouillon") {
-        actions += "<button type=\"button\" class=\"rep-act rep-soumettre\" data-ref=\"" + ref + "\">&#128228; Soumettre au laboratoire</button>";
+        if (c.statutSaisie === "incomplete") {
+          actions += "<button type=\"button\" class=\"rep-act rep-resume\" data-ref=\"" + ref + "\">&#9654; Reprendre la saisie</button>";
+        } else {
+          actions += "<button type=\"button\" class=\"rep-act rep-soumettre\" data-ref=\"" + ref + "\">&#128228; Soumettre au laboratoire</button>";
+        }
       } else {
         if (needRecup) {
           actions += "<button type=\"button\" class=\"rep-act rep-recup-btn\" data-ref=\"" + ref + "\">&#9888; Confirmer récupération éprouvettes</button>";
@@ -208,6 +311,12 @@ var CAEKRepertoire = (function () {
         actions += "<button type=\"button\" class=\"rep-act rep-msg-btn\" data-ref=\"" + ref + "\">&#128172; Message récap</button>";
       }
       actions += "</div>";
+
+      var moreMenu = "<div class=\"rep-more-wrap\">" +
+        "<button type=\"button\" class=\"btn-text rep-more-toggle\" aria-expanded=\"false\" aria-label=\"Autres actions\">&#8942; Autres actions</button>" +
+        "<div class=\"rep-more-menu\" hidden>" +
+        "<button type=\"button\" class=\"rep-act rep-dupliquer\" data-ref=\"" + ref + "\">&#128209; Créer une fiche similaire</button>" +
+        "</div></div>";
 
       var recupPanel = needRecup ? recupPanelHtml(c, ref) : "";
 
@@ -234,6 +343,9 @@ var CAEKRepertoire = (function () {
         "<div class=\"rep-row\">" +
         "<button type=\"button\" class=\"rep-open\" data-ref=\"" + ref + "\">" +
         "<div class=\"rep-top\"><span class=\"rep-ref\">" + ref + "</span>" +
+        (c.refProvisoire ? "<span class=\"badge badge-brouillon\" title=\"Référence officielle attribuée à la synchronisation\">Provisoire</span>" : "") +
+        (c.statutSaisie === "incomplete" ? "<span class=\"badge badge-incomplete\">Incomplète</span>" : "") +
+        (c.origineDuplication ? "<span class=\"badge badge-copy\">Fiche similaire</span>" : "") +
         "<span class=\"badge badge-" + st + "\">" + (STATUT_LABEL[st] || st) + "</span></div>" +
         "<div class=\"rep-ent\">" + escapeHtml(c.client || c.entreprise || "—") + "</div>" +
         "<div class=\"rep-sub\">" + escapeHtml(c.nomProjet || "") +
@@ -244,6 +356,7 @@ var CAEKRepertoire = (function () {
         delBtn +
         "</div>" +
         actions +
+        moreMenu +
         recupPanel +
         msgPanel +
         "</div>";
@@ -254,22 +367,41 @@ var CAEKRepertoire = (function () {
   function soumettreFiche(ref) {
     var prof = window.CAEKProfil ? CAEKProfil.require("Profil opérateur requis. Connectez-vous.") : { nom: "" };
     if (!prof) { return; }
-    var submitMsg = window.I18N && I18N.f
-      ? I18N.f("Soumettre la fiche {ref} au laboratoire ?", { ref: ref }) + "\n" +
-        I18N.f("Elle sera verrouillée et envoyée à l'administrateur pour validation.") + "\n" +
-        I18N.f("La répartition des éprouvettes au bassin reste possible immédiatement.")
-      : "Soumettre la fiche " + ref + " au laboratoire ?\n" +
-        "Elle sera verrouillée et envoyée à l'administrateur pour validation.\n" +
-        "La répartition des éprouvettes au bassin reste possible immédiatement.";
-    if (!window.confirm(submitMsg)) { return; }
     if (!window.CAEKCoulages) { return; }
-    CAEKCoulages.soumettre(ref, prof).then(function (r) {
-      if (!r.ok) { window.alert(r.error || "Échec de la soumission."); refresh(); return; }
-      if (r.offline) {
-        window.alert("Fiche soumise (hors-ligne) : elle sera transmise au serveur au retour du réseau.");
+    CAEKDB.getCoulage(ref).then(function (c) {
+      var mals = (c && c.malaxeurs) || [];
+      if (c && c.statutSaisie === "incomplete") {
+        window.alert("Cette fiche est incomplète. Reprenez la saisie et terminez votre intervention avant de la soumettre.");
+        return;
       }
-      if (window.CAEKBadges) { CAEKBadges.refresh(); }
-      refresh();
+      if (mals.length === 0) {
+        window.alert(window.I18N && I18N.f
+          ? I18N.f("Ajoutez au moins un malaxeur (quantité de béton) avant de soumettre la fiche.")
+          : "Ajoutez au moins un malaxeur (quantité de béton) avant de soumettre la fiche.");
+        return;
+      }
+      var recommande = parseInt(c.recommandationEprouvettes, 10) || 0;
+      var reel = window.CAEKModel ? CAEKModel.totalEprouvettes(c) : 0;
+      if (recommande > 0 && reel < recommande) {
+        if (!window.confirm("Le laboratoire recommande " + recommande + " éprouvettes pour cette quantité, mais " +
+          reel + " seulement ont été enregistrées.\n\nContinuer quand même vers la confirmation de soumission ?")) { return; }
+      }
+      var submitMsg = window.I18N && I18N.f
+        ? I18N.f("Soumettre la fiche {ref} au laboratoire ?", { ref: ref }) + "\n" +
+          I18N.f("Elle sera verrouillée et envoyée à l'administrateur pour validation.") + "\n" +
+          I18N.f("La répartition des éprouvettes au bassin reste possible immédiatement.")
+        : "Soumettre la fiche " + ref + " au laboratoire ?\n" +
+          "Elle sera verrouillée et envoyée à l'administrateur pour validation.\n" +
+          "La répartition des éprouvettes au bassin reste possible immédiatement.";
+      if (!window.confirm(submitMsg)) { return; }
+      CAEKCoulages.soumettre(ref, prof).then(function (r) {
+        if (!r.ok) { window.alert(r.error || "Échec de la soumission."); refresh(); return; }
+        if (r.offline) {
+          window.alert("Fiche soumise (hors-ligne) : elle sera transmise au serveur au retour du réseau.");
+        }
+        if (window.CAEKBadges) { CAEKBadges.refresh(); }
+        refresh();
+      });
     });
   }
 
@@ -332,6 +464,13 @@ var CAEKRepertoire = (function () {
       c.qualificationRecuperation = prof.qualification || "";
       c.dateModification = new Date().toISOString();
       return CAEKDB.updateCoulage(c).then(function () {
+        // Phase 3 : la récupération devient aussi un ÉVÉNEMENT SERVEUR
+        // idempotent (op_coulage_event) — plus seulement un champ local.
+        if (window.CAEKCoulages && CAEKCoulages.sendEvent) {
+          CAEKCoulages.sendEvent(ref, "recuperation", {
+            date: c.dateRecuperation, operateur: c.operateurRecuperation
+          });
+        }
         recupResultBox(itemEl, "&#10004; Récupération confirmée. Le coulage peut être réparti au bassin.", false);
         if (window.CAEKBadges) { CAEKBadges.refresh(); }
         refresh();
@@ -397,6 +536,43 @@ var CAEKRepertoire = (function () {
 
         var sm = tgt.closest ? tgt.closest(".rep-soumettre") : null;
         if (sm) { soumettreFiche(sm.getAttribute("data-ref")); return; }
+
+        // Phase 1 : résolution EXPLICITE d'un conflit de versions.
+        var cfS = tgt.closest ? tgt.closest(".rep-conflit-serveur") : null;
+        if (cfS) {
+          var refS = cfS.getAttribute("data-ref");
+          if (window.confirm("Prendre la version serveur ?\nVos modifications locales non synchronisées seront abandonnées.")) {
+            CAEKCoulages.resoudreConflit(refS, "serveur").then(refresh);
+          }
+          return;
+        }
+        var cfL = tgt.closest ? tgt.closest(".rep-conflit-local") : null;
+        if (cfL) {
+          var refL = cfL.getAttribute("data-ref");
+          if (window.confirm("Garder vos modifications et les renvoyer au serveur ?\nElles remplaceront la version serveur actuelle.")) {
+            CAEKCoulages.resoudreConflit(refL, "local").then(refresh);
+          }
+          return;
+        }
+
+        var more = tgt.closest ? tgt.closest(".rep-more-toggle") : null;
+        if (more && item) {
+          var menu = item.querySelector(".rep-more-menu");
+          if (menu) { menu.hidden = !menu.hidden; more.setAttribute("aria-expanded", menu.hidden ? "false" : "true"); }
+          return;
+        }
+        var dup = tgt.closest ? tgt.closest(".rep-dupliquer") : null;
+        if (dup) {
+          var dm = item && item.querySelector(".rep-more-menu"); if (dm) { dm.hidden = true; }
+          dupliquerFiche(dup.getAttribute("data-ref")); return;
+        }
+
+        var resume = tgt.closest ? tgt.closest(".rep-resume") : null;
+        if (resume) {
+          var resumeRef = resume.getAttribute("data-ref");
+          if (resumeRef && window.CAEKFiche) { CAEKFiche.open(resumeRef); }
+          return;
+        }
 
         var mg = tgt.closest ? tgt.closest(".rep-msg-btn") : null;
         if (mg && item) {

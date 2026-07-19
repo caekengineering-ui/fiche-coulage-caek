@@ -88,6 +88,7 @@ var CAEKLaboFilter = (function () {
     if (id === "screen-repartir" && window.CAEKBassin) { CAEKBassin.refreshRepartir(); }
     if ((id === "screen-compression" || id === "screen-comp-atester" ||
       id === "screen-comp-historique") && window.CAEKCompression) { CAEKCompression.refresh(); }
+    if (id === "screen-validation" && window.CAEKValidation) { CAEKValidation.refresh(); }
   }
 
   function onChange() {

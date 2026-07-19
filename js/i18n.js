@@ -350,6 +350,171 @@ var I18N = (function () {
     "Valider le coulage {ref} ?": "هل تريد اعتماد عملية الصبّ {ref}؟",
     "La désignation de l'ouvrage et la formulation sont confirmées. La fiche sera figée.": "سيتم تأكيد تسمية المنشأ والصيغة، وستصبح البطاقة مقفلة.",
     "Les photos et audios de ce coulage seront supprimés du serveur après validation.": "سيتم حذف صور وتسجيلات هذا الصبّ من الخادم بعد الاعتماد.",
+    "Les photos et audios restent en ligne jusqu'à leur archivage par le bureau.": "تبقى الصور والتسجيلات متاحة على الخادم إلى حين أرشفتها من طرف المكتب.",
+    "Prendre la version serveur": "اعتماد نسخة الخادم",
+    "Garder mes modifications et renvoyer": "الاحتفاظ بتعديلاتي وإعادة الإرسال",
+    "Prendre la version serveur ?": "هل تريد اعتماد نسخة الخادم؟",
+    "Vos modifications locales non synchronisées seront abandonnées.": "سيتم التخلي عن تعديلاتك المحلية غير المتزامنة.",
+    "Garder vos modifications et les renvoyer au serveur ?": "هل تريد الاحتفاظ بتعديلاتك وإعادة إرسالها إلى الخادم؟",
+    "Elles remplaceront la version serveur actuelle.": "ستحل محل نسخة الخادم الحالية.",
+    "Provisoire": "مؤقت",
+    "Conflit de versions : la fiche a été modifiée ailleurs. Consultez le Répertoire pour résoudre.": "تعارض في الإصدارات: عُدّلت البطاقة في مكان آخر. راجع الفهرس لحل التعارض.",
+    "La référence officielle sera attribuée automatiquement à la synchronisation.": "سيتم إسناد المرجع الرسمي تلقائياً عند المزامنة.",
+
+    // ---- Phase 2 : métier ----
+    "Centrale & formulation": "المحطة والصيغة",
+    "Centrale (fournisseur du béton)": "المحطة (مورّد الخرسانة)",
+    "Préciser la centrale": "حدّد المحطة",
+    "Formulation (modèle validé)": "الصيغة (نموذج معتمد)",
+    "— Choisir un modèle —": "— اختر نموذجاً —",
+    "Formulation inconnue ? Détaillez-la dans le premier malaxeur puis « Proposer cette formulation comme modèle » : elle sera validée par le laboratoire.": "صيغة غير معروفة؟ فصّلها في الخلّاطة الأولى ثم « اقترح هذه الصيغة كنموذج »: سيعتمدها المخبر.",
+    "Quantité estimée (m³)": "الكمية المقدَّرة (م³)",
+    "Quantité validée (m³)": "الكمية المعتمدة (م³)",
+    "Désignation officielle de l'ouvrage (documents)": "التسمية الرسمية للمنشأ (الوثائق)",
+    "Observation générale du malaxeur": "ملاحظة عامة عن الخلّاطة",
+    "État du coulage à la fin de mon intervention": "حالة الصبّ عند نهاية تدخلي",
+    "Fin de mon intervention": "نهاية تدخلي",
+    "Terminé": "منتهٍ",
+    "En cours": "جارٍ",
+    "Inconnu": "غير معروف",
+    "Fin de votre intervention — le coulage est TERMINÉ. Confirmer ?": "نهاية تدخلك — الصبّ منتهٍ. تأكيد؟",
+    "Fin de votre intervention — le coulage CONTINUE sans vous. Confirmer ?": "نهاية تدخلك — الصبّ مستمر بدونك. تأكيد؟",
+    "Fin de votre intervention — état du coulage INCONNU. Confirmer ?": "نهاية تدخلك — حالة الصبّ غير معروفة. تأكيد؟",
+    "Dupliquer les informations": "نسخ المعلومات",
+    "Créer une nouvelle fiche pré-remplie depuis {ref} ?": "هل تريد إنشاء بطاقة جديدة معبّأة مسبقاً من {ref}؟",
+    "Les malaxeurs, prélèvements, résultats, médias et validations ne sont PAS copiés.": "لا يتم نسخ الخلّاطات ولا العينات ولا النتائج ولا الوسائط ولا الاعتمادات.",
+    "Duplication impossible.": "تعذّر النسخ.",
+    // ---- Phase 5 : sécurisation métier ----
+    "Créer une fiche similaire": "إنشاء بطاقة مماثلة",
+    "Créer une fiche similaire depuis": "إنشاء بطاقة مماثلة انطلاقاً من",
+    "Autres actions": "إجراءات أخرى",
+    "Fiche similaire": "بطاقة مماثلة",
+    "Incomplète": "غير مكتملة",
+    "Reprendre la saisie": "استئناف الإدخال",
+    "Cette fiche est incomplète. Reprenez la saisie et terminez votre intervention avant de la soumettre.": "هذه البطاقة غير مكتملة. استأنف الإدخال وأنهِ تدخلك قبل إرسالها.",
+    "Seront copiés : client, projet, ouvrage, centrale et formulation.": "سيتم نسخ: الزبون والمشروع والمنشأ والمحطة والصيغة.",
+    "Ne seront PAS copiés : date, malaxeurs, prélèvements, résultats, médias et validations.": "لن يتم نسخ التاريخ أو الخلاطات أو العينات أو النتائج أو الوسائط أو الاعتمادات.",
+    "La nouvelle fiche restera un brouillon supprimable jusqu'à sa soumission.": "ستبقى البطاقة الجديدة مسودة قابلة للحذف حتى إرسالها.",
+    "Interrompre la saisie": "إيقاف الإدخال مؤقتاً",
+    "Interrompre la saisie ?": "هل تريد إيقاف الإدخال مؤقتاً؟",
+    "La fiche restera INCOMPLÈTE dans le Répertoire.": "ستبقى البطاقة غير مكتملة في السجل.",
+    "Elle ne sera pas soumise au laboratoire et vous pourrez la reprendre à tout moment.": "لن تُرسل إلى المخبر ويمكنك استئنافها في أي وقت.",
+    "Enregistrer et ajouter le malaxeur suivant": "حفظ وإضافة الخلاطة التالية",
+    "Pour quitter le chantier, choisissez uniquement l'une des deux actions ci-dessous.": "لمغادرة الورشة اختر أحد الإجراءين أدناه فقط.",
+    "Avez-vous assisté à la totalité du coulage et contrôlé tous les malaxeurs ?": "هل حضرت كامل عملية الصب وراقبت جميع الخلاطات؟",
+    "Aucune réponse n'est présélectionnée. « Non » signifie que le coulage a continué après votre départ.": "لا توجد إجابة محددة مسبقاً. «لا» تعني أن الصب استمر بعد مغادرتك.",
+    "Oui, j'ai assisté à tout le coulage": "نعم، حضرت كامل عملية الصب",
+    "Non, le coulage a continué sans moi": "لا، استمر الصب بدوني",
+    "Interruption non enregistrée :": "لم يتم حفظ التوقف:",
+    "Recommandation du laboratoire :": "توصية المخبر:",
+    "Recommandation laboratoire": "توصية المخبر",
+    "reste recommandé :": "المتبقي الموصى به:",
+    "éprouvettes": "عيّنات",
+    "Le laboratoire recommande": "يوصي المخبر بـ",
+    "éprouvettes pour cette quantité, mais": "عيّنات لهذه الكمية، لكن",
+    "seulement ont été enregistrées.": "تم تسجيلها فقط.",
+    "Continuer quand même vers la confirmation de soumission ?": "هل تريد المتابعة إلى تأكيد الإرسال؟",
+    "Poids moyen d'une éprouvette (kg)": "متوسط وزن العيّنة (كغ)",
+    "Règle de recommandation des éprouvettes": "قاعدة التوصية بعدد العيّنات",
+    "Première tranche (m³)": "الشريحة الأولى (م³)",
+    "Éprouvettes première tranche": "عيّنات الشريحة الأولى",
+    "Tranche suivante (m³)": "الشريحة التالية (م³)",
+    "Éprouvettes par tranche suivante": "العيّنات لكل شريحة تالية",
+    "Chargement du stock serveur…": "جارٍ تحميل مخزون الخادم…",
+    "Synchronisé avec le serveur": "متزامن مع الخادم",
+    "Choisissez d'abord un laboratoire dans le filtre.": "اختر مخبراً أولاً من المرشح.",
+    "Choisissez un laboratoire dans le filtre pour afficher son stock.": "اختر مخبراً من المرشح لعرض مخزونه.",
+    "Le seuil et le poids moyen doivent être supérieurs à 0.": "يجب أن يكون الحد ومتوسط الوزن أكبر من صفر.",
+    "Réseau requis pour modifier les paramètres du laboratoire.": "الشبكة مطلوبة لتعديل إعدادات المخبر.",
+    "Paramètres non enregistrés sur le serveur.": "لم تُحفظ الإعدادات على الخادم.",
+    "Paramètres synchronisés avec le serveur.": "تمت مزامنة الإعدادات مع الخادم.",
+    "Évacuation synchronisée avec le serveur.": "تمت مزامنة الإجلاء مع الخادم.",
+    "Évacuation enregistrée hors ligne et en attente de synchronisation.": "تم تسجيل الإجلاء دون اتصال وهو في انتظار المزامنة.",
+    "Date de coulage corrigée après engagement — révision des âges requise": "تم تصحيح تاريخ الصب بعد بدء الإجراء — مراجعة الأعمار مطلوبة",
+    "Date de coulage corrigée après sortie : vérifiez l'âge réel avant validation.": "تم تصحيح تاريخ الصب بعد الإخراج: تحقق من العمر الفعلي قبل الاعتماد.",
+    "Demander confirmation au client": "طلب تأكيد الزبون",
+    "Informations provisoires uniquement.": "معلومات مؤقتة فقط.",
+    "Aucun résultat d'essai, média ou commentaire interne ne sera partagé.": "لن تتم مشاركة أي نتيجة اختبار أو وسيط أو تعليق داخلي.",
+    "Aucune demande envoyée": "لم يُرسل أي طلب",
+    "Demande partagée": "تمت مشاركة الطلب",
+    "Confirmé par le client": "أكده الزبون",
+    "Correction demandée par le client": "طلب الزبون تصحيحاً",
+    "Marquer confirmé par le client": "وضع علامة: أكده الزبون",
+    "Le client demande une correction": "الزبون يطلب تصحيحاً",
+    "Partager uniquement les informations affichées avec le client ?": "مشاركة المعلومات المعروضة فقط مع الزبون؟",
+    "Confirmer que le client a explicitement validé ces informations ?": "هل تؤكد أن الزبون وافق صراحة على هذه المعلومات؟",
+    "Confirmer que le client a demandé une correction ?": "هل تؤكد أن الزبون طلب تصحيحاً؟",
+    "Correction demandée par le client :": "التصحيح الذي طلبه الزبون:",
+    "État de confirmation client enregistré.": "تم تسجيل حالة تأكيد الزبون.",
+    "État non enregistré.": "لم تُسجل الحالة.",
+    "Partage initié et tracé. La réponse du client doit encore être enregistrée.": "بدأت المشاركة وتم تسجيلها. لا يزال يجب تسجيل رد الزبون.",
+    "Partage initié, mais sa traçabilité serveur a échoué.": "بدأت المشاركة لكن تعذر تسجيلها على الخادم.",
+    "Partage non enregistré :": "لم تُسجل المشاركة:",
+    "Motif de la correction de la date de coulage (obligatoire et tracé) :": "سبب تصحيح تاريخ الصب (إجباري ومسجل):",
+    "Le motif de correction de la date est obligatoire.": "سبب تصحيح التاريخ إجباري.",
+    "La nouvelle date de coulage est invalide.": "تاريخ الصب الجديد غير صالح.",
+    "Au moins un lot est déjà sorti ou testé.": "تم إخراج أو اختبار مجموعة واحدة على الأقل.",
+    "Appliquer quand même la date corrigée avec cette traçabilité ?": "هل تريد تطبيق التاريخ المصحح مع هذا التتبع؟",
+    "Correction contrôlée refusée.": "تم رفض التصحيح المراقب.",
+    "Coulage validé et date corrigée avec traçabilité :": "تم اعتماد الصب وتصحيح التاريخ مع التتبع:",
+    "Les lots encore dans le bassin seront replanifiés. Les lots déjà engagés garderont leur échéance historique et seront signalés pour révision des âges/résultats.": "ستتم إعادة جدولة المجموعات الموجودة في الحوض. وستحتفظ المجموعات التي بدأ العمل عليها بموعدها التاريخي وتُعلَّم لمراجعة الأعمار والنتائج.",
+    "La date ne peut pas être corrigée silencieusement : au moins un lot est déjà sorti ou testé. Renvoyez le dossier pour un traitement contrôlé.": "لا يمكن تصحيح التاريخ بصمت: تم إخراج أو اختبار مجموعة واحدة على الأقل. أعد الملف لمعالجة مراقبة.",
+    "Bonjour, merci de confirmer les informations provisoires du coulage :": "مرحباً، يرجى تأكيد المعلومات المؤقتة لعملية الصب:",
+    "Fournisseur du béton :": "مورّد الخرسانة:",
+    "Quantité de béton :": "كمية الخرسانة:",
+    "Merci de répondre « Je confirme » ou d'indiquer les corrections nécessaires.": "يرجى الرد «أؤكد» أو ذكر التصحيحات اللازمة.",
+    "Copier le message de confirmation :": "انسخ رسالة التأكيد:",
+    "Confirmation provisoire du coulage": "تأكيد مؤقت لعملية الصب",
+    "Rôle métier (révision des résultats)": "الدور المهني (مراجعة النتائج)",
+    "— Automatique (selon le rôle) —": "— تلقائي (حسب الدور) —",
+    "Ingénieur": "مهندس",
+    "Responsable": "مسؤول",
+    "Admin principal": "المسؤول الرئيسي",
+    "Confirmer la sortie pour essai de ce lot (": "تأكيد إخراج هذه المجموعة للاختبار (",
+    "un lot pour un âge exigé par le client (ex. 3 j) —": "مجموعة لعمر يطلبه الزبون (مثلاً 3 أيام) —",
+    "· ✓ synchronisé": "· ✓ متزامن",
+    "est qu": "هو أن",
+    "Laboratoires vérifiés (administrateur — aucun coché = tous les labos = admin principal)": "المخابر المعتمدة (مسؤول — عدم تحديد أي مخبر يعني كل المخابر = المسؤول الرئيسي)",
+    "🔒 Écran réservé à l'administrateur principal.": "🔒 شاشة مخصصة للمسؤول الرئيسي.",
+    "(menu « Ouvrir dans le navigateur / Chrome »), puis installez-la sur l'écran d'accueil et réessayez.": "(قائمة «فتح في المتصفح / Chrome»)، ثم ثبّتها على الشاشة الرئيسية وأعد المحاولة.",
+    "Activation impossible pour le moment. Réessayez dans un instant.": "يتعذر التفعيل حالياً. أعد المحاولة بعد قليل.",
+    "activées": "مفعّلة",
+    "Enregistrement serveur impossible. Vérifiez votre connexion puis réessayez.": "تعذر التسجيل على الخادم. تحقق من الاتصال ثم أعد المحاولة.",
+    "Impossible de joindre le service de notifications. Ouvrez l'app dans Chrome (pas dans Facebook), vérifiez votre connexion, puis réessayez.": "تعذر الاتصال بخدمة الإشعارات. افتح التطبيق في Chrome (وليس داخل Facebook)، وتحقق من الاتصال ثم أعد المحاولة.",
+    "Les notifications ne fonctionnent pas dans le navigateur de Facebook. Ouvrez l'application dans": "لا تعمل الإشعارات داخل متصفح Facebook. افتح التطبيق في",
+    "Ouvrez l'application dans Chrome (menu ⋮ → « Ouvrir dans le navigateur »), pas dans Facebook, puis réessayez.": "افتح التطبيق في Chrome (القائمة ⋮ ← «فتح في المتصفح»)، وليس داخل Facebook، ثم أعد المحاولة.",
+    "Permission refusée. Autorisez les notifications dans les réglages du navigateur puis réessayez.": "تم رفض الإذن. اسمح بالإشعارات من إعدادات المتصفح ثم أعد المحاولة.",
+    "Sur iPhone : ajoutez d'abord l'app à l'écran d'accueil (Partager « Sur l'écran d'accueil »), puis rouvrez-la pour activer les notifications.": "على iPhone: أضف التطبيق أولاً إلى الشاشة الرئيسية (مشاركة ← «إضافة إلى الشاشة الرئيسية»)، ثم افتحه مجدداً لتفعيل الإشعارات.",
+    "béchar": "بشار",
+    "Béchar": "بشار",
+    "Les médias restent en ligne (archivage bureau).": "تبقى الوسائط على الخادم (أرشفة المكتب).",
+    "lot(s) du bassin replanifié(s).": "مجموعة من الحوض أُعيدت جدولتها.",
+    "lot(s) engagé(s) signalé(s) pour révision.": "مجموعة بدأ العمل عليها وُسِمت للمراجعة.",
+    "lot(s) replanifié(s),": "مجموعة أُعيدت جدولتها،",
+    "Échec de la révision (": "فشلت المراجعة (",
+    "État :": "الحالة:",
+
+    // ---- Phase 3 : révision / synchronisation ----
+    "Réviser les éprouvettes": "مراجعة العيّنات",
+    "Aucun essai à réviser.": "لا يوجد اختبار للمراجعة.",
+    "Recalculer Rc": "إعادة حساب Rc",
+    "Signaler une incohérence": "الإبلاغ عن تعارض",
+    "Note interne": "ملاحظة داخلية",
+    "Retourner": "إرجاع",
+    "Valider (ingénieur)": "اعتماد (مهندس)",
+    "Approuver (responsable)": "موافقة (مسؤول)",
+    "Motif de la correction (obligatoire, tracé) :": "سبب التصحيح (إجباري، مسجَّل):",
+    "Décrire l'incohérence :": "صف التعارض:",
+    "Motif du retour (visible par l'opérateur) :": "سبب الإرجاع (يراه المشغّل):",
+    "Note interne (jamais imprimée sur les documents) :": "ملاحظة داخلية (لا تُطبع على الوثائق أبداً):",
+    "Le motif est obligatoire.": "السبب إجباري.",
+    "Rôle insuffisant pour cette action.": "الدور غير كافٍ لهذا الإجراء.",
+    "Lot approuvé par le responsable : verrouillé.": "المجموعة معتمدة من المسؤول: مقفلة.",
+    "Lot validé : révision réservée à l'ingénieur ou plus.": "المجموعة معتمدة: المراجعة للمهندس فما فوق.",
+    "Synchronisation": "المزامنة",
+    "Synchronisé": "متزامن",
+    "En attente de synchronisation": "في انتظار المزامنة",
+    "Conflit": "تعارض",
     "Supprimer le Malaxeur {n} ?": "هل تريد حذف الخلّاطة {n}؟",
     "Soumettre la fiche {ref} au laboratoire ?": "هل تريد إرسال البطاقة {ref} إلى المخبر؟",
     "Elle sera verrouillée et envoyée à l'administrateur pour validation.": "سيتم قفلها وإرسالها إلى المسؤول للاعتماد.",
@@ -372,6 +537,12 @@ var I18N = (function () {
     "Enregistrer les corrections de cette répartition ?": "حفظ تصحيحات هذا التوزيع؟",
     "Les lots encore en bassin de ce coulage seront remplacés.": "سيتم استبدال المجموعات التي لا تزال في حوض هذا الصبّ.",
     "Confirmer la répartition des éprouvettes ?": "تأكيد توزيع العيّنات؟",
+    "Règle d'or : les éprouvettes d'un même coulage et d'une même": "القاعدة الذهبية: عيّنات الصبّة نفسها ذات",
+    "échéance forment": "موعد الاختبار نفسه تشكّل",
+    "un seul lot et un seul PV": "مجموعة واحدة ومحضر PV واحد",
+    "prélèvements d'origine restent traçables. Par défaut :": "وتبقى العينات الأصلية قابلة للتتبع. افتراضياً:",
+    "Regrouper les lots de même échéance": "تجميع المجموعات ذات موعد الاختبار نفسه",
+    "lot(s) d'essai — un seul lot par échéance.": "مجموعة اختبار واحدة لكل موعد.",
     "Profil opérateur requis pour sortir un lot du bassin.": "ملف المُشغّل مطلوب لإخراج مجموعة من الحوض.",
     "Profil opérateur requis. Veuillez renseigner votre nom et qualification.": "ملف المُشغّل مطلوب. يرجى إدخال الاسم والوظيفة.",
     // Motifs de sortie (accord) et de retard
@@ -507,6 +678,7 @@ var I18N = (function () {
     "Indiquez le nombre total d'éprouvettes prélevées.": "أدخل العدد الإجمالي للعيّنات المأخوذة.",
     "Sélectionnez le type de moule (cube et/ou cylindre).": "اختر نوع القالب (مكعب و/أو أسطوانة).",
     "Aucun malaxeur saisi.": "لم تُدخل أي خلّاطة.",
+    "Ajoutez au moins un malaxeur (quantité de béton) avant de soumettre la fiche.": "أضف خلّاطة واحدة على الأقل (كمية الخرسانة) قبل إرسال البطاقة.",
     "Sélection :": "الاختيار:",
     "Signée par :": "موقّعة من:",
     "Tél :": "الهاتف:",
@@ -643,6 +815,9 @@ var I18N = (function () {
     "Date d'essai manquante pour": "تاريخ الاختبار ناقص لـ",
     "Dimensions manquantes pour": "الأبعاد ناقصة لـ",
     "Force ou Rc manquant pour": "القوة أو Rc ناقصة لـ",
+    "La date de coulage est obligatoire et doit etre valide.": "تاريخ الصبّ إجباري ويجب أن يكون صالحاً.",
+    "Renseignez les résistances pour afficher la moyenne.": "أدخل قيم المقاومة لعرض المتوسط.",
+    "Équivalent cylindre :": "المكافئ الأسطواني:",
     "Justification obligatoire (essai hors date prévue).": "التبرير إجباري (اختبار خارج التاريخ المقرر).",
     "Justification écart": "تبرير الفارق",
     "Motif de l'écart": "سبب الفارق",
@@ -668,6 +843,7 @@ var I18N = (function () {
     "Ils seront figés et exploitables pour les PV (pont bureau).": "ستُقفل وتصبح جاهزة لمحاضر PV (جسر المكتب).",
     "Coulage validé.": "تم اعتماد الصبّ.",
     "Coulage validé. Médias non supprimés (à re-tenter).": "تم اعتماد الصبّ. لم تُحذف الوسائط (أعد المحاولة).",
+    "Coulage validé. Les médias restent en ligne (archivage bureau).": "تم اعتماد الصبّ. تبقى الوسائط على الخادم (أرشفة المكتب).",
     "Résultats validés.": "تم اعتماد النتائج.",
     "Déjà validé.": "معتمَد من قبل.",
     "Déjà validés.": "معتمَدة من قبل.",
@@ -1044,6 +1220,7 @@ var I18N = (function () {
     ["3 à 7 jours", "من 3 إلى 7 أيام"],
     ["Âge d'essai (en jours) pour ces", "عمر الاختبار (بالأيام) لهذه"],
     ["modifier les paramètres déchets", "تعديل إعدادات النفايات"],
+    ["Renseignez une regle d'echantillonnage valide.", "أدخل قاعدة صالحة لأخذ العينات."],
     ["évacuée(s)", "أُخرجت"],
     ["Réseau requis pour", "الشبكة مطلوبة من أجل"],
     ["ajouter un opérateur", "إضافة مُشغّل"],
@@ -1051,6 +1228,20 @@ var I18N = (function () {
     ["réinitialiser un PIN", "إعادة تعيين رمز سري"],
     ["Références médias à nettoyer.", "مراجع وسائط للتنظيف."],
     ["— supprimés du serveur après validation", "— تُحذف من الخادم بعد الاعتماد"],
+    ["— conservés jusqu'à l'archivage bureau", "— تُحفظ إلى حين أرشفة المكتب"],
+    ["Conflit de versions :", "تعارض في الإصدارات:"],
+    ["cette fiche a été modifiée sur un autre appareil", "عُدّلت هذه البطاقة على جهاز آخر"],
+    ["version serveur", "إصدار الخادم"],
+    ["en attente de synchronisation", "في انتظار المزامنة"],
+    ["Dernière erreur :", "آخر خطأ:"],
+    ["tentative(s)", "محاولة/محاولات"],
+    ["Brouillon créé hors-ligne :", "أُنشئت مسودة دون اتصال:"],
+    ["(libellé provisoire)", "(تسمية مؤقتة)"],
+    ["Révision par éprouvette", "مراجعة لكل عيّنة"],
+    ["chaque action est tracée (auteur, rôle, motif, ancien/nouveau)", "كل إجراء مسجَّل (المؤلف، الدور، السبب، القديم/الجديد)"],
+    ["Révision enregistrée", "تم تسجيل المراجعة"],
+    ["note interne", "ملاحظة داخلية"],
+    ["retournée", "مُرجَعة"],
     ["Agrégat 15/25", "حصى 15/25"],
     ["Agrégat 8/15", "حصى 8/15"],
     ["Agrégat 3/8", "حصى 3/8"],
@@ -1112,6 +1303,7 @@ var I18N = (function () {
   }
 
   function _translateNode(n) {
+    if (n.parentNode && n.parentNode.closest && n.parentNode.closest("[data-i18n-skip]")) { return; }
     var raw = n.nodeValue;
     var t = raw.trim();
     if (!t) { return; }
@@ -1139,6 +1331,7 @@ var I18N = (function () {
       var els = root.querySelectorAll ? root.querySelectorAll("[" + attr + "]") : [];
       for (var i = 0; i < els.length; i++) {
         var el = els[i];
+        if (el.closest && el.closest("[data-i18n-skip]")) { continue; }
         var t = (el.getAttribute(attr) || "").trim();
         // Exact d'abord, puis substitutions MIXED (ex. placeholders « ex. … »).
         var tr = t ? (AR[t] || _translateMixed(t)) : "";
@@ -1258,9 +1451,34 @@ var I18N = (function () {
     });
   }
 
+  // Normalisation des chiffres arabes/persans dès la SAISIE : les valeurs
+  // internes (IndexedDB, payloads serveur, exports) restent en chiffres
+  // occidentaux quelle que soit la langue d'affichage.
+  function _bindDigitNormalizer() {
+    document.addEventListener("input", function (ev) {
+      var el = ev.target;
+      if (!el || !el.tagName) { return; }
+      var tag = el.tagName;
+      if (tag !== "INPUT" && tag !== "TEXTAREA") { return; }
+      if (tag === "INPUT") {
+        var t = (el.type || "text").toLowerCase();
+        if (t !== "text" && t !== "tel" && t !== "search" && t !== "number" && t !== "time" && t !== "date") { return; }
+      }
+      if (!window.CAEKModel || !CAEKModel.normDigits) { return; }
+      var v = el.value;
+      var norm = CAEKModel.normDigits(v);
+      if (norm === v) { return; }
+      var pos = null;
+      try { pos = el.selectionStart; } catch (e) {}
+      el.value = norm;
+      if (pos != null) { try { el.setSelectionRange(pos, pos); } catch (e2) {} }
+    }, true);
+  }
+
   function init() {
     _bindToggles();
     _observe();
+    _bindDigitNormalizer();
     setLang(_lang);
     // Les consignes opérateur passent souvent par alert/confirm/prompt :
     // on traduit leur message (ligne par ligne).

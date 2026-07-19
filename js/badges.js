@@ -58,12 +58,14 @@ var CAEKBadges = (function () {
     }
   }
 
-  function isValidee(c) {
+  function isEngagee(c) {
     var st = (c && c.statut) || "brouillon";
-    return st === "validee" || st === "envoyee";
+    // La validation admin n'est pas bloquante pour le travail du laboratoire.
+    // V3 : "soumis" / "valide" ; anciens statuts conserves en compatibilite.
+    return st === "soumis" || st === "valide" || st === "validee" || st === "envoyee";
   }
 
-  function num(v) { var n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? 0 : n; }
+  function num(v) { var s = window.CAEKModel ? CAEKModel.normDigits(v) : String(v == null ? "" : v); var n = parseFloat(s.replace(",", ".")); return isNaN(n) ? 0 : n; }
   function intOr0(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
 
   function coulageDateStr(c) {
@@ -103,7 +105,7 @@ var CAEKBadges = (function () {
     (coulages || []).forEach(function (c) {
       var st = (c && c.statut) || "brouillon";
       if (st === "brouillon") { s.brouillon++; return; }
-      if (!isValidee(c) || !hasEpr(c)) { return; }
+      if (!isEngagee(c) || !hasEpr(c)) { return; }
       if (!c.eprRecuperees) {
         s.recup++;
         if (diffDays(coulageDateStr(c), today) >= 3) { s.retardRecup++; }
@@ -223,6 +225,8 @@ var CAEKBadges = (function () {
       setBadge("badge-compression", s.aTester);
       setBadge("badge-dechets", s.dechetsAlerte);
       renderSyntheses(s);
+      // Notifications LOCALES (opérateur) à partir de la même synthèse.
+      if (window.CAEKNotifLocale) { CAEKNotifLocale.emit(s); }
     }).catch(function () {
       clearAll();
     });

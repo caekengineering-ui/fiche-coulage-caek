@@ -125,9 +125,26 @@ var CAEKNouveau = (function () {
     }
     if ($("nc-code-affiche")) { $("nc-code-affiche").textContent = activeCode || "—"; }
     if (!activeCode) { resetSelection(); return; }
-    CAEKDB.peekNextNumero(activeCode).then(function (n) {
-      if ($("nc-numero")) { $("nc-numero").value = n; }
+    var codeAtCall = activeCode;
+    CAEKDB.peekNextNumero(activeCode).then(function (nLocal) {
+      if (activeCode !== codeAtCall) { return; }
+      if ($("nc-numero")) { $("nc-numero").value = nLocal; }
       recomputeRef();
+      // Le compteur local ne connait que les coulages crees sur CET appareil :
+      // se recaler sur le serveur (numerotation globale du code projet) si en
+      // ligne, pour eviter de reproposer un numero deja pris sur un autre poste.
+      var online = window.CAEKServer && CAEKServer.configured && CAEKServer.configured() &&
+        window.CAEKOperateurs && CAEKOperateurs.token && CAEKOperateurs.token();
+      if (online) {
+        CAEKServer.nextRef(CAEKOperateurs.token(), activeCode).then(function (r) {
+          if (activeCode !== codeAtCall || !r || !r.ok) { return; }
+          var champ = $("nc-numero");
+          if (champ && parseInt(champ.value, 10) === nLocal && r.n > nLocal) {
+            champ.value = r.n;
+            recomputeRef();
+          }
+        }).catch(function () {});
+      }
     });
   }
 
@@ -179,16 +196,33 @@ var CAEKNouveau = (function () {
       showResult("⚠ Choisissez un projet, saisissez un code, ou renseignez un client simple.", true);
       return;
     }
-    if (num === null || num < 1) {
-      showResult("⚠ Numéro de coulage invalide.", true);
-      return;
+    // Phase 1 : identité stable de la fiche, indépendante de la référence.
+    var uuid = (window.CAEKCoulages && CAEKCoulages.newUuid) ? CAEKCoulages.newUuid()
+      : String(Date.now()) + "-" + Math.random().toString(16).slice(2);
+    // HORS LIGNE : jamais de référence officielle fabriquée localement.
+    // Libellé PROVISOIRE ; la référence <CODE>NNN sera allouée atomiquement
+    // par le serveur à la première synchronisation (op_sync_coulage).
+    var enLigne = navigator.onLine !== false &&
+      window.CAEKServer && CAEKServer.configured() &&
+      window.CAEKOperateurs && CAEKOperateurs.isLogged();
+    var refProvisoire = !enLigne;
+    var ref;
+    if (refProvisoire) {
+      ref = activeCode + "-P" + String(uuid).replace(/-/g, "").slice(0, 6).toUpperCase();
+    } else {
+      if (num === null || num < 1) {
+        showResult("⚠ Numéro de coulage invalide.", true);
+        return;
+      }
+      ref = activeCode + pad3(num);
     }
-    var ref = activeCode + pad3(num);
 
     var coulage = {
       ref: ref,
+      uuid: uuid,
+      refProvisoire: refProvisoire,
       codeProjet: activeCode,
-      numero: num,
+      numero: refProvisoire ? null : num,
       mode: mode,
       statut: "brouillon",
       dateCreation: new Date().toISOString(),
@@ -252,9 +286,16 @@ var CAEKNouveau = (function () {
 
     CAEKDB.saveCoulage(coulage).then(function (res) {
       if (!res.ok) { showResult("⚠ " + escapeHtml(res.error), true); recomputeRef(); return; }
+      if (window.CAEKCoulages && CAEKCoulages.registerLocalDraft) {
+        CAEKCoulages.registerLocalDraft(ref).catch(function () {});
+      }
+      if (refProvisoire) {
+        showResult("✔ Brouillon créé hors-ligne : <strong>" + escapeHtml(ref) + "</strong> (libellé provisoire). " +
+          "La référence officielle sera attribuée automatiquement à la synchronisation.", false);
+      }
       // Ouvre directement la fiche terrain pour completer le coulage
       if (window.CAEKFiche) { CAEKFiche.open(ref); }
-      else { showResult("✔ Brouillon créé : <strong>" + escapeHtml(ref) + "</strong>.", false); }
+      else if (!refProvisoire) { showResult("✔ Brouillon créé : <strong>" + escapeHtml(ref) + "</strong>.", false); }
     }).catch(function (err) {
       showResult("⚠ Erreur d'enregistrement : " + escapeHtml(err && err.message), true);
     });

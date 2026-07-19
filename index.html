@@ -199,6 +199,15 @@
         <input id="labo-add-loc" class="field" type="text" placeholder="ex. Béchar" autocomplete="off">
         <label class="field-label" for="labo-add-seuil">Seuil d'alerte déchets (éprouvettes écrasées)</label>
         <input id="labo-add-seuil" class="field" type="number" min="10" step="10" value="100">
+        <label class="field-label" for="labo-add-poids">Poids moyen d'une éprouvette (kg)</label>
+        <input id="labo-add-poids" class="field" type="number" min="0.1" step="0.1" value="8">
+        <h4 class="block-subtitle">Règle de recommandation des éprouvettes</h4>
+        <div class="form-grid">
+          <div><label class="field-label" for="labo-add-echant-v1">Première tranche (m³)</label><input id="labo-add-echant-v1" class="field" type="number" min="1" step="1" value="50"></div>
+          <div><label class="field-label" for="labo-add-echant-n1">Éprouvettes première tranche</label><input id="labo-add-echant-n1" class="field" type="number" min="1" step="1" value="9"></div>
+          <div><label class="field-label" for="labo-add-echant-v2">Tranche suivante (m³)</label><input id="labo-add-echant-v2" class="field" type="number" min="1" step="1" value="50"></div>
+          <div><label class="field-label" for="labo-add-echant-n2">Éprouvettes par tranche suivante</label><input id="labo-add-echant-n2" class="field" type="number" min="1" step="1" value="3"></div>
+        </div>
         <button id="labo-add-btn" class="btn-primary" type="button">&#10133; Ajouter le laboratoire</button>
         <div id="labo-result" class="result-card" hidden></div>
 
@@ -305,6 +314,7 @@
       <button class="btn-back" data-goto="screen-bassin">&#8592; Retour</button>
       <h1 class="screen-title">Gestion déchets</h1>
       <p class="hint">Éprouvettes cassées après essai de compression. L'historique des essais n'est pas affecté.</p>
+      <div id="dechets-sync-etat" class="hint dechets-sync">Chargement du stock serveur…</div>
 
       <div id="dechets-alerte" class="bassin-alerte" hidden></div>
 
@@ -320,6 +330,13 @@
         <input id="dechets-seuil" class="field" type="number" min="1" step="1" inputmode="numeric">
         <label class="field-label" for="dechets-poidsmoyen">Poids moyen (kg / éprouvette)</label>
         <input id="dechets-poidsmoyen" class="field" type="number" min="0" step="any" inputmode="decimal">
+        <h4 class="block-subtitle">Règle de recommandation des éprouvettes</h4>
+        <div class="form-grid">
+          <div><label class="field-label" for="dechets-echant-v1">Première tranche (m³)</label><input id="dechets-echant-v1" class="field" type="number" min="1" step="1" inputmode="decimal"></div>
+          <div><label class="field-label" for="dechets-echant-n1">Éprouvettes première tranche</label><input id="dechets-echant-n1" class="field" type="number" min="1" step="1" inputmode="numeric"></div>
+          <div><label class="field-label" for="dechets-echant-v2">Tranche suivante (m³)</label><input id="dechets-echant-v2" class="field" type="number" min="1" step="1" inputmode="decimal"></div>
+          <div><label class="field-label" for="dechets-echant-n2">Éprouvettes par tranche suivante</label><input id="dechets-echant-n2" class="field" type="number" min="1" step="1" inputmode="numeric"></div>
+        </div>
         <button id="dechets-params-save" class="btn-secondary" type="button">&#128190; Enregistrer les paramètres</button>
       </div>
 
@@ -499,33 +516,47 @@
         <label class="opt-toggle" for="fc-etage-on"><input type="checkbox" id="fc-etage-on"><span>&#127970; Étage <span class="opt">(facultatif)</span></span></label>
         <select id="fc-etage" class="field opt-field" hidden>
           <option value="">— Aucun —</option>
-          <option>4e sous-sol</option>
-          <option>3e sous-sol</option>
-          <option>2e sous-sol</option>
-          <option>1er sous-sol</option>
-          <option>RDC</option>
-          <option>Mezzanine 1</option>
-          <option>Mezzanine 2</option>
-          <option>1er étage</option>
-          <option>2e étage</option>
-          <option>3e étage</option>
-          <option>4e étage</option>
-          <option>5e étage</option>
-          <option>6e étage</option>
-          <option>7e étage</option>
-          <option>8e étage</option>
-          <option>9e étage</option>
-          <option>10e étage</option>
-          <option>11e étage</option>
-          <option>12e étage</option>
-          <option>13e étage</option>
-          <option>14e étage</option>
-          <option>15e étage</option>
-          <option>Buanderie</option>
+          <!-- value = code technique stable (français) : la traduction AR ne
+               change que le texte affiché, jamais la donnée enregistrée. -->
+          <option value="4e sous-sol">4e sous-sol</option>
+          <option value="3e sous-sol">3e sous-sol</option>
+          <option value="2e sous-sol">2e sous-sol</option>
+          <option value="1er sous-sol">1er sous-sol</option>
+          <option value="RDC">RDC</option>
+          <option value="Mezzanine 1">Mezzanine 1</option>
+          <option value="Mezzanine 2">Mezzanine 2</option>
+          <option value="1er étage">1er étage</option>
+          <option value="2e étage">2e étage</option>
+          <option value="3e étage">3e étage</option>
+          <option value="4e étage">4e étage</option>
+          <option value="5e étage">5e étage</option>
+          <option value="6e étage">6e étage</option>
+          <option value="7e étage">7e étage</option>
+          <option value="8e étage">8e étage</option>
+          <option value="9e étage">9e étage</option>
+          <option value="10e étage">10e étage</option>
+          <option value="11e étage">11e étage</option>
+          <option value="12e étage">12e étage</option>
+          <option value="13e étage">13e étage</option>
+          <option value="14e étage">14e étage</option>
+          <option value="15e étage">15e étage</option>
+          <option value="Buanderie">Buanderie</option>
         </select>
 
         <label class="opt-toggle" for="fc-partie-on"><input type="checkbox" id="fc-partie-on"><span>&#129521; Partie <span class="opt">(facultatif — coulage en plusieurs reprises)</span></span></label>
         <input id="fc-partie" class="field opt-field" type="text" placeholder="ex. Partie 1, Partie 2, Partie 3" autocomplete="off" hidden>
+
+        <!-- Phase 2 : centrale + formulation portées par le COULAGE. -->
+        <h2 class="block-title">&#127981; Centrale &amp; formulation</h2>
+        <label class="field-label" for="fc-centrale">Centrale (fournisseur du béton)</label>
+        <select id="fc-centrale" class="field" data-autre="fc-centrale-autre"><option value="">— Choisir —</option><option value="autre">Autre…</option></select>
+        <input id="fc-centrale-autre" class="field" type="text" placeholder="Préciser la centrale" autocomplete="off" hidden>
+        <label class="field-label" for="fc-formulation-modele">Formulation (modèle validé) <span class="opt">(facultatif)</span></label>
+        <select id="fc-formulation-modele" class="field"><option value="">— Choisir un modèle —</option></select>
+        <p class="hint">Formulation inconnue ? Détaillez-la dans le premier malaxeur puis « Proposer cette formulation comme modèle » : elle sera validée par le laboratoire.</p>
+        <label class="field-label" for="fc-quantite-estimee">&#128207; Quantité estimée (m³) <span class="opt">(facultatif)</span></label>
+        <input id="fc-quantite-estimee" class="field" type="number" inputmode="decimal" placeholder="ex. 60" autocomplete="off">
+        <div id="fc-recommandation-epr" class="sampling-recommendation hint" hidden></div>
 
         <div class="fc-go-wrap">
           <img class="fc-go-illus" src="assets/icons/ouvrages/prelevement_beton.png" alt="Début du coulage">
@@ -616,10 +647,10 @@
             <div class="form-section">
               <div class="form-section-title">Ciment</div>
               <div class="form-grid">
-                <div><label class="field-label" for="fc-mal-classe">Classe béton</label><select id="fc-mal-classe" class="field" data-autre="fc-mal-classe-autre"><option value="">—</option><option>C25/30</option><option>C30/37</option><option>C35/45</option><option>C40/50</option><option value="autre">Autre…</option></select><input id="fc-mal-classe-autre" class="field" type="text" placeholder="Préciser la classe" hidden></div>
-                <div><label class="field-label" for="fc-mal-ciment">Type de ciment</label><select id="fc-mal-ciment" class="field" data-autre="fc-mal-ciment-autre"><option value="">—</option><option>CRS</option><option>CPJ</option><option value="autre">Autre…</option></select><input id="fc-mal-ciment-autre" class="field" type="text" placeholder="Préciser le ciment" hidden></div>
-                <div><label class="field-label" for="fc-mal-dosage">Dosage ciment (kg)</label><select id="fc-mal-dosage" class="field" data-autre="fc-mal-dosage-autre"><option value="">—</option><option>350</option><option>380</option><option>400</option><option value="autre">Autre…</option></select><input id="fc-mal-dosage-autre" class="field" type="number" inputmode="numeric" placeholder="Préciser le dosage" hidden></div>
-                <div><label class="field-label" for="fc-mal-dmax">Dmax (mm)</label><select id="fc-mal-dmax" class="field" data-autre="fc-mal-dmax-autre"><option value="">—</option><option>15</option><option>25</option><option value="autre">Autre…</option></select><input id="fc-mal-dmax-autre" class="field" type="number" inputmode="numeric" placeholder="Préciser le Dmax" hidden></div>
+                <div><label class="field-label" for="fc-mal-classe">Classe béton</label><select id="fc-mal-classe" class="field" data-autre="fc-mal-classe-autre"><option value="">—</option><option value="C25/30">C25/30</option><option value="C30/37">C30/37</option><option value="C35/45">C35/45</option><option value="C40/50">C40/50</option><option value="autre">Autre…</option></select><input id="fc-mal-classe-autre" class="field" type="text" placeholder="Préciser la classe" hidden></div>
+                <div><label class="field-label" for="fc-mal-ciment">Type de ciment</label><select id="fc-mal-ciment" class="field" data-autre="fc-mal-ciment-autre"><option value="">—</option><option value="CRS">CRS</option><option value="CPJ">CPJ</option><option value="autre">Autre…</option></select><input id="fc-mal-ciment-autre" class="field" type="text" placeholder="Préciser le ciment" hidden></div>
+                <div><label class="field-label" for="fc-mal-dosage">Dosage ciment (kg)</label><select id="fc-mal-dosage" class="field" data-autre="fc-mal-dosage-autre"><option value="">—</option><option value="350">350</option><option value="380">380</option><option value="400">400</option><option value="autre">Autre…</option></select><input id="fc-mal-dosage-autre" class="field" type="number" inputmode="numeric" placeholder="Préciser le dosage" hidden></div>
+                <div><label class="field-label" for="fc-mal-dmax">Dmax (mm)</label><select id="fc-mal-dmax" class="field" data-autre="fc-mal-dmax-autre"><option value="">—</option><option value="15">15</option><option value="25">25</option><option value="autre">Autre…</option></select><input id="fc-mal-dmax-autre" class="field" type="number" inputmode="numeric" placeholder="Préciser le Dmax" hidden></div>
                 <div class="form-span-2"><label class="field-label" for="fc-mal-ciment-prov">Provenance ciment</label><input id="fc-mal-ciment-prov" class="field" type="text" placeholder="ex. Cimenterie de Chlef" autocomplete="off"></div>
               </div>
             </div>
@@ -652,7 +683,7 @@
               <div class="form-grid">
                 <div><label class="field-label" for="fc-mal-eau">Eau (Litre)</label><input id="fc-mal-eau" class="field" type="number" inputmode="decimal" placeholder="ex. 175" autocomplete="off"></div>
                 <div class="form-span-2"><label class="field-label" for="fc-mal-eau-prov">Provenance eau</label><input id="fc-mal-eau-prov" class="field" type="text" placeholder="ex. SEOR" autocomplete="off"></div>
-                <div><label class="field-label" for="fc-mal-adjuvant">Adjuvant</label><select id="fc-mal-adjuvant" class="field" data-autre="fc-mal-adjuvant-autre"><option value="">— Aucun —</option><option>Superplastifiant</option><option>Hydrofuge</option><option>Entraîneur d'air</option><option value="autre">Autre…</option></select><input id="fc-mal-adjuvant-autre" class="field" type="text" placeholder="Préciser l'adjuvant" hidden></div>
+                <div><label class="field-label" for="fc-mal-adjuvant">Adjuvant</label><select id="fc-mal-adjuvant" class="field" data-autre="fc-mal-adjuvant-autre"><option value="">— Aucun —</option><option value="Superplastifiant">Superplastifiant</option><option value="Hydrofuge">Hydrofuge</option><option value="Entraîneur d'air">Entraîneur d'air</option><option value="autre">Autre…</option></select><input id="fc-mal-adjuvant-autre" class="field" type="text" placeholder="Préciser l'adjuvant" hidden></div>
                 <div><label class="field-label" for="fc-mal-adjuvant-dosage">Dosage adjuvant (%)</label><input id="fc-mal-adjuvant-dosage" class="field" type="number" inputmode="decimal" placeholder="ex. 0.9" autocomplete="off"></div>
                 <div><label class="field-label" for="fc-mal-adjuvant-prov">Provenance adjuvant</label><input id="fc-mal-adjuvant-prov" class="field" type="text" placeholder="ex. SIKA" autocomplete="off"></div>
               </div>
@@ -671,11 +702,16 @@
           </div>
         </div>
 
-        <div class="fc-mal-actions">
-          <button id="fc-mal-continuer" class="btn-secondary" type="button">&#10133; Malaxeur suivant</button>
-          <button id="fc-mal-terminer" class="btn-primary" type="button">&#9989; Terminer le coulage</button>
+        <!-- Phase 2 : observation générale du malaxeur. -->
+        <label class="opt-toggle" for="fc-mal-observation-on"><input type="checkbox" id="fc-mal-observation-on"><span>&#128221; Observation générale du malaxeur <span class="opt">(facultatif)</span></span></label>
+        <textarea id="fc-mal-observation" class="field opt-field" rows="2" hidden></textarea>
+
+        <button id="fc-mal-continuer" class="btn-secondary" type="button">&#10133; Enregistrer et ajouter le malaxeur suivant</button>
+        <p class="hint mission-hint">Pour quitter le chantier, choisissez uniquement l'une des deux actions ci-dessous.</p>
+        <div class="fc-mal-actions fc-mission-actions">
+          <button id="fc-mal-interrompre" class="btn-secondary" type="button">&#9208; Interrompre la saisie</button>
+          <button id="fc-mal-terminer" class="btn-primary btn-xl" type="button">&#9989; Fin de mon intervention</button>
         </div>
-        <button id="fc-mal-annuler" class="btn-text" type="button">Annuler ce malaxeur</button>
       </div>
 
       <!-- ================= ETAPE RECAPITULATIF ================= -->
@@ -720,6 +756,21 @@
 
       <div id="fc-result" class="result-card" hidden></div>
     </section>
+
+    <div id="fc-fin-dialog" class="bassin-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="fc-fin-dialog-title">
+      <div class="bassin-overlay-card mission-dialog-card">
+        <h2 id="fc-fin-dialog-title" class="block-title">Fin de mon intervention</h2>
+        <p><strong>Avez-vous assisté à la totalité du coulage et contrôlé tous les malaxeurs ?</strong></p>
+        <p class="hint">Aucune réponse n'est présélectionnée. « Non » signifie que le coulage a continué après votre départ.</p>
+        <label class="field-label" for="fc-fin-note">Observation <span class="opt">(facultatif)</span></label>
+        <textarea id="fc-fin-note" class="field" rows="2"></textarea>
+        <div class="mission-dialog-actions">
+          <button id="fc-fin-oui" class="btn-primary" type="button">Oui, j'ai assisté à tout le coulage</button>
+          <button id="fc-fin-non" class="btn-secondary" type="button">Non, le coulage a continué sans moi</button>
+          <button id="fc-fin-cancel" class="btn-text" type="button">Annuler</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ECRAN REPERTOIRE (T5) -->
     <section id="screen-repertoire" class="screen">
@@ -814,7 +865,9 @@
   <script src="js/lots_sync.js"></script>
   <script src="js/labofilter.js"></script>
   <script src="js/push.js"></script>
+  <script src="js/notiflocale.js"></script>
   <script src="js/formulations.js"></script>
+  <script src="js/centrales.js"></script>
   <script src="js/repertoire.js"></script>
   <script src="js/validation.js"></script>
   <script src="js/bassin.js"></script>

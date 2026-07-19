@@ -23,7 +23,7 @@ var CAEKCompression = (function () {
   function tr(s) { return window.I18N ? I18N.T(s) : s; }
   function trf(s, vars) { return window.I18N ? I18N.f(s, vars) : s.replace(/\{(\w+)\}/g, function (_, k) { return vars[k] || ""; }); }
   function intOr0(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
-  function num(v) { var n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? 0 : n; }
+  function num(v) { var s = window.CAEKModel ? CAEKModel.normDigits(v) : String(v == null ? "" : v); var n = parseFloat(s.replace(",", ".")); return isNaN(n) ? 0 : n; }
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
   function nowTime() { var d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
   function todayStr() { var d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
@@ -140,10 +140,13 @@ var CAEKCompression = (function () {
     var incomplet = isIncomplete(l)
       ? "<div class=\"comp-incomplet\">&#9888; Essai incomplet — " + p.filled + "/" + p.total + " éprouvette(s) saisie(s)</div>"
       : "";
+    var dateCorrigee = l.revisionAgeRequise
+      ? "<div class=\"comp-incomplet\">&#9888; Date de coulage corrigée après sortie : vérifiez l'âge réel avant validation.</div>"
+      : "";
     return "<div class=\"rep-top\"><span class=\"rep-ref\">" + escapeHtml(l.ref) + "</span>" +
       "<span class=\"comp-type\">" + escapeHtml(formeLabel(defaultForme(l.type))) + " · " +
       escapeHtml(l.age === "autre" ? l.ageJours + "j" : l.age) + "</span></div>" +
-      incomplet +
+      incomplet + dateCorrigee +
       "<div class=\"rep-ent\">" + escapeHtml(l.client || "—") + "</div>" +
       "<div class=\"rep-sub\">" + escapeHtml(l.nomProjet || "") +
       (l.ouvrage ? " · " + escapeHtml(l.ouvrage) : "") + "</div>" +
@@ -432,7 +435,10 @@ var CAEKCompression = (function () {
         "(prévu " + agePrevu + " j, réel " + escapeHtml(ageReelTxt) + "). Justification obligatoire.</div>" +
         "<label class=\"field-label\" for=\"comp-justif-motif\">Motif de l'écart</label>" +
         "<select id=\"comp-justif-motif\" class=\"field\"><option value=\"\">— Choisir —</option>" +
-        MOTIFS_ECART.map(function (m) { return "<option>" + m + "</option>"; }).join("") + "</select>" +
+        MOTIFS_ECART.map(function (m) {
+          // value = motif français stable : en AR seul le texte affiché change.
+          return "<option value=\"" + escapeHtml(m) + "\">" + escapeHtml(m) + "</option>";
+        }).join("") + "</select>" +
         "<label class=\"field-label\" for=\"comp-justif\">Justification (obligatoire)</label>" +
         "<textarea id=\"comp-justif\" class=\"field\" rows=\"2\" placeholder=\"Pourquoi l'essai n'a pas eu lieu à la date prévue\"></textarea>";
     }

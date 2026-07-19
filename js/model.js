@@ -28,8 +28,81 @@
 var CAEKModel = (function () {
   "use strict";
 
+  // Chiffres arabes-indiens (٠-٩) et persans (۰-۹) -> occidentaux, et
+  // séparateur décimal arabe (٫) -> point. Toujours appliqué AVANT parsing :
+  // l'arabe est une langue d'affichage, les valeurs internes restent stables.
+  var AR_DIGITS = { "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5",
+    "٦": "6", "٧": "7", "٨": "8", "٩": "9", "۰": "0", "۱": "1", "۲": "2",
+    "۳": "3", "۴": "4", "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9",
+    "٫": ".", "٬": "," };
+  function normDigits(v) {
+    if (v == null) { return ""; }
+    return String(v).replace(/[٠-٩۰-۹٫٬]/g, function (ch) { return AR_DIGITS[ch] || ch; });
+  }
+
   function pad2(n) { n = parseInt(n, 10) || 0; return (n < 10 ? "0" : "") + n; }
-  function intOr0(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
+  function intOr0(v) { var n = parseInt(normDigits(v), 10); return isNaN(n) ? 0 : n; }
+  function floatOrNull(v) {
+    var n = parseFloat(normDigits(v).replace(",", "."));
+    return isNaN(n) ? null : n;
+  }
+
+  /* ---- Paramètres d'échantillonnage par laboratoire (Phase 5) ----
+     Le serveur est la source de vérité ; IndexedDB n'est qu'un cache pour
+     continuer à calculer la recommandation hors ligne. */
+  var DEFAULT_LABO_SETTINGS = {
+    seuilDechets: 100, poidsMoyenDechets: 8,
+    echantPremiereTrancheM3: 50, echantPremiereTrancheNb: 9,
+    echantTrancheSuivanteM3: 50, echantTrancheSuivanteNb: 3
+  };
+  function normalizeLaboSettings(s) {
+    s = s || {};
+    function pos(v, d) { var n = floatOrNull(v); return n != null && n > 0 ? n : d; }
+    return {
+      laboId: s.laboId || "",
+      seuilDechets: pos(s.seuilDechets, DEFAULT_LABO_SETTINGS.seuilDechets),
+      poidsMoyenDechets: pos(s.poidsMoyenDechets, DEFAULT_LABO_SETTINGS.poidsMoyenDechets),
+      echantPremiereTrancheM3: pos(s.echantPremiereTrancheM3, DEFAULT_LABO_SETTINGS.echantPremiereTrancheM3),
+      echantPremiereTrancheNb: Math.round(pos(s.echantPremiereTrancheNb, DEFAULT_LABO_SETTINGS.echantPremiereTrancheNb)),
+      echantTrancheSuivanteM3: pos(s.echantTrancheSuivanteM3, DEFAULT_LABO_SETTINGS.echantTrancheSuivanteM3),
+      echantTrancheSuivanteNb: Math.round(pos(s.echantTrancheSuivanteNb, DEFAULT_LABO_SETTINGS.echantTrancheSuivanteNb))
+    };
+  }
+  function settingsLaboId(laboId) {
+    if (laboId) { return laboId; }
+    if (window.CAEKLaboFilter && CAEKLaboFilter.get()) { return CAEKLaboFilter.get(); }
+    if (window.CAEKOperateurs && CAEKOperateurs.laboId) { return CAEKOperateurs.laboId() || ""; }
+    return "";
+  }
+  function loadLaboSettings(laboId) {
+    var id = settingsLaboId(laboId);
+    var key = "laboSettings:" + (id || "default");
+    var local = window.CAEKDB ? CAEKDB.getMeta(key).catch(function () { return null; }) : Promise.resolve(null);
+    return local.then(function (cached) {
+      var fallback = normalizeLaboSettings(cached || DEFAULT_LABO_SETTINGS);
+      var online = navigator.onLine !== false && window.CAEKServer && CAEKServer.configured && CAEKServer.configured() &&
+        window.CAEKOperateurs && CAEKOperateurs.isLogged && CAEKOperateurs.isLogged() && CAEKServer.getLaboSettings;
+      if (!online) { return fallback; }
+      return CAEKServer.getLaboSettings(CAEKOperateurs.token(), id || null).then(function (r) {
+        if (!r || r.ok !== true) { return fallback; }
+        var fresh = normalizeLaboSettings(r);
+        var freshKey = "laboSettings:" + (fresh.laboId || id || "default");
+        if (window.CAEKDB) { CAEKDB.setMeta(freshKey, fresh).catch(function () {}); }
+        return fresh;
+      }).catch(function () { return fallback; });
+    });
+  }
+  function recommendationEprouvettes(quantite, settings) {
+    var q = floatOrNull(quantite);
+    if (q == null || q <= 0) { return 0; }
+    var s = normalizeLaboSettings(settings);
+    var total = s.echantPremiereTrancheNb;
+    if (q > s.echantPremiereTrancheM3) {
+      total += Math.ceil((q - s.echantPremiereTrancheM3) / s.echantTrancheSuivanteM3) *
+        s.echantTrancheSuivanteNb;
+    }
+    return Math.max(0, Math.round(total));
+  }
 
   // Type d'eprouvette d'un ancien malaxeur (retro-compat V2).
   function malaxeurType(m) {
@@ -118,18 +191,26 @@ var CAEKModel = (function () {
   function allCodes(c) {
     var ref = (c && c.ref) || "";
     var list = prelevements(c);
+    var mals = (c && c.malaxeurs) || [];
     var out = [];
     for (var i = 0; i < list.length; i++) {
       var p = list[i];
       var nb = intOr0(p.nombre);
       var ei = i + 1;
+      // Phase 3 : uuids du prélèvement/des éprouvettes (portés par le
+      // malaxeur d'origine) — identité stable pour la synchronisation.
+      var mal = p.malaxeur ? mals[p.malaxeur - 1] : null;
+      var prelUuid = (mal && mal.prelUuid) || null;
+      var eprUuids = (mal && Array.isArray(mal.eprUuids)) ? mal.eprUuids : [];
       for (var j = 1; j <= nb; j++) {
         out.push({
           code: eproCode(ref, ei, j),
           type: p.type || "cube",
           prel: ei,
           numInterne: j,
-          malaxeur: p.malaxeur || ""
+          malaxeur: p.malaxeur || "",
+          prelUuid: prelUuid,
+          eprUuid: eprUuids[j - 1] || null
         });
       }
     }
@@ -178,8 +259,10 @@ var CAEKModel = (function () {
     return {
       prel: prel,
       type: group.length ? group[0].type : "cube",
+      prelUuid: group.length ? (group[0].prelUuid || null) : null,
       codes: group.map(function (x) {
-        return { code: x.code, type: x.type, prel: x.prel, numInterne: x.numInterne, malaxeur: x.malaxeur };
+        return { code: x.code, type: x.type, prel: x.prel, numInterne: x.numInterne,
+          malaxeur: x.malaxeur, eprUuid: x.eprUuid || null };
       }),
       nombre: group.length,
       age: age,
@@ -263,6 +346,12 @@ var CAEKModel = (function () {
   }
 
   return {
+    normDigits: normDigits,
+    floatOrNull: floatOrNull,
+    DEFAULT_LABO_SETTINGS: DEFAULT_LABO_SETTINGS,
+    normalizeLaboSettings: normalizeLaboSettings,
+    loadLaboSettings: loadLaboSettings,
+    recommendationEprouvettes: recommendationEprouvettes,
     pad2: pad2,
     intOr0: intOr0,
     malaxeurType: malaxeurType,

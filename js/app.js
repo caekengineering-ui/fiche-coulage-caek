@@ -244,8 +244,10 @@
     if (window.CAEKLots) { CAEKLots.init(); }
     if (window.CAEKValidation) { CAEKValidation.init(); }
     if (window.CAEKFormulations) { CAEKFormulations.init(); }
+    if (window.CAEKCentrales) { CAEKCentrales.init(); }
     if (window.CAEKLaboFilter) { CAEKLaboFilter.init(); }
     if (window.CAEKPush) { CAEKPush.init(); }
+    if (window.CAEKNotifLocale) { CAEKNotifLocale.init(); }
     document.addEventListener("caek-sync-done", refreshUpdateStatus);
     if (window.CAEKNouveau) { CAEKNouveau.init(); }
     if (window.CAEKFiche) { CAEKFiche.init(); }

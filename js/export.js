@@ -28,7 +28,7 @@ var CAEKExport = (function () {
 
   function safeName(s) { return String(s == null ? "" : s).replace(/[^A-Za-z0-9_-]+/g, "_"); }
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
-  function num(v) { var n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? 0 : n; }
+  function num(v) { var s = window.CAEKModel ? CAEKModel.normDigits(v) : String(v == null ? "" : v); var n = parseFloat(s.replace(",", ".")); return isNaN(n) ? 0 : n; }
 
   function statutLabel(s) {
     return ({ brouillon: "Brouillon", soumis: "Soumis", valide: "Validé", validee: "Validée", envoyee: "Envoyé" })[s] || (s || "Brouillon");
@@ -177,7 +177,7 @@ var CAEKExport = (function () {
     else { ws[addr] = { t: "s", v: String(value) }; }
   }
 
-  function numOrNull(v) { var n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? null : n; }
+  function numOrNull(v) { var s = window.CAEKModel ? CAEKModel.normDigits(v) : String(v == null ? "" : v); var n = parseFloat(s.replace(",", ".")); return isNaN(n) ? null : n; }
 
   // 1er malaxeur = valeurs principales pour la compat bureau.
   function appendCompatSheets(wb, c) {

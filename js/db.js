@@ -9,7 +9,7 @@ var CAEKDB = (function () {
   "use strict";
 
   var DB_NAME = "caek_coulage";
-  var DB_VERSION = 5;
+  var DB_VERSION = 6;
   var _dbPromise = null;
 
   function open() {
@@ -55,6 +55,13 @@ var CAEKDB = (function () {
           var sj = db.createObjectStore("journal", { keyPath: "id", autoIncrement: true });
           sj.createIndex("ref", "ref", { unique: false });
           sj.createIndex("date", "date", { unique: false });
+        }
+        // Phase 1 : OUTBOX persistante des operations a synchroniser.
+        // Une entree = une operation idempotente { key (idempotencyKey), ref,
+        // uuid, action, attempts, lastError, createdAt, ackAt }.
+        if (!db.objectStoreNames.contains("outbox")) {
+          var so = db.createObjectStore("outbox", { keyPath: "key" });
+          so.createIndex("ref", "ref", { unique: false });
         }
       };
       req.onsuccess = function () { resolve(req.result); };
@@ -447,6 +454,96 @@ var CAEKDB = (function () {
     });
   }
 
+  /* ---------- Outbox (Phase 1 : operations a synchroniser) ---------- */
+
+  function outboxPut(entry) {
+    return tx("outbox", "readwrite").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.put(entry);
+        req.onsuccess = function () { resolve(entry); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function outboxGet(key) {
+    return tx("outbox", "readonly").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.get(key);
+        req.onsuccess = function () { resolve(req.result || null); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function outboxAll() {
+    return tx("outbox", "readonly").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.getAll();
+        req.onsuccess = function () { resolve(req.result || []); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function outboxByRef(ref) {
+    return outboxAll().then(function (all) {
+      return all.filter(function (e) { return e.ref === ref; });
+    });
+  }
+
+  function outboxDelete(key) {
+    return tx("outbox", "readwrite").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.delete(key);
+        req.onsuccess = function () { resolve(); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  // Adoption d'une reference OFFICIELLE allouee par le serveur : re-cle le
+  // coulage (PK locale = ref) et toutes les donnees rattachees (photos, lots,
+  // journal, outbox) de l'ancienne reference provisoire vers la nouvelle.
+  function rekeyCoulage(oldRef, newRef) {
+    if (!oldRef || !newRef || oldRef === newRef) { return Promise.resolve({ ok: true }); }
+    return open().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var t = db.transaction(["coulages", "photos", "lots", "journal", "outbox"], "readwrite");
+        var sC = t.objectStore("coulages");
+        var getC = sC.get(oldRef);
+        getC.onsuccess = function () {
+          var c = getC.result;
+          if (!c) { return; }
+          sC.delete(oldRef);
+          c.ref = newRef;
+          sC.put(c);
+          ["photos", "lots", "journal"].forEach(function (name) {
+            var st = t.objectStore(name);
+            var idx = st.index("ref");
+            idx.openCursor(IDBKeyRange.only(oldRef)).onsuccess = function (ev) {
+              var cur = ev.target.result;
+              if (cur) {
+                var v = cur.value;
+                v.ref = newRef;
+                cur.update(v);
+                cur.continue();
+              }
+            };
+          });
+          var so = t.objectStore("outbox");
+          so.index("ref").openCursor(IDBKeyRange.only(oldRef)).onsuccess = function (ev) {
+            var cur = ev.target.result;
+            if (cur) { var e = cur.value; e.ref = newRef; cur.update(e); cur.continue(); }
+          };
+        };
+        t.oncomplete = function () { resolve({ ok: true }); };
+        t.onerror = function () { reject(t.error); };
+        t.onabort = function () { reject(t.error); };
+      });
+    });
+  }
+
   /* ---------- Journal des actions ---------- */
 
   function addJournal(rec) {
@@ -501,6 +598,12 @@ var CAEKDB = (function () {
     addArchive: addArchive,
     getAllArchives: getAllArchives,
     addJournal: addJournal,
-    getAllJournal: getAllJournal
+    getAllJournal: getAllJournal,
+    outboxPut: outboxPut,
+    outboxGet: outboxGet,
+    outboxAll: outboxAll,
+    outboxByRef: outboxByRef,
+    outboxDelete: outboxDelete,
+    rekeyCoulage: rekeyCoulage
   };
 })();

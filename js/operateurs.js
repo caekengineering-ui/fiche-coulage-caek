@@ -60,6 +60,19 @@ var CAEKOperateurs = (function () {
   function activeUsername() { var s = session(); return s ? s.identifiant : null; }
   function role() { var s = session(); return s ? (s.is_admin ? "admin" : "operateur") : null; }
   function isAdmin() { return role() === "admin"; }
+
+  // Phase 2 : rôle MÉTIER granulaire — operator | engineer | responsable |
+  // principal_admin. Dual-read : rôle serveur si présent, sinon dérivé des
+  // indicateurs historiques (aucun compte ne change de droits).
+  var ROLES_METIER = ["operator", "engineer", "responsable", "principal_admin"];
+  function roleMetier() {
+    var s = session();
+    if (!s) { return null; }
+    if (s.role && ROLES_METIER.indexOf(s.role) >= 0) { return s.role; }
+    if (s.is_admin && (!s.admin_labos || !s.admin_labos.length)) { return "principal_admin"; }
+    if (s.is_admin) { return "responsable"; }
+    return "operator";
+  }
   function canSupervise() { return isAdmin(); }
   function laboId() { var s = session(); return s ? (s.labo_id || null) : null; }
   function laboNom() { var s = session(); return s ? (s.labo_nom || "") : ""; }
@@ -148,7 +161,8 @@ var CAEKOperateurs = (function () {
         token: r.token, identifiant: r.identifiant, nom: r.nom,
         fonction: r.fonction || "", is_admin: r.is_admin === true,
         labo_id: r.labo_id || null, labo_nom: r.labo_nom || "",
-        admin_labos: r.admin_labos || null   // null/[] = admin principal (tous)
+        admin_labos: r.admin_labos || null,  // null/[] = admin principal (tous)
+        role: r.role || null                 // Phase 2 : rôle métier serveur
       };
       writeSession(_session);
       applyActive();
@@ -185,6 +199,7 @@ var CAEKOperateurs = (function () {
         s.is_admin = r.is_admin === true;
         s.labo_id = r.labo_id || null; s.labo_nom = r.labo_nom || "";
         s.admin_labos = r.admin_labos || null;
+        s.role = r.role || s.role || null;
         _session = s; writeSession(s);
         applyActive();
         renderAll();
@@ -261,6 +276,19 @@ var CAEKOperateurs = (function () {
     }).join("");
   }
 
+  // Phase 2 : options du rôle MÉTIER (valeurs techniques stables).
+  var ROLE_METIER_LABEL = {
+    operator: "Opérateur", engineer: "Ingénieur",
+    responsable: "Responsable", principal_admin: "Admin principal"
+  };
+  function roleMetierOptions(sel) {
+    var html = "<option value=\"\">— Automatique (selon le rôle) —</option>";
+    ["operator", "engineer", "responsable", "principal_admin"].forEach(function (r) {
+      html += "<option value=\"" + r + "\"" + (r === sel ? " selected" : "") + ">" + ROLE_METIER_LABEL[r] + "</option>";
+    });
+    return html;
+  }
+
   function operItemHtml(o) {
     var isCurrent = (o.identifiant === activeUsername());
     var inactif = (o.actif === false);
@@ -274,6 +302,8 @@ var CAEKOperateurs = (function () {
         "<input class=\"field oper-edit-qualif\" type=\"text\" value=\"" + escapeHtml(o.fonction || "") + "\">" +
         "<label class=\"field-label\">Rôle</label>" +
         "<select class=\"field oper-edit-role\">" + roleOptions(o.is_admin ? "admin" : "operateur") + "</select>" +
+        "<label class=\"field-label\">Rôle métier (révision des résultats)</label>" +
+        "<select class=\"field oper-edit-rolemetier\">" + roleMetierOptions(o.role || "") + "</select>" +
         "<label class=\"field-label\">Laboratoire d'affectation</label>" +
         "<select class=\"field oper-edit-labo\">" + laboOptions(o.labo_id || "", true) + "</select>" +
         "<label class=\"field-label\">Laboratoires vérifiés (administrateur — aucun coché = tous)</label>" +
@@ -311,6 +341,14 @@ var CAEKOperateurs = (function () {
         "<input class=\"field labo-edit-loc\" type=\"text\" value=\"" + escapeHtml(b.localisation || "") + "\">" +
         "<label class=\"field-label\">Seuil d'alerte déchets (éprouvettes)</label>" +
         "<input class=\"field labo-edit-seuil\" type=\"number\" min=\"10\" step=\"10\" value=\"" + (parseInt(b.seuilDechets, 10) || 100) + "\">" +
+        "<label class=\"field-label\">Poids moyen d'une éprouvette (kg)</label>" +
+        "<input class=\"field labo-edit-poids\" type=\"number\" min=\"0.1\" step=\"0.1\" value=\"" + (parseFloat(b.poidsMoyenDechets) || 8) + "\">" +
+        "<div class=\"form-grid\">" +
+        "<div><label class=\"field-label\">Première tranche (m³)</label><input class=\"field labo-edit-echant-v1\" type=\"number\" min=\"1\" value=\"" + (parseFloat(b.echantPremiereTrancheM3) || 50) + "\"></div>" +
+        "<div><label class=\"field-label\">Éprouvettes première tranche</label><input class=\"field labo-edit-echant-n1\" type=\"number\" min=\"1\" value=\"" + (parseInt(b.echantPremiereTrancheNb, 10) || 9) + "\"></div>" +
+        "<div><label class=\"field-label\">Tranche suivante (m³)</label><input class=\"field labo-edit-echant-v2\" type=\"number\" min=\"1\" value=\"" + (parseFloat(b.echantTrancheSuivanteM3) || 50) + "\"></div>" +
+        "<div><label class=\"field-label\">Éprouvettes par tranche suivante</label><input class=\"field labo-edit-echant-n2\" type=\"number\" min=\"1\" value=\"" + (parseInt(b.echantTrancheSuivanteNb, 10) || 3) + "\"></div>" +
+        "</div>" +
         "<div class=\"oper-actions\">" +
           "<button type=\"button\" class=\"btn-primary\" data-act=\"labo-enregistrer\" data-labo=\"" + escapeHtml(b.id) + "\">&#128190; Enregistrer</button>" +
           "<button type=\"button\" class=\"btn-text\" data-act=\"labo-annuler\" data-labo=\"" + escapeHtml(b.id) + "\">Annuler</button>" +
@@ -321,7 +359,9 @@ var CAEKOperateurs = (function () {
       "<div class=\"oper-info\"><span class=\"oper-nom\">&#127970; " + escapeHtml(b.nom) + "</span>" +
         (inactif ? "<span class=\"oper-badge is-off\">Désactivé</span>" : "") +
         (b.localisation ? "<span class=\"oper-qualif\">" + escapeHtml(b.localisation) + "</span>" : "") +
-        "<span class=\"oper-username\">" + nb + " opérateur(s) · seuil déchets " + (parseInt(b.seuilDechets, 10) || 100) + "</span></div>" +
+        "<span class=\"oper-username\">" + nb + " opérateur(s) · seuil déchets " + (parseInt(b.seuilDechets, 10) || 100) +
+        " · recommandation " + (parseInt(b.echantPremiereTrancheNb, 10) || 9) + " / " + (parseFloat(b.echantPremiereTrancheM3) || 50) +
+        " m³ puis +" + (parseInt(b.echantTrancheSuivanteNb, 10) || 3) + " / " + (parseFloat(b.echantTrancheSuivanteM3) || 50) + " m³</span></div>" +
       "<div class=\"oper-actions\">" +
         "<button type=\"button\" class=\"btn-text\" data-act=\"labo-modifier\" data-labo=\"" + escapeHtml(b.id) + "\">Modifier</button>" +
         (inactif
@@ -494,7 +534,8 @@ var CAEKOperateurs = (function () {
         is_admin: item.querySelector(".oper-edit-role").value === "admin",
         actif: o.actif !== false,
         labo_id: item.querySelector(".oper-edit-labo").value || null,
-        admin_labos: readChecked(item, "oper-edit-adminlabo")
+        admin_labos: readChecked(item, "oper-edit-adminlabo"),
+        role: (item.querySelector(".oper-edit-rolemetier") || {}).value || null
       }, function () {
         _editing = null;
         operResult("&#10004; Opérateur mis à jour.", false);
@@ -513,7 +554,8 @@ var CAEKOperateurs = (function () {
         id: id, identifiant: o2.identifiant, pin: p1, nom: o2.nom,
         fonction: o2.fonction || "", is_admin: o2.is_admin === true,
         actif: o2.actif !== false, labo_id: o2.labo_id || null,
-        admin_labos: o2.admin_labos || null   // préserver les droits labo
+        admin_labos: o2.admin_labos || null,  // préserver les droits labo
+        role: o2.role || null
       }, function () {
         _editing = null;
         operResult("&#10004; PIN réinitialisé.", false);
@@ -540,6 +582,15 @@ var CAEKOperateurs = (function () {
         nom: item2.querySelector(".labo-edit-nom").value.trim(),
         localisation: item2.querySelector(".labo-edit-loc").value.trim(),
         seuilDechets: parseInt(item2.querySelector(".labo-edit-seuil").value, 10) || 100,
+        settings: {
+          seuilDechets: parseInt(item2.querySelector(".labo-edit-seuil").value, 10) || 100,
+          poidsMoyenDechets: parseFloat(item2.querySelector(".labo-edit-poids").value) || 8,
+          echantPremiereTrancheM3: parseFloat(item2.querySelector(".labo-edit-echant-v1").value) || 50,
+          echantPremiereTrancheNb: parseInt(item2.querySelector(".labo-edit-echant-n1").value, 10) || 9,
+          echantTrancheSuivanteM3: parseFloat(item2.querySelector(".labo-edit-echant-v2").value) || 50,
+          echantTrancheSuivanteNb: parseInt(item2.querySelector(".labo-edit-echant-n2").value, 10) || 3
+        },
+        requestId: String(Date.now()) + "-labo-settings",
         actif: b.actif !== false
       }).then(function (r) {
         if (!r || r.ok !== true) {
@@ -556,7 +607,15 @@ var CAEKOperateurs = (function () {
       if (!on2 && !window.confirm("Désactiver ce laboratoire ? Il n'apparaîtra plus dans les listes.")) { return; }
       CAEKServer.adminUpsertLabo(token(), {
         id: laboId2, nom: b2.nom, localisation: b2.localisation || "",
-        seuilDechets: parseInt(b2.seuilDechets, 10) || 100, actif: on2
+        seuilDechets: parseInt(b2.seuilDechets, 10) || 100,
+        settings: {
+          seuilDechets: parseInt(b2.seuilDechets, 10) || 100,
+          poidsMoyenDechets: parseFloat(b2.poidsMoyenDechets) || 8,
+          echantPremiereTrancheM3: parseFloat(b2.echantPremiereTrancheM3) || 50,
+          echantPremiereTrancheNb: parseInt(b2.echantPremiereTrancheNb, 10) || 9,
+          echantTrancheSuivanteM3: parseFloat(b2.echantTrancheSuivanteM3) || 50,
+          echantTrancheSuivanteNb: parseInt(b2.echantTrancheSuivanteNb, 10) || 3
+        }, actif: on2
       }).then(function (r) {
         if (!r || r.ok !== true) { laboResult("&#9888; Échec.", true); return; }
         laboResult(on2 ? "Laboratoire réactivé." : "Laboratoire désactivé.", false);
@@ -573,6 +632,15 @@ var CAEKOperateurs = (function () {
       id: null, nom: nom,
       localisation: val("labo-add-loc").trim(),
       seuilDechets: parseInt(val("labo-add-seuil"), 10) || 100,
+      settings: {
+        seuilDechets: parseInt(val("labo-add-seuil"), 10) || 100,
+        poidsMoyenDechets: parseFloat(val("labo-add-poids")) || 8,
+        echantPremiereTrancheM3: parseFloat(val("labo-add-echant-v1")) || 50,
+        echantPremiereTrancheNb: parseInt(val("labo-add-echant-n1"), 10) || 9,
+        echantTrancheSuivanteM3: parseFloat(val("labo-add-echant-v2")) || 50,
+        echantTrancheSuivanteNb: parseInt(val("labo-add-echant-n2"), 10) || 3
+      },
+      requestId: String(Date.now()) + "-labo-create-settings",
       actif: true
     }).then(function (r) {
       if (!r || r.ok !== true) {
@@ -635,6 +703,7 @@ var CAEKOperateurs = (function () {
     getActive: getActive,
     activeUsername: activeUsername,
     role: role,
+    roleMetier: roleMetier,
     isAdmin: isAdmin,
     canSupervise: canSupervise,
     requireAdmin: requireAdmin,
