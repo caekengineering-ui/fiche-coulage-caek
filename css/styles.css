@@ -136,6 +136,63 @@ body {
 .profil-bar.is-empty { color: var(--text-muted); border-bottom-color: var(--caek-red); }
 .profil-bar.is-empty .profil-bar-text { font-weight: 600; }
 
+/* ---------- Bandeau ALERTE COULAGE (BF-001), visible partout ---------- */
+.alertes-coulage-banner {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: 3px solid var(--caek-red-dark);
+  background: #ffecec;
+  color: #7a0d0d;
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.alertes-coulage-banner:active { background: #ffdada; }
+
+/* ---------- Ecran ALERTE COULAGE : liste + formulaire ---------- */
+.alerte-form { margin-bottom: 18px; }
+.alerte-form-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px;
+}
+.alerte-form-actions { display: flex; gap: 10px; margin-top: 12px; }
+.alerte-form-actions .btn-primary, .alerte-form-actions .btn-secondary { flex: 1 1 auto; }
+
+.alerte-card {
+  position: relative;
+  background: var(--white);
+  border: 1px solid var(--gray-line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.alerte-card.is-urgent {
+  border: 2px solid var(--caek-red);
+  background: #fff6f6;
+}
+.alerte-tag-urgent {
+  display: inline-block;
+  background: var(--caek-red);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+}
+.alerte-statut {
+  float: right;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.alerte-titre { font-size: 17px; font-weight: 700; color: var(--text-dark); clear: both; }
+.alerte-ligne { font-size: 14px; margin-top: 4px; }
+.alerte-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.alerte-actions button { flex: 1 1 auto; font-size: 13px; padding: 8px 10px; }
+
 /* ---------- Accueil : grandes cartes module ---------- */
 .big-cards {
   display: flex; flex-direction: column; gap: 16px;
@@ -154,6 +211,7 @@ body {
 }
 .big-card:active { transform: scale(.98); box-shadow: 0 0 0 rgba(0,0,0,0); }
 .big-card-img { width: 100%; max-width: 220px; height: 150px; object-fit: contain; object-position: center top; margin-bottom: 6px; pointer-events: none; }
+.big-card-icon { height: 150px; display: flex; align-items: center; justify-content: center; font-size: 72px; margin-bottom: 6px; pointer-events: none; }
 .big-card-label { font-size: 20px; font-weight: 700; color: var(--text-dark); }
 
 .btn-text {

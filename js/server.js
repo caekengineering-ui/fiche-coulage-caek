@@ -158,6 +158,23 @@ var CAEKServer = (function () {
     });
   }
 
+  /* ---------- Alerte coulage (BF-001) — indépendante de la fiche ---------- */
+  function listAlertesCoulage(token, labo, historique) {
+    return _rpc("op_list_alertes_coulage", { p_token: token, p_labo: labo || null, p_historique: !!historique });
+  }
+  function createAlerteCoulage(token, alerte) {
+    return _rpc("resp_create_alerte_coulage", { p_token: token, p_alerte: alerte });
+  }
+  function updateAlerteCoulage(token, id, alerte) {
+    return _rpc("resp_update_alerte_coulage", { p_token: token, p_id: id, p_alerte: alerte });
+  }
+  function prendreEnChargeAlerte(token, id) {
+    return _rpc("op_prendre_en_charge_alerte", { p_token: token, p_id: id });
+  }
+  function ackAlerteCoulage(token, id) {
+    return _rpc("resp_ack_alerte_coulage", { p_token: token, p_id: id });
+  }
+
   /* ---------- Notifications (abonnements push) ---------- */
   function savePushSubscription(token, sub) {
     return _rpc("op_save_push_subscription", { p_token: token, p_sub: sub });
@@ -265,6 +282,9 @@ var CAEKServer = (function () {
     listEvacuations: listEvacuations, addEvacuation: addEvacuation,
     getDechetsState: getDechetsState, addEvacuationV2: addEvacuationV2,
     getLaboSettings: getLaboSettings, adminSetLaboSettings: adminSetLaboSettings,
+    listAlertesCoulage: listAlertesCoulage, createAlerteCoulage: createAlerteCoulage,
+    updateAlerteCoulage: updateAlerteCoulage, prendreEnChargeAlerte: prendreEnChargeAlerte,
+    ackAlerteCoulage: ackAlerteCoulage,
     savePushSubscription: savePushSubscription, deletePushSubscription: deletePushSubscription,
     adminValiderCoulage: adminValiderCoulage, adminMarquerMediasPurges: adminMarquerMediasPurges,
     adminRenvoyerCoulage: adminRenvoyerCoulage,
