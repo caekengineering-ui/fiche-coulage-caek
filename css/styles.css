@@ -1717,10 +1717,14 @@ body.lang-ar .field-label, body.lang-ar .hint, body.lang-ar .app-subtitle { lett
 .valid-edit .valid-mal { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 8px; }
 
 /* Phase 5 : actions peu fréquentes et parcours terrain simplifié. */
-.rep-more-wrap { position: relative; display: flex; justify-content: flex-end; margin: .2rem .6rem .55rem; }
-.rep-more-toggle { min-height: 40px; font-size: .88rem; }
+.rep-more-wrap {
+  display: flex; flex-direction: column; align-items: stretch;
+  margin: .2rem .6rem .55rem;
+}
+.rep-more-toggle { align-self: flex-end; min-height: 40px; font-size: .88rem; }
 .rep-more-menu {
-  position: absolute; z-index: 20; right: 0; top: 100%; min-width: 230px;
+  position: static; width: 100%; min-width: 0; box-sizing: border-box;
+  margin-top: .4rem;
   padding: .45rem; border: 1px solid var(--gray-line, #d8dee6); border-radius: 10px;
   background: var(--white, #fff); box-shadow: 0 8px 24px rgba(0,0,0,.16);
 }
@@ -1745,5 +1749,5 @@ body.lang-ar .field-label, body.lang-ar .hint, body.lang-ar .app-subtitle { lett
 .dechets-sync.is-warn { color: #8a5a00; }
 @media (max-width: 560px) {
   .fc-mission-actions { display: grid; grid-template-columns: 1fr; }
-  .rep-more-menu { min-width: min(250px, 80vw); }
+  .rep-more-toggle { align-self: stretch; }
 }
