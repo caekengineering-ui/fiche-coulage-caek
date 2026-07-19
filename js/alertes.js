@@ -62,6 +62,10 @@ var CAEKAlertes = (function () {
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
   function basename(p) { p = String(p || ""); return p.slice(p.lastIndexOf("/") + 1); }
+  // Même normalisation que l'écran « Nouveau coulage » : majuscules, sans espaces.
+  function cleanCode(v) {
+    return String(v == null ? "" : v).trim().toUpperCase().replace(/\s+/g, "");
+  }
 
   // Recharge le référentiel depuis icons_manifest.json (même source de
   // vérité que la fiche de coulage), sans dépendre du module CAEKFiche.
@@ -162,6 +166,19 @@ var CAEKAlertes = (function () {
     for (var i = 0; i < _projets.length; i++) { if (_projets[i].codeProjet === code) { return _projets[i]; } }
     return null;
   }
+  // Recherche par code saisi : correspondance exacte d'abord, sinon le premier
+  // projet dont le code commence par la saisie (« API » -> APIxxx). Évite de
+  // dérouler une longue liste quand on connaît déjà le code.
+  function chercherProjetParCode(saisie) {
+    var code = cleanCode(saisie);
+    if (!code) { return null; }
+    var exact = projetByCode(code);
+    if (exact) { return exact; }
+    var candidats = _projets.filter(function (p) {
+      return cleanCode(p.codeProjet).indexOf(code) === 0;
+    }).sort(function (a, b) { return a.codeProjet.localeCompare(b.codeProjet); });
+    return candidats.length ? candidats[0] : null;
+  }
   function populateProjetSelect() {
     var sel = $("ac-projet");
     if (!sel) { return; }
@@ -175,6 +192,30 @@ var CAEKAlertes = (function () {
     });
     sel.innerHTML = html;
   }
+  // Saisie d'un code -> sélectionne le projet correspondant dans la liste.
+  function appliquerRechercheCode() {
+    var input = $("ac-projet-code");
+    var sel = $("ac-projet");
+    var info = $("ac-projet-trouve");
+    if (!input || !sel) { return; }
+    var saisie = input.value;
+    if (!cleanCode(saisie)) {
+      if (info) { info.textContent = ""; }
+      return;
+    }
+    var p = chercherProjetParCode(saisie);
+    if (!p) {
+      sel.value = "";
+      if (info) { info.textContent = "Aucun projet ne correspond à ce code."; }
+      return;
+    }
+    sel.value = p.codeProjet;
+    if (info) {
+      var nomClient = clientNom(p.clientId);
+      info.textContent = "✓ " + p.codeProjet + " — " + p.nomProjet + (nomClient ? " (" + nomClient + ")" : "");
+    }
+  }
+
   function populateOuvrageSelect() {
     var sel = $("ac-ouvrage");
     if (!sel) { return; }
@@ -330,10 +371,11 @@ var CAEKAlertes = (function () {
   /* ---------- Formulaire création / modification ---------- */
   function resetForm() {
     _editing = null;
-    ["ac-projet", "ac-ouvrage", "ac-bloc", "ac-etage", "ac-date", "ac-quantite",
-      "ac-demandeur-nom", "ac-demandeur-fonction", "ac-observations"].forEach(function (id) {
+    ["ac-projet", "ac-projet-code", "ac-ouvrage", "ac-bloc", "ac-etage", "ac-date",
+      "ac-quantite", "ac-demandeur-nom", "ac-demandeur-fonction", "ac-observations"].forEach(function (id) {
       var el = $(id); if (el) { el.value = ""; }
     });
+    if ($("ac-projet-trouve")) { $("ac-projet-trouve").textContent = ""; }
     if ($("ac-ouvrage-autre")) { $("ac-ouvrage-autre").value = ""; $("ac-ouvrage-autre").hidden = true; }
     if ($("ac-urgent")) { $("ac-urgent").checked = false; }
     if ($("ac-apercu-moules")) { $("ac-apercu-moules").textContent = ""; }
@@ -490,6 +532,18 @@ var CAEKAlertes = (function () {
     }
     var qte = $("ac-quantite");
     if (qte) { qte.addEventListener("input", refreshApercu); }
+
+    // Recherche par code : aligne la liste déroulante sur le projet trouvé.
+    var codeInput = $("ac-projet-code");
+    if (codeInput) { codeInput.addEventListener("input", appliquerRechercheCode); }
+    // Choix manuel dans la liste : la recherche par code devient caduque.
+    var projSel = $("ac-projet");
+    if (projSel) {
+      projSel.addEventListener("change", function () {
+        if (codeInput) { codeInput.value = ""; }
+        if ($("ac-projet-trouve")) { $("ac-projet-trouve").textContent = ""; }
+      });
+    }
 
     var btnHisto = $("ac-btn-historique");
     if (btnHisto) {

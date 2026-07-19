@@ -1099,6 +1099,7 @@ var I18N = (function () {
     "Réseau requis pour créer ou modifier une alerte coulage.": "الشبكة مطلوبة لإنشاء أو تعديل تنبيه صبّ.",
     "Réseau requis pour prendre en charge une alerte.": "الشبكة مطلوبة لتولّي تنبيه.",
     "Choisissez un projet.": "اختر مشروعًا.",
+    "Aucun projet ne correspond à ce code.": "لا يوجد مشروع يطابق هذا الرمز.",
     "Indiquez la date et l'heure prévues.": "حدّد التاريخ والوقت المقررين.",
     "Indiquez la quantité de béton prévue (m³).": "حدّد كمية الخرسانة المقررة (m³).",
     "Rôle insuffisant pour planifier une alerte coulage.": "الدور غير كافٍ لبرمجة تنبيه صبّ.",
