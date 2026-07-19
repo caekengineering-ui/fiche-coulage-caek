@@ -407,6 +407,7 @@ var I18N = (function () {
     "Non, le coulage a continué sans moi": "لا، استمر الصب بدوني",
     "Interruption non enregistrée :": "لم يتم حفظ التوقف:",
     "Recommandation du laboratoire :": "توصية المخبر:",
+    "Nombre d'éprouvettes recommandé :": "عدد العيّنات الموصى به:",
     "Recommandation laboratoire": "توصية المخبر",
     "reste recommandé :": "المتبقي الموصى به:",
     "éprouvettes": "عيّنات",

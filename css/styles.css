@@ -1733,8 +1733,10 @@ body.lang-ar .field-label, body.lang-ar .hint, body.lang-ar .app-subtitle { lett
 .badge-incomplete { background: #fff3cd; color: #7a5200; }
 .badge-copy { background: #eef2ff; color: #35459a; }
 .sampling-recommendation {
-  margin-top: -.35rem; margin-bottom: .8rem; padding: .65rem .8rem;
-  border-left: 4px solid #3267d6; border-radius: 7px; background: #eef4ff; color: #173b80;
+  display: block; clear: both; box-sizing: border-box; min-height: 44px;
+  margin: .55rem 0 1rem; padding: .7rem .85rem;
+  border-inline-start: 4px solid #21705b; border-radius: 8px;
+  background: #eff8f4; color: #174d3d; font-size: .92rem;
 }
 .mission-hint { margin-top: 1rem; }
 .fc-mission-actions { align-items: stretch; }

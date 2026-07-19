@@ -354,8 +354,7 @@ var CAEKFiche = (function () {
       current.recommandationEprouvettes = n;
       current.regleEchantillonnage = settings;
       box.hidden = false;
-      box.innerHTML = "&#129514; Recommandation du laboratoire : <strong>" + n +
-        " éprouvettes</strong> pour " + q + " m³.";
+      box.innerHTML = "&#129514; Nombre d'éprouvettes recommandé : <strong>" + n + "</strong>";
     });
   }
 
