@@ -804,12 +804,21 @@ var CAEKBassin = (function () {
         "</p>";
       if (window.I18N) { I18N.translate(grid); }
     } else {
-      // Tri : retard d'abord, puis J-1, J-2, loin.
+      // Tri : retard d'abord, puis J-1, J-2, loin. À priorité et échéance
+      // égales, les lots sont rangés par référence croissante : ainsi les
+      // lots ECPM144 (dont les anciennes répartitions fractionnées) restent
+      // côte à côte, puis ECPM145, etc.
       var order = { retard: 0, j1: 1, j2: 2, loin: 3 };
       var sorted = enBassin.slice().sort(function (a, b) {
         var sa = dispStatut(a), sb = dispStatut(b);
         if (order[sa] !== order[sb]) { return order[sa] - order[sb]; }
-        return String(a.datePrevue).localeCompare(String(b.datePrevue));
+        var dateOrder = String(a.datePrevue).localeCompare(String(b.datePrevue));
+        if (dateOrder) { return dateOrder; }
+        var refOrder = String(a.ref || "").localeCompare(String(b.ref || ""), "fr", {
+          numeric: true, sensitivity: "base"
+        });
+        if (refOrder) { return refOrder; }
+        return (intOr0(a.prel) - intOr0(b.prel)) || (intOr0(a.id) - intOr0(b.id));
       });
       // Phase 3 : groupement DYNAMIQUE par âge d'essai (age_jours), sans
       // aucune limite fonctionnelle (3 j, 7 j, 14 j, 90 j… tout âge client).
