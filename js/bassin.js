@@ -173,12 +173,19 @@ var CAEKBassin = (function () {
         return window.CAEKModel ? CAEKModel.recuperationOk(c) : true;
       });
       eligibles = eligibles.filter(laboOk);
-      _repList = eligibles.filter(function (c) { return !c.bassinReparti; });
-      // Répartitions déjà faites : on n'affiche QUE celles encore corrigibles
-      // (aucun lot écrasé/sorti/archivé). Les répartitions verrouillées
-      // (déjà écrasées ou archivées) sortent de cette vue pour la désencombrer ;
-      // les données restent en base, seul l'affichage change.
-      _doneList = eligibles.filter(function (c) { return !!c.bassinReparti && !locked[c.ref]; });
+      // La présence d'un lot est la source de vérité : les anciennes données ou
+      // une synchronisation incomplète peuvent ne pas avoir bassinReparti à jour.
+      // Dans ce cas, ne jamais proposer une nouvelle répartition en parallèle ;
+      // le coulage doit rester accessible en mode correction.
+      var hasLot = {};
+      lots.forEach(function (l) { if (l && l.ref) { hasLot[l.ref] = true; } });
+      _repList = eligibles.filter(function (c) { return !hasLot[c.ref] && !c.bassinReparti; });
+      // Répartitions déjà faites : cette liste ne dépend volontairement pas des
+      // critères de première répartition (récupération/codification). Un lot
+      // en bassin doit toujours pouvoir être revu tant qu'il n'est pas engagé.
+      _doneList = list.filter(function (c) {
+        return !!hasLot[c.ref] && !locked[c.ref] && laboOk(c);
+      });
       _doneList.forEach(function (c) { c._editable = true; });
 
       var byDate = function (a, b) {
@@ -301,6 +308,9 @@ var CAEKBassin = (function () {
       return {
         prel: prels[0] || first.prel || 0,
         prels: prels,
+        // Un UUID de prélèvement ne peut représenter qu'un prélèvement : il
+        // reste donc vide lorsque le lot fusionné en contient plusieurs.
+        prelUuid: prels.length === 1 ? (first.prelUuid || null) : null,
         type: typeList.length === 1 ? typeList[0] : "mixte",
         codes: codes,
         nombre: codes.length || group.reduce(function (n, lot) { return n + (lot.nombre || 0); }, 0),
@@ -314,16 +324,20 @@ var CAEKBassin = (function () {
   // répartition existante (révision), regroupés par échéance.
   function buildRepLots(coulage, existingLots) {
     if (existingLots && existingLots.length) {
-      return existingLots.slice().sort(function (a, b) {
+      var rebuilt = existingLots.slice().sort(function (a, b) {
         return (a.prel - b.prel) || (a.ageJours - b.ageJours);
       }).map(function (l) {
         var codes = (l.codes || []).slice();
         return {
-          prel: l.prel, prels: l.prels || [l.prel], type: l.type, codes: codes,
+          prel: l.prel, prels: l.prels || [l.prel], prelUuid: l.prelUuid || null,
+          type: l.type, codes: codes,
           nombre: codes.length || l.nombre || 0,
           age: l.age || "28j", ageJours: l.ageJours || 28
         };
       });
+      // Les lots historiques 6 + 3 à la même échéance deviennent d'emblée
+      // une seule ligne de 9 dans l'éditeur. L'enregistrement reste explicite.
+      return mergeLotsByEcheance(rebuilt);
     }
     return mergeLotsByEcheance(window.CAEKModel ? CAEKModel.proposeRepartition(coulage) : []);
   }
@@ -455,7 +469,8 @@ var CAEKBassin = (function () {
       if (!base) { continue; }
       var ageSel = r.querySelector(".lot-age").value;
       var ageJours = ageSel === "7j" ? 7 : (ageSel === "28j" ? 28 : intOr0(r.querySelector(".lot-jours").value));
-      out.push({ prel: base.prel, prels: base.prels || [base.prel], type: base.type, codes: base.codes,
+      out.push({ prel: base.prel, prels: base.prels || [base.prel], prelUuid: base.prelUuid || null,
+        type: base.type, codes: base.codes,
         nombre: base.nombre, age: ageSel, ageJours: ageJours });
     }
     return mergeLotsByEcheance(out);
