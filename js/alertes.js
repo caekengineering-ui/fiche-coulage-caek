@@ -120,13 +120,28 @@ var CAEKAlertes = (function () {
 
   /* ---------- Formatage ---------- */
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
-  function fmtDateTime(iso) {
+  // Date et heure SÉPARÉES pour l'affichage des cartes : chacune est un jeton
+  // technique isolé en LTR (cf. tok()). On évite ainsi le « à » français, qui
+  // resterait non traduit au milieu d'un texte arabe.
+  function fmtDate(iso) {
     if (!iso) { return "—"; }
     var d = new Date(iso);
     if (isNaN(d.getTime())) { return "—"; }
-    return pad2(d.getDate()) + "/" + pad2(d.getMonth() + 1) + "/" + d.getFullYear() +
-      " à " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+    return pad2(d.getDate()) + "/" + pad2(d.getMonth() + 1) + "/" + d.getFullYear();
   }
+  function fmtHeure(iso) {
+    if (!iso) { return ""; }
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) { return ""; }
+    return pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
+  // Jeton technique (nombre, date, heure, unité, code) : toujours lu de gauche
+  // à droite, même quand la page passe en arabe (dir=rtl). Sans cette
+  // isolation, « 15 » et son libellé se retrouvent visuellement séparés.
+  function tok(v) {
+    return "<span class=\"ltr-tok\">" + escapeHtml(v) + "</span>";
+  }
+
   // Valeur d'un <input type="datetime-local"> pour un ISO donné (heure locale).
   function isoToLocalInput(iso) {
     if (!iso) { return ""; }
@@ -301,27 +316,46 @@ var CAEKAlertes = (function () {
     }) : [];
     if (mesAlertesIgnorees.length) {
       bar.hidden = false;
-      bar.innerHTML = "&#9888; <strong>" + mesAlertesIgnorees.length +
-        "</strong> alerte(s) de coulage sans prise en charge — personne n'a accusé réception.";
+      bar.innerHTML = "&#9888; <strong>" + tok(mesAlertesIgnorees.length) +
+        "</strong> <span>alerte(s) de coulage sans prise en charge — personne n'a accusé réception.</span>";
     } else if (urgentesLibres.length) {
       bar.hidden = false;
-      bar.innerHTML = "&#128680; <strong>" + urgentesLibres.length +
-        "</strong> coulage(s) URGENT annoncé(s) — prise en charge requise.";
+      bar.innerHTML = "&#128680; <strong>" + tok(urgentesLibres.length) +
+        "</strong> <span>coulage(s) URGENT annoncé(s) — prise en charge requise.</span>";
     } else {
       bar.hidden = true; bar.innerHTML = "";
     }
   }
 
+  // Chaque libellé traduisible est isolé dans son propre élément : le moteur
+  // i18n traduit nœud de texte par nœud de texte, donc « Mur de soutènement »
+  // noyé dans « Mur de soutènement · Bloc E · RDC » ne serait jamais reconnu.
+  // Les valeurs (nombres, dates, unités, codes, noms propres) passent par
+  // tok() et restent en LTR même en arabe.
   function cardHtml(a, closable) {
     var urgentCls = a.urgent ? " is-urgent" : "";
-    var lieu = [a.bloc ? "Bloc " + a.bloc : "", a.etage].filter(Boolean).join(" · ");
     var ouvrage = a.ouvrageKey === "__autre__" ? a.ouvrageAutre : ouvrageLabel(a.ouvrageKey);
+    // L'ouvrage « Autres » est une saisie libre : donnée, pas libellé traduisible.
+    var ouvrageHtml = a.ouvrageKey === "__autre__"
+      ? tok(ouvrage || "—")
+      : "<span>" + escapeHtml(ouvrage || "—") + "</span>";
+
+    var lieuParts = [];
+    if (a.bloc) { lieuParts.push("<span>Bloc</span> " + tok(a.bloc)); }
+    if (a.etage) { lieuParts.push("<span>" + escapeHtml(a.etage) + "</span>"); }
+    var lieuHtml = lieuParts.length ? " · " + lieuParts.join(" · ") : "";
+
     var prise = a.prisePar
-      ? "&#10004; Pris en charge par <strong>" + escapeHtml(a.priseParNom) + "</strong> le " + fmtDateTime(a.priseAt)
-      : "&#9203; Non pris en charge";
+      ? "&#10004; <span>Pris en charge par</span> <strong>" + escapeHtml(a.priseParNom) + "</strong> " +
+        tok(fmtDate(a.priseAt)) + " " + tok(fmtHeure(a.priseAt))
+      : "&#9203; <span>Non pris en charge</span>";
+
     var actions = "";
     if (!closable) {
-      if (!a.prisePar) {
+      // La prise en charge est un geste d'OPÉRATEUR : accuser réception du
+      // travail à faire. Un responsable / ingénieur / admin planifie et suit,
+      // il n'a pas à s'auto-attribuer l'intervention.
+      if (!a.prisePar && !canPlanifier()) {
         actions += "<button class=\"btn-primary alerte-btn-prendre\" type=\"button\" data-id=\"" + a.id + "\">&#10004; J'ai pris en charge</button>";
       }
       if (canPlanifier()) {
@@ -330,18 +364,20 @@ var CAEKAlertes = (function () {
           "<button class=\"btn-secondary alerte-btn-annuler\" type=\"button\" data-id=\"" + a.id + "\">&#10005; Annuler</button>";
       }
     }
+
     return "<div class=\"alerte-card" + urgentCls + "\">" +
-      (a.urgent ? "<div class=\"alerte-tag-urgent\">&#128680; URGENT</div>" : "") +
-      "<div class=\"alerte-statut\">" + (STATUT_LABEL[a.statut] || a.statut) + "</div>" +
-      "<div class=\"alerte-titre\">" + escapeHtml(a.codeProjet || "") +
-        (a.clientNom ? " — " + escapeHtml(a.clientNom) : "") + "</div>" +
-      "<div class=\"alerte-ligne\">" + escapeHtml(ouvrage || "—") +
-        (lieu ? " · " + escapeHtml(lieu) : "") + "</div>" +
-      "<div class=\"alerte-ligne\"><strong>" + fmtDateTime(a.prevuAt) + "</strong> · " +
-        (a.quantiteM3 != null ? a.quantiteM3 : "—") + " m³ · " +
-        "<strong>" + (a.moulesCalcules != null ? a.moulesCalcules : "—") + "</strong> moule(s) à préparer</div>" +
-      (a.demandeurNom ? "<div class=\"alerte-ligne hint\">Demandé par <strong>" + escapeHtml(a.demandeurNom) +
-        "</strong>" + (a.demandeurFonction ? " (" + escapeHtml(a.demandeurFonction) + ")" : "") + "</div>" : "") +
+      (a.urgent ? "<div class=\"alerte-tag-urgent\">&#128680; <span>URGENT</span></div>" : "") +
+      "<div class=\"alerte-statut\"><span>" + (STATUT_LABEL[a.statut] || a.statut) + "</span></div>" +
+      "<div class=\"alerte-titre\">" + tok(a.codeProjet || "") +
+        (a.clientNom ? " — " + tok(a.clientNom) : "") + "</div>" +
+      "<div class=\"alerte-ligne\">" + ouvrageHtml + lieuHtml + "</div>" +
+      "<div class=\"alerte-ligne\"><strong>" + tok(fmtDate(a.prevuAt)) + " " + tok(fmtHeure(a.prevuAt)) +
+        "</strong> · " + tok((a.quantiteM3 != null ? a.quantiteM3 : "—") + " m³") + " · " +
+        "<strong>" + tok(a.moulesCalcules != null ? a.moulesCalcules : "—") + "</strong> " +
+        "<span>moule(s) à préparer</span></div>" +
+      (a.demandeurNom ? "<div class=\"alerte-ligne hint\"><span>Demandé par</span> <strong>" +
+        escapeHtml(a.demandeurNom) + "</strong>" +
+        (a.demandeurFonction ? " (" + escapeHtml(a.demandeurFonction) + ")" : "") + "</div>" : "") +
       (a.observations ? "<div class=\"alerte-ligne hint\">&#128221; " + escapeHtml(a.observations) + "</div>" : "") +
       "<div class=\"alerte-ligne\">" + prise + "</div>" +
       (actions ? "<div class=\"alerte-actions\">" + actions + "</div>" : "") +

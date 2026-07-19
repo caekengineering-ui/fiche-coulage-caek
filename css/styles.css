@@ -152,6 +152,15 @@ body {
 }
 .alertes-coulage-banner:active { background: #ffdada; }
 
+/* Jeton technique (nombre, date, heure, unite, code projet) : toujours lu de
+   gauche a droite, meme quand la page passe en arabe (dir=rtl). Sans cette
+   isolation, un nombre colle a un libelle arabe se retrouve visuellement
+   rejete a l'oppose de son texte. */
+.ltr-tok {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
 /* ---------- Ecran ALERTE COULAGE : liste + formulaire ---------- */
 .alerte-form { margin-bottom: 18px; }
 .alerte-form-row {
@@ -1762,11 +1771,14 @@ body.lang-ar .field-label, body.lang-ar .hint, body.lang-ar .app-subtitle { lett
 [dir="rtl"] .prel-rep-codes, [dir="rtl"] .valid-codif, [dir="rtl"] .rep-code,
 [dir="rtl"] input[inputmode="numeric"], [dir="rtl"] input[inputmode="decimal"],
 [dir="rtl"] input[type="date"], [dir="rtl"] input[type="time"], [dir="rtl"] input[type="tel"],
+[dir="rtl"] input[type="datetime-local"], [dir="rtl"] #ac-projet-code,
 [dir="rtl"] input[type="password"], [dir="rtl"] #login-user, [dir="rtl"] #login-pin {
   direction: ltr;
   unicode-bidi: plaintext;
 }
 [dir="rtl"] .rep-row, [dir="rtl"] .oper-info { text-align: start; }
+/* Le statut d'une alerte se cale sur le bord opposé au sens de lecture. */
+[dir="rtl"] .alerte-statut { float: left; }
 
 /* ===== V3 : formulaire de correction du verificateur (ecran Validation) ===== */
 .valid-edit { background: #fffdf7; border: 1px dashed #d8b74a; border-radius: 10px; }
