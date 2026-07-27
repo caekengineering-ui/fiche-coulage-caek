@@ -46,6 +46,42 @@ var CAEKValidation = (function () {
     return "—";
   }
 
+  /* ---------- Désignation complète de l'ouvrage coulé ----------
+     Même règle que les documents bureau : toujours le nom de l'ouvrage, puis
+     l'étage, le bloc et la partie — « Voile - Etage 11e - Bloc D - Partie 2 ».
+     Le mot déjà saisi par l'opérateur (« 11e étage ») n'est jamais répété. */
+  // NB : \b est ASCII en JavaScript et ne borne pas « étage » — d'où les
+  // séparateurs explicites autour de chaque mot.
+  var LOCALISATION = [
+    ["etage", "Etage", /(^|[\s:,;/-])[eé]tages?(?=[\s:,;/-]|$)/gi],
+    ["bloc", "Bloc", /(^|[\s:,;/-])blocs?(?=[\s:,;/-]|$)/gi],
+    ["partie", "Partie", /(^|[\s:,;/-])parties?(?=[\s:,;/-]|$)/gi]
+  ];
+  function nomOuvrage(v) {
+    var s = String(v == null ? "" : v).replace(/_/g, " ").replace(/\s+/g, " ").trim();
+    return s ? (s.charAt(0).toUpperCase() + s.slice(1)) : "";
+  }
+  function localisationOuvrage(p) {
+    var out = [];
+    LOCALISATION.forEach(function (d) {
+      var v = String(p[d[0]] == null ? "" : p[d[0]]).replace(/\s+/g, " ").trim();
+      if (!v) { return; }
+      var reste = v.replace(d[2], " ").replace(/[\s:,;/-]+/g, " ").trim();
+      out.push(reste ? (d[1] + " " + reste) : d[1]);
+    });
+    return out.join(" - ");
+  }
+  function designationOuvrage(p) {
+    p = p || {};
+    var base = p.designationOfficielle ||
+      (Array.isArray(p.ouvrages)
+        ? p.ouvrages.map(nomOuvrage).filter(Boolean).join(" + ")
+        : nomOuvrage(p.ouvrages || p.ouvrage || p.ouvrageCoule || ""));
+    var loc = localisationOuvrage(p);
+    if (base && loc) { return base + " - " + loc; }
+    return base || loc || "—";
+  }
+
   function clientConfirmationSnapshot(c) {
     var ouvrage = c.designationOfficielle || c.ouvrageCoule ||
       (Array.isArray(c.ouvrages) ? c.ouvrages.join(" + ") : (c.ouvrages || ""));
@@ -179,7 +215,8 @@ var CAEKValidation = (function () {
         (c.codeProjet ? " (" + escapeHtml(c.codeProjet) + ")" : "") + "</div>" +
       "<div class=\"valid-line\"><strong>Date du coulage :</strong> " + fmtDate(c.dateCoulage) + "</div>" +
       "<div class=\"valid-line\"><strong>Mode de coulage :</strong> " + escapeHtml(modeCoulageLabel(c)) + "</div>" +
-      "<div class=\"valid-line\"><strong>Ouvrage(s) coulé(s) :</strong> " + escapeHtml(ouvr) + "</div>" +
+      "<div class=\"valid-line\"><strong>Ouvrage coulé :</strong> " + escapeHtml(designationOuvrage(c)) + "</div>" +
+      "<div class=\"valid-line\"><strong>Ouvrage(s) saisi(s) :</strong> " + escapeHtml(ouvr) + "</div>" +
       "<div class=\"valid-line\"><strong>Bloc / étage :</strong> " + escapeHtml(blocEtage) + "</div>" +
       "<div class=\"valid-line\"><strong>Totaux :</strong> " + qte + " m³ · " + epr + " éprouvette(s)</div>" +
       (c.corrigePar ? "<div class=\"valid-line\">&#9999;&#65039; <strong>Corrigé par :</strong> " +
@@ -445,27 +482,55 @@ var CAEKValidation = (function () {
     return "Rc " + min.toFixed(1) + " à " + max.toFixed(1) + " MPa · moy " + moy.toFixed(1) + " MPa";
   }
 
+  // Codes d'éprouvettes d'un lot (chaînes ou objets {code, …}).
+  function lotCodes(p) {
+    return (Array.isArray(p.codes) ? p.codes : []).map(function (x) {
+      return (x && typeof x === "object") ? (x.code || "") : String(x || "");
+    }).filter(Boolean);
+  }
+  function ligne(label, valeur) {
+    return "<div class=\"valid-line\"><strong>" + label + " :</strong> " +
+      escapeHtml(valeur == null || valeur === "" ? "—" : valeur) + "</div>";
+  }
+
+  // Fiche d'un lot testé : TOUT ce qui identifie le coulage d'origine
+  // (ouvrage, dates, codification) doit être visible avant de valider.
   function lotItemHtml(row) {
     var p = row.payload || {};
     var labo = _labos[row.labo_id] || "—";
-    var codes = Array.isArray(p.codes) ? p.codes : [];
-    return "<div class=\"rep-item\" data-key=\"" + escapeHtml(row.lot_key) + "\">" +
+    var codes = lotCodes(p);
+    var age = p.age || (row.age_jours + " j");
+    var key = escapeHtml(row.lot_key);
+    return "<div class=\"rep-item\" data-key=\"" + key + "\">" +
       "<div class=\"rep-row\"><div class=\"rep-open\">" +
       "<div class=\"rep-top\"><span class=\"rep-ref\">" + escapeHtml(row.coulage_ref) +
-      " · " + escapeHtml(p.age || (row.age_jours + " j")) + "</span>" +
+      " · " + escapeHtml(age) + "</span>" +
       "<span class=\"badge badge-teste\">Testé</span></div>" +
       "<div class=\"rep-ent\">" + escapeHtml(rcResume(p)) + "</div>" +
-      "<div class=\"rep-sub\">&#127970; " + escapeHtml(labo) + " · " + (p.nombre || codes.length) +
-      " épr. (" + escapeHtml(p.type || "cube") + ") · Écrasé par " + escapeHtml(p.operateurEssai || "—") +
-      (p.dateEssai ? " le " + fmtDate(p.dateEssai) : "") + "</div>" +
-      (codes.length ? "<div class=\"rep-sub\">" + escapeHtml(codes.join(" · ")) + "</div>" : "") +
       "</div></div>" +
+      "<div class=\"valid-detail\">" +
+      ligne("Client", p.client || p.entreprise) +
+      ligne("Projet", p.nomProjet) +
+      ligne("Ouvrage coulé", designationOuvrage(p)) +
+      ligne("Date du coulage", p.dateCoulage ? fmtDate(p.dateCoulage) : "") +
+      ligne("Date de l'essai", p.dateEssai ? fmtDate(p.dateEssai) : "") +
+      ligne("Échéance prévue", (p.datePrevue ? fmtDate(p.datePrevue) : "") +
+        (p.agePrevu ? " (" + p.agePrevu + " j)" : "")) +
+      ligne("Éprouvettes", (p.nombre || codes.length) + " · " + (p.type || "cube")) +
+      ligne("Codification échantillon", codes.join(" · ")) +
+      ligne("Écrasé par", (p.operateurEssai || "") +
+        (p.qualificationEssai ? " (" + p.qualificationEssai + ")" : "")) +
+      ligne("Laboratoire", labo) +
+      (p.ecartEssai ? "<div class=\"valid-line\">&#9888; Essai hors date prévue" +
+        (p.motifEcart ? " — " + escapeHtml(p.motifEcart) : "") +
+        (p.justificationEcart ? " : " + escapeHtml(p.justificationEcart) : "") + "</div>" : "") +
+      "</div>" +
       "<div class=\"oper-actions\">" +
       "<button type=\"button\" class=\"btn-primary\" data-act=\"valider-lot\" data-key=\"" +
-      escapeHtml(row.lot_key) + "\">&#9989; Valider les résultats</button>" +
+      key + "\">&#9989; Valider</button>" +
       "<button type=\"button\" class=\"btn-secondary\" data-act=\"reviser-lot\" data-key=\"" +
-      escapeHtml(row.lot_key) + "\">&#128269; Réviser les éprouvettes</button></div>" +
-      "<div class=\"valid-revision\" data-key=\"" + escapeHtml(row.lot_key) + "\" hidden></div>" +
+      key + "\">&#9999;&#65039; Corriger</button></div>" +
+      "<div class=\"valid-revision\" data-key=\"" + key + "\" hidden></div>" +
       "<div class=\"valid-result result-card\" hidden></div>" +
       "</div>";
   }
@@ -508,8 +573,24 @@ var CAEKValidation = (function () {
       var mal = (c.malaxeurs || [])[0] || {};
       return (mal.formulation || {}).classe || c.classeBeton || c.classe || "";
     }
-    return "";
+    // Le coulage est déjà validé (absent de la liste « soumis ») : la classe
+    // reste lisible sur le lot lui-même.
+    var p = (row && row.payload) || {};
+    return p.classe || p.classeBeton || (p.formulation || {}).classe || "";
   }
+  // Classe de béton -> (fck cyl, fck cube). Même règle que le bureau
+  // (documents_beton.facteur_conversion_classe) : le « C » peut manquer
+  // (« 30/37 ») et le séparateur être mal frappé (« C35l45 ») ; fck,cyl doit
+  // rester inférieur à fck,cube, sinon ce n'est pas une classe.
+  function classePaire(classe) {
+    var s = window.CAEKModel ? CAEKModel.normDigits(classe) : String(classe == null ? "" : classe);
+    var m = /C?\s*(\d{1,3}(?:[.,]\d+)?)\s*[/\\|lL_-]\s*(\d{1,3}(?:[.,]\d+)?)/.exec(String(s));
+    if (!m) { return null; }
+    var cyl = parseFloat(m[1].replace(",", ".")), cube = parseFloat(m[2].replace(",", "."));
+    if (!(cyl > 0) || !(cube > 0) || cyl >= cube) { return null; }
+    return { cyl: cyl, cube: cube, facteur: Math.round((cyl / cube) * 100) / 100 };
+  }
+
   function revSummaryHtml(row, essais) {
     var values = (essais || []).map(function (e) {
       return revNum(e.rc) || revRc(e.force, e.forme, e.dim1, e.dim2);
@@ -517,10 +598,11 @@ var CAEKValidation = (function () {
     if (!values.length) { return "<p class=\"hint rev-summary\">Renseignez les résistances pour afficher la moyenne.</p>"; }
     var mean = Math.round((values.reduce(function (a, n) { return a + n; }, 0) / values.length) * 100) / 100;
     var classe = classeBetonLot(row);
-    var m = /C\s*([0-9]+)\s*\/\s*([0-9]+)/i.exec(String(classe));
+    var p = classePaire(classe);
     var hasCube = (essais || []).some(function (e) { return (e.forme || "cube") !== "cylindre"; });
-    var cyl = hasCube && m ? Math.round((mean * Number(m[1]) / Number(m[2])) * 100) / 100 : mean;
-    var cible = m ? " · classe " + escapeHtml(classe) + " : cible cyl. " + m[1] + " MPa" : "";
+    var cyl = (hasCube && p) ? Math.round((mean * p.facteur) * 100) / 100 : mean;
+    var cible = p ? " · classe " + escapeHtml(classe) + " : cible cyl. " + p.cyl +
+      " MPa (facteur " + p.facteur + ")" : "";
     return "<div class=\"result-card rev-summary is-ok\"><strong>Moyenne Rc : " + mean + " MPa</strong>" +
       "<br>Équivalent cylindre : <strong>" + cyl + " MPa</strong>" + cible + "</div>";
   }
@@ -532,7 +614,7 @@ var CAEKValidation = (function () {
     var role = _roleMetier();
     var ing = (role === "engineer" || role === "responsable" || role === "principal_admin");
     var resp = (role === "responsable" || role === "principal_admin");
-    var html = "<p class=\"hint\">&#128269; <strong>Révision par éprouvette</strong> — chaque action est tracée (auteur, rôle, motif, ancien/nouveau).</p>";
+    var html = "<p class=\"hint\">&#9999;&#65039; <strong>Correction des résultats</strong> — modifiez les valeurs voulues, puis appuyez sur <strong>Appliquer les corrections</strong> en bas. Chaque modification est tracée (auteur, rôle, motif, ancien/nouveau).</p>";
     essais.forEach(function (e) {
       var code = e.code || "";
       var eRc = e.rc != null && e.rc !== "" ? e.rc : revRc(e.force, e.forme, e.dim1, e.dim2);
@@ -563,8 +645,6 @@ var CAEKValidation = (function () {
         "<input class=\"field rev-obs\" type=\"text\" value=\"" + escapeHtml(e.observation || "") + "\">" +
         "</div>" +
         "<div class=\"oper-actions\">" +
-        "<button type=\"button\" class=\"btn-text\" data-rev=\"corriger\" data-code=\"" + escapeHtml(code) + "\">&#128190; Corriger</button>" +
-        "<button type=\"button\" class=\"btn-text\" data-rev=\"recalculer\" data-code=\"" + escapeHtml(code) + "\">&#9851; Recalculer Rc</button>" +
         "<button type=\"button\" class=\"btn-text\" data-rev=\"signaler_incoherence\" data-code=\"" + escapeHtml(code) + "\">&#9888; Signaler une incohérence</button>" +
         "<button type=\"button\" class=\"btn-text\" data-rev=\"note_interne\" data-code=\"" + escapeHtml(code) + "\">&#128221; Note interne</button>" +
         (ing ? "<button type=\"button\" class=\"btn-text\" data-rev=\"retourner\" data-code=\"" + escapeHtml(code) + "\">&#8617; Retourner</button>" +
@@ -573,7 +653,120 @@ var CAEKValidation = (function () {
         "</div></div>";
     });
     html += revSummaryHtml(row, essais);
+    // UN SEUL bouton, en bas : applique d'un coup toutes les valeurs modifiées.
+    html += "<div class=\"oper-actions rev-apply-bar\">" +
+      "<button type=\"button\" class=\"btn-primary\" data-rev-apply=\"1\">&#128190; Appliquer les corrections</button>" +
+      "</div>";
     return html;
+  }
+
+  /* ---------- Application groupée des corrections (un seul bouton) ---------- */
+  var REV_CHAMPS = ["forme", "dim1", "dim2", "masse", "dateEssai", "force", "rc", "observation"];
+
+  function revLireEprouvette(eprEl) {
+    var norm = function (v) { return window.CAEKModel ? CAEKModel.normDigits(v) : v; };
+    return {
+      forme: eprEl.querySelector(".rev-forme").value,
+      dim1: norm(eprEl.querySelector(".rev-dim1").value.trim()),
+      dim2: norm(eprEl.querySelector(".rev-dim2").value.trim()),
+      masse: norm(eprEl.querySelector(".rev-masse").value.trim()),
+      dateEssai: eprEl.querySelector(".rev-date").value,
+      force: norm(eprEl.querySelector(".rev-force").value.trim()),
+      rc: norm(eprEl.querySelector(".rev-rc").value.trim()),
+      observation: eprEl.querySelector(".rev-obs").value.trim()
+    };
+  }
+  function revEgal(a, b) {
+    var sa = a == null ? "" : String(a).trim();
+    var sb = b == null ? "" : String(b).trim();
+    if (sa === sb) { return true; }
+    var na = parseFloat(sa.replace(",", ".")), nb = parseFloat(sb.replace(",", "."));
+    return !isNaN(na) && !isNaN(nb) && na === nb;
+  }
+
+  // Compare la saisie à l'état serveur et ne renvoie QUE les éprouvettes
+  // réellement modifiées (aucun appel inutile, aucune trace parasite).
+  function revChangements(row, panel) {
+    var essais = (row.payload || {}).essais || [];
+    var byCode = {};
+    essais.forEach(function (e) { byCode[e.code] = e; });
+    var out = [];
+    var eprs = panel.querySelectorAll(".rev-epr");
+    for (var i = 0; i < eprs.length; i++) {
+      var code = eprs[i].getAttribute("data-code");
+      var saisi = revLireEprouvette(eprs[i]);
+      var ref = byCode[code] || {};
+      var modifie = false;
+      for (var k = 0; k < REV_CHAMPS.length; k++) {
+        var champ = REV_CHAMPS[k];
+        var avant = (champ === "forme") ? (ref.forme || "cube") : ref[champ];
+        if (!revEgal(saisi[champ], avant)) { modifie = true; break; }
+      }
+      if (modifie) { out.push({ code: code, valeurs: saisi }); }
+    }
+    return out;
+  }
+
+  function appliquerCorrections(key, itemEl) {
+    var row = findLot(key);
+    var panel = itemEl ? itemEl.querySelector(".valid-revision") : null;
+    if (!row || !panel) { return; }
+    var changements = revChangements(row, panel);
+    if (!changements.length) {
+      resultBox(itemEl, "&#9888; Aucune modification à appliquer.", true);
+      return;
+    }
+    var motif = window.prompt("Motif des corrections (obligatoire, tracé) :", "");
+    if (motif == null) { return; }
+    motif = String(motif).trim();
+    if (!motif) { resultBox(itemEl, "&#9888; Le motif est obligatoire.", true); return; }
+    if (!window.confirm("Appliquer les corrections sur " + changements.length +
+        " éprouvette(s) ?\nLes anciennes valeurs restent tracées.")) { return; }
+
+    var faits = 0, erreur = null;
+    var chaine = Promise.resolve();
+    changements.forEach(function (ch) {
+      chaine = chaine.then(function () {
+        if (erreur) { return null; }
+        return CAEKServer.reviserEprouvette(CAEKOperateurs.token(), {
+          requestId: (window.CAEKCoulages && CAEKCoulages.newUuid) ? CAEKCoulages.newUuid() : String(Date.now()) + ch.code,
+          lotKey: key, code: ch.code, action: "corriger", motif: motif,
+          valeurs: ch.valeurs,
+          appareil: String(navigator.userAgent || "").slice(0, 120)
+        }).then(function (r) {
+          if (!r || r.ok !== true) {
+            erreur = { role: "Rôle insuffisant pour cette action.",
+              approuve_verrouille: "Lot approuvé par le responsable : verrouillé.",
+              verrouille: "Lot validé : révision réservée à l'ingénieur ou plus."
+            }[r && r.error] || ("Échec de la révision (" + ((r && r.error) || "?") + ").");
+            return null;
+          }
+          faits++;
+          if (r.essai) {
+            var p = row.payload || {};
+            (p.essais || []).forEach(function (e, i) {
+              if (e.code === ch.code) { p.essais[i] = r.essai; }
+            });
+          }
+          return null;
+        });
+      });
+    });
+
+    chaine.then(function () {
+      if (erreur) {
+        resultBox(itemEl, "&#9888; " + escapeHtml(erreur) +
+          (faits ? " (" + faits + " éprouvette(s) déjà corrigée(s))" : ""), true);
+      } else {
+        resultBox(itemEl, "&#10004; Les données ont été modifiées : " + faits +
+          " éprouvette(s) corrigée(s) et enregistrée(s).", false);
+      }
+      panel.innerHTML = revPanelHtml(row);
+      if (window.I18N) { I18N.translate(panel); }
+      if (window.CAEKLots) { CAEKLots.pull(); }
+    }).catch(function (e) {
+      resultBox(itemEl, "&#9888; Réseau requis : " + escapeHtml(e && e.message || ""), true);
+    });
   }
 
   function revAction(key, code, action, itemEl) {
@@ -584,25 +777,9 @@ var CAEKValidation = (function () {
       lotKey: key, code: code, action: action,
       appareil: String(navigator.userAgent || "").slice(0, 120)
     };
-    if (action === "corriger") {
-      var eprEl = itemEl.querySelector(".rev-epr[data-code=\"" + code + "\"]");
-      var norm = function (v) { return window.CAEKModel ? CAEKModel.normDigits(v) : v; };
-      rev.valeurs = {
-        forme: eprEl.querySelector(".rev-forme").value,
-        dim1: norm(eprEl.querySelector(".rev-dim1").value.trim()),
-        dim2: norm(eprEl.querySelector(".rev-dim2").value.trim()),
-        masse: norm(eprEl.querySelector(".rev-masse").value.trim()),
-        dateEssai: eprEl.querySelector(".rev-date").value,
-        force: norm(eprEl.querySelector(".rev-force").value.trim()),
-        rc: norm(eprEl.querySelector(".rev-rc").value.trim()),
-        observation: eprEl.querySelector(".rev-obs").value.trim()
-      };
-      var motifC = window.prompt("Motif de la correction (obligatoire, tracé) :", "");
-      if (motifC == null) { return; }
-      motifC = String(motifC).trim();
-      if (!motifC) { resultBox(itemEl, "&#9888; Le motif est obligatoire.", true); return; }
-      rev.motif = motifC;
-    }
+    // NB : l'action « corriger » n'est plus déclenchée éprouvette par
+    // éprouvette — elle passe par « Appliquer les corrections » (bouton unique
+    // en bas du panneau, cf. appliquerCorrections).
     if (action === "signaler_incoherence" || action === "retourner") {
       var motif = window.prompt(action === "retourner"
         ? "Motif du retour (visible par l'opérateur) :" : "Décrire l'incohérence :", "");
@@ -932,13 +1109,13 @@ var CAEKValidation = (function () {
   }
 
   function validerLot(key, itemEl) {
-    if (!window.confirm("Valider ces résultats d'écrasement ?\nIls seront figés et exploitables pour les PV (pont bureau).")) { return; }
+    if (!window.confirm("Valider ces résultats d'écrasement ?\nIls seront figés et transmis au bureau pour les PV.")) { return; }
     CAEKServer.adminValiderResultatsKey(CAEKOperateurs.token(), key).then(function (r) {
       if (!r || r.ok !== true) {
         resultBox(itemEl, "&#9888; " + (r && r.error === "deja_valide" ? "Déjà validés." : "Échec de la validation."), true);
         return;
       }
-      resultBox(itemEl, "&#10004; Résultats validés.", false);
+      resultBox(itemEl, "&#10004; Résultats validés et transmis au bureau.", false);
       if (window.CAEKLots) { CAEKLots.pull(); }
       setTimeout(refresh, 800);
     }).catch(function (e) { resultBox(itemEl, "&#9888; Réseau requis : " + escapeHtml(e && e.message || ""), true); });
@@ -990,6 +1167,13 @@ var CAEKValidation = (function () {
     var statusBtn = tgt.closest ? tgt.closest("[data-client-status]") : null;
     if (statusBtn && item) {
       setClientConfirmationStatus(statusBtn.getAttribute("data-ref"), statusBtn.getAttribute("data-client-status"), item);
+      return;
+    }
+    // Bouton unique « Appliquer les corrections » (bas du panneau).
+    var applyBtn = tgt.closest ? tgt.closest("[data-rev-apply]") : null;
+    if (applyBtn && item) {
+      var apPanel = item.querySelector(".valid-revision");
+      if (apPanel) { appliquerCorrections(apPanel.getAttribute("data-key"), item); }
       return;
     }
     // Actions de révision par éprouvette (Phase 3).

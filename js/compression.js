@@ -534,10 +534,28 @@ var CAEKCompression = (function () {
     if (per.au && d > per.au) { return false; }
     return true;
   }
-  // Lots testes filtres par la periode (date d'essai du lot).
+  // Recherche par CODE PROJET (ex. « ecpm » retrouve tous les essais du
+  // projet). La reference de coulage porte le code en prefixe (ECPM161) ;
+  // le nom et le code du projet sont aussi acceptes.
+  function getCodeProjet() {
+    var el = $("comp-hist-code");
+    return el ? String(el.value || "").trim().toLowerCase() : "";
+  }
+  function matchCodeProjet(l, q) {
+    if (!q) { return true; }
+    var champs = [l.ref, l.codeProjet, l.nomProjet, l.client];
+    for (var i = 0; i < champs.length; i++) {
+      if (String(champs[i] == null ? "" : champs[i]).toLowerCase().indexOf(q) >= 0) { return true; }
+    }
+    return false;
+  }
+  // Lots testes filtres par le code projet ET la periode (date d'essai du lot).
   function filteredHistLots() {
     var per = getPeriode();
-    return _historique.filter(function (l) { return inPeriode(l.dateEssai, per); });
+    var q = getCodeProjet();
+    return _historique.filter(function (l) {
+      return matchCodeProjet(l, q) && inPeriode(l.dateEssai, per);
+    });
   }
 
   function renderHistorique() {
@@ -550,7 +568,9 @@ var CAEKCompression = (function () {
       return;
     }
     if (!lots.length) {
-      box.innerHTML = "<p class=\"screen-placeholder\">Aucun essai sur la période sélectionnée.</p>";
+      box.innerHTML = getCodeProjet()
+        ? "<p class=\"screen-placeholder\">Aucun essai pour ce code de projet sur la période sélectionnée.</p>"
+        : "<p class=\"screen-placeholder\">Aucun essai sur la période sélectionnée.</p>";
       return;
     }
     box.innerHTML = lots.map(function (l) {
@@ -772,15 +792,20 @@ var CAEKCompression = (function () {
     var partager = $("comp-hist-partager");
     if (partager) { partager.addEventListener("click", shareHistorique); }
 
-    // Filtre par periode : re-rendu a chaque changement de date.
-    var du = $("comp-hist-du"), au = $("comp-hist-au");
+    // Filtres code projet + periode : re-rendu a chaque changement.
+    var du = $("comp-hist-du"), au = $("comp-hist-au"), code = $("comp-hist-code");
     if (du) { du.addEventListener("change", renderHistorique); }
     if (au) { au.addEventListener("change", renderHistorique); }
+    if (code) {
+      code.addEventListener("input", renderHistorique);
+      code.addEventListener("search", renderHistorique);
+    }
     var reset = $("comp-hist-periode-reset");
     if (reset) {
       reset.addEventListener("click", function () {
         if (du) { du.value = ""; }
         if (au) { au.value = ""; }
+        if (code) { code.value = ""; }
         var rbox = $("comp-hist-result"); if (rbox) { rbox.hidden = true; }
         renderHistorique();
       });
