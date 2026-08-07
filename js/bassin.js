@@ -692,7 +692,7 @@ var CAEKBassin = (function () {
   }
 
   function syncEtat(txt, detail, cls) {
-    var el = $("bassin-sync-etat");
+    var el = $("bassin-fraicheur");
     if (!el) { return; }
     el.className = "hint bassin-sync" + (cls ? " " + cls : "");
     el.innerHTML = "<span>" + escapeHtml(txt) + "</span>" +
@@ -701,7 +701,7 @@ var CAEKBassin = (function () {
   }
 
   function renderSyncEtat() {
-    var el = $("bassin-sync-etat");
+    var el = $("bassin-fraicheur");
     if (!el) { return; }
     if (!window.CAEKLots || !window.CAEKLots.lastPull ||
         !window.CAEKServer || !CAEKServer.configured()) {
@@ -1050,6 +1050,9 @@ var CAEKBassin = (function () {
       revoir;
 
     // État « en attente » / « erreur » depuis la file de synchro des lots.
+    // NB : cible la ligne « Synchronisation » de CETTE fiche détail
+    // (#bassin-sync-etat), à ne pas confondre avec le bandeau de fraîcheur
+    // de l'écran (#bassin-fraicheur).
     if (window.CAEKLots && CAEKLots.pendingKeys && lot.lotKey) {
       CAEKLots.pendingKeys().then(function (q) {
         var el = $("bassin-sync-etat");
