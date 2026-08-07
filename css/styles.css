@@ -1023,6 +1023,11 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
 .bassin-alerte.is-jour { background: #fff3f3; border-color: #f3c0c0; color: #8a1d1d; }
 .bassin-alerte.is-retard { background: #ffecec; border-color: #e9a3a3; color: #7a0d0d; }
 
+/* ---- Etat de synchronisation du bassin (fraicheur des donnees) ---- */
+.bassin-sync { margin: 0 0 10px; }
+.bassin-sync.is-ok { color: #18733c; }
+.bassin-sync.is-warn { color: #8a5a00; font-weight: 600; }
+
 /* ---- A repartir : liste + formulaire ---- */
 .repb-item {
   background: var(--white);

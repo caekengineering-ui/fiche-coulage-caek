@@ -14,13 +14,30 @@
    validations de résultats par l'admin (payload.resultatsValides).
    Cycle : en_bassin -> sorti -> teste (op) -> valide (ADMIN,
    verrouillé ensuite : op_upsert_lot refuse).
+
+   ARBITRAGE DU MERGE (pull) : le RANG dans le cycle tranche, jamais
+   la seule présence d'un push en attente. La copie la plus avancée
+   gagne ; un push local périmé est abandonné. Sans cette règle, une
+   clé bloquée en file (coulage pas encore synchronisé, refus de
+   scope, erreur réseau) figeait le lot indéfiniment sur l'appareil,
+   qui continuait d'afficher « en bassin / en retard » un lot déjà
+   sorti par un collègue.
    ============================================================ */
 var CAEKLots = (function () {
   "use strict";
 
-  var QUEUE_KEY = "lotsQueue";   // meta : { lotKey: "upsert" | "delete" }
+  var QUEUE_KEY = "lotsQueue";        // meta : { lotKey: "upsert" | "delete" }
+  var LAST_PULL_KEY = "lotsLastPull"; // meta : horodatage ISO du dernier pull réussi
   var _pushTimer = null;
   var _pushKeys = {};
+
+  /* Rang du cycle de vie d'un lot : en_bassin -> sorti -> teste -> valide.
+     Même échelle que op_upsert_lot côté serveur ; sert d'arbitre au merge
+     quand la copie locale et le serveur divergent. « ecrase » est un statut
+     hérité (ancienne version) : traité au niveau de « teste ». Un statut
+     inconnu vaut « en_bassin » : jamais en dessous du départ du cycle. */
+  var RANGS = { en_bassin: 1, sorti: 2, teste: 3, ecrase: 3, valide: 4 };
+  function rang(statut) { return RANGS[String(statut || "en_bassin")] || 1; }
 
   function ready() {
     return !!(window.CAEKServer && CAEKServer.configured() &&
@@ -47,6 +64,13 @@ var CAEKLots = (function () {
   }
   function dequeue(key) {
     return getQueue().then(function (q) { delete q[key]; return setQueue(q); });
+  }
+  function dequeueAll(keys) {
+    if (!keys || !keys.length) { return Promise.resolve(); }
+    return getQueue().then(function (q) {
+      keys.forEach(function (k) { delete q[k]; });
+      return setQueue(q);
+    });
   }
 
   /* ---------- Push ---------- */
@@ -112,8 +136,12 @@ var CAEKLots = (function () {
         l._syncedAt = new Date().toISOString();
         return rawUpdate(l).then(function () { return dequeue(l.lotKey); });
       }
-      if (r && (r.error === "verrouille" || r.error === "conflit_statut" || r.error === "conflit_resultats")) {
-        // Serveur plus avancé que la copie hors-ligne : se réaligner.
+      if (r && (r.error === "verrouille" || r.error === "conflit_statut" ||
+                r.error === "conflit_resultats" || r.error === "autre_labo")) {
+        // Refus DÉFINITIF : serveur plus avancé que la copie hors-ligne, ou
+        // lot hors du périmètre de cet opérateur. Réessayer indéfiniment
+        // laisserait la clé en file, ce qui bloquerait le pull de ce lot
+        // (cf. pull()) et figerait l'appareil sur son état périmé.
         return dequeue(l.lotKey).then(pull);
       }
       // coulage_introuvable (coulage pas encore synchronisé) ou autre :
@@ -151,6 +179,26 @@ var CAEKLots = (function () {
   }
 
   /* ---------- Pull : serveur -> local ---------- */
+  // Horodatage du dernier pull RÉUSSI : le bassin s'en sert pour signaler
+  // à l'utilisateur qu'il regarde une copie locale qui peut dater.
+  function lastPull() {
+    if (!window.CAEKDB) { return Promise.resolve(""); }
+    return CAEKDB.getMeta(LAST_PULL_KEY).then(function (v) { return v || ""; });
+  }
+
+  // Empreinte de comparaison : clés triées (l'ordre diffère entre la copie
+  // IndexedDB et le payload jsonb) et horodatage de synchro ignoré (il change
+  // à chaque pull). Sans cela, TOUS les lots étaient réécrits à chaque
+  // passage et le pull se déclarait toujours « changed ».
+  function empreinte(lot) {
+    var cles = [], k;
+    for (k in lot) {
+      if (Object.prototype.hasOwnProperty.call(lot, k) && k !== "_syncedAt") { cles.push(k); }
+    }
+    cles.sort();
+    return JSON.stringify(cles.map(function (c) { return [c, lot[c]]; }));
+  }
+
   function pull() {
     if (!ready() || !online()) { return Promise.resolve({ ok: false, changed: false }); }
     return CAEKServer.listLots(token(), null).then(function (rows) {
@@ -163,19 +211,41 @@ var CAEKLots = (function () {
         locals.forEach(function (l) { if (l.lotKey) { byKey[l.lotKey] = l; } });
         var changed = false;
         var work = [];
+        var obsoletes = [];   // pushs en attente devenus périmés
 
         rows.forEach(function (row) {
-          if (queue[row.lot_key]) { return; }          // push local en attente
+          var local = byKey[row.lot_key];
+          var rLocal = rang(local && local.statut), rServeur = rang(row.statut);
+
+          // (1) Copie locale STRICTEMENT plus avancée : elle vient d'être
+          // modifiée sur cet appareil (sortie du bassin, essai saisi) et son
+          // push n'est pas encore parti. On ne la réécrit jamais avec un
+          // serveur en retard, et on (re)programme sa remontée — sans quoi un
+          // pull déclenché juste après l'action annulerait celle-ci.
+          if (local && rLocal > rServeur) { schedulePush(row.lot_key); return; }
+
+          // (2) Push local en attente : il ne prime que s'il est au moins
+          // aussi avancé que le serveur (même arbitrage que op_upsert_lot).
+          // Sinon la copie locale est périmée : le serveur gagne et le push
+          // obsolète est abandonné.
+          //
+          // Auparavant la seule présence de la clé en file faisait sauter la
+          // ligne. Une clé qui ne part jamais (coulage pas encore synchronisé,
+          // refus de scope, erreur réseau...) figeait alors le lot
+          // DÉFINITIVEMENT sur cet appareil : un lot sorti du bassin par un
+          // collègue continuait de s'afficher « en bassin / en retard ».
+          if (queue[row.lot_key]) {
+            if (rLocal >= rServeur) { return; }
+            obsoletes.push(row.lot_key);
+          }
           var merged = row.payload;
           merged.lotKey = row.lot_key;
           merged.laboId = row.labo_id || merged.laboId || "";
           if (row.statut === "valide") { merged.resultatsValides = true; }
           merged._syncedAt = new Date().toISOString();
-          var local = byKey[row.lot_key];
           if (local) {
             merged.id = local.id;                       // id local conservé
-            var a = JSON.stringify(local), b = JSON.stringify(merged);
-            if (a !== b) { changed = true; work.push(rawUpdate(merged)); }
+            if (empreinte(local) !== empreinte(merged)) { changed = true; work.push(rawUpdate(merged)); }
           } else {
             delete merged.id;                           // nouvel id local auto
             changed = true;
@@ -192,6 +262,10 @@ var CAEKLots = (function () {
         });
 
         return Promise.all(work).then(function () {
+          return dequeueAll(obsoletes);
+        }).then(function () {
+          return CAEKDB.setMeta(LAST_PULL_KEY, new Date().toISOString());
+        }).then(function () {
           if (changed && window.CAEKBadges) { CAEKBadges.refresh(); }
           return { ok: true, changed: changed };
         });
@@ -268,6 +342,7 @@ var CAEKLots = (function () {
     processQueue: processQueue,
     // Phase 3 : clés en attente de synchro (affichage des états).
     pendingKeys: function () { return getQueue(); },
+    lastPull: lastPull,
     autoSync: autoSync
   };
 })();

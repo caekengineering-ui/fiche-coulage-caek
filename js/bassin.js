@@ -675,12 +675,73 @@ var CAEKBassin = (function () {
     return !window.CAEKLaboFilter || CAEKLaboFilter.match(x && x.laboId);
   }
 
-  function refreshBassin() {
-    if (!window.CAEKDB) { return; }
-    // Entrée dans le bassin : on repart d'un état neutre. Une révision se
-    // (re)déclenche explicitement par « Revoir la répartition » sur un lot.
-    _revoirRef = null;
-    CAEKDB.getAllLots().then(function (lots) {
+  /* ---------- Fraîcheur des données du bassin ----------
+     Le bassin lit IndexedDB. Sans rappel au serveur, un appareil qui garde
+     l'app ouverte (cas courant sur mobile / PWA installée) reste figé sur la
+     dernière synchro : les lots sortis du bassin par un collègue continuent
+     de s'y afficher, en retard. On resynchronise donc à CHAQUE entrée dans
+     l'écran (au plus une fois toutes les SYNC_THROTTLE_MS), et l'état de la
+     synchro est affiché : plus de désynchronisation silencieuse. */
+  var SYNC_THROTTLE_MS = 15000;
+  var _syncEnCours = false;
+  var _dernierSync = 0;
+
+  function fmtHeureIso(iso) {
+    var d = new Date(iso);
+    return isNaN(d.getTime()) ? "" : pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
+
+  function syncEtat(txt, detail, cls) {
+    var el = $("bassin-sync-etat");
+    if (!el) { return; }
+    el.className = "hint bassin-sync" + (cls ? " " + cls : "");
+    el.innerHTML = "<span>" + escapeHtml(txt) + "</span>" +
+      (detail ? " <span data-i18n-skip>" + escapeHtml(detail) + "</span>" : "");
+    el.hidden = false;
+  }
+
+  function renderSyncEtat() {
+    var el = $("bassin-sync-etat");
+    if (!el) { return; }
+    if (!window.CAEKLots || !window.CAEKLots.lastPull ||
+        !window.CAEKServer || !CAEKServer.configured()) {
+      el.hidden = true;
+      return;
+    }
+    if (_syncEnCours) { syncEtat("⏳ Synchronisation du bassin…", "", ""); return; }
+    CAEKLots.lastPull().then(function (iso) {
+      if (_syncEnCours) { return; }
+      var age = iso ? (Date.now() - Date.parse(iso)) : NaN;
+      if (!iso || isNaN(age)) {
+        syncEtat("⚠ Bassin jamais synchronisé avec le serveur", "", "is-warn");
+      } else if (navigator.onLine === false || age > 10 * 60 * 1000) {
+        syncEtat("⚠ Bassin non synchronisé — dernière mise à jour :",
+          fmtDate(iso) + " " + fmtHeureIso(iso), "is-warn");
+      } else {
+        syncEtat("✓ Bassin à jour", fmtHeureIso(iso), "is-ok");
+      }
+    });
+  }
+
+  // Rappel serveur en arrière-plan puis redessin si quelque chose a changé.
+  function syncBassin() {
+    if (!window.CAEKLots || !CAEKLots.autoSync || _syncEnCours) { return; }
+    if (Date.now() - _dernierSync < SYNC_THROTTLE_MS) { return; }
+    _dernierSync = Date.now();
+    _syncEnCours = true;
+    renderSyncEtat();
+    CAEKLots.autoSync().then(function () {
+      _syncEnCours = false;
+      chargerLots();
+    }).catch(function () {
+      _syncEnCours = false;
+      renderSyncEtat();
+    });
+  }
+
+  // Lecture locale + rendu (sans rappel serveur : évite toute boucle).
+  function chargerLots() {
+    return CAEKDB.getAllLots().then(function (lots) {
       return autoArchive(lots).then(function (changed) {
         return changed ? CAEKDB.getAllLots() : lots;
       });
@@ -688,7 +749,17 @@ var CAEKBassin = (function () {
       _lots = lots.filter(laboOk);
       renderBassin();
       renderVeille();
+      renderSyncEtat();
     });
+  }
+
+  function refreshBassin() {
+    if (!window.CAEKDB) { return; }
+    // Entrée dans le bassin : on repart d'un état neutre. Une révision se
+    // (re)déclenche explicitement par « Revoir la répartition » sur un lot.
+    _revoirRef = null;
+    chargerLots();
+    syncBassin();
   }
 
   function renderVeille() {
