@@ -11,7 +11,14 @@
          n'est pas encore parti, survit à un pull immédiat ;
      S4  local et serveur identiques : aucune réécriture, aucun « changed »
          (l'horodatage de synchro est exclu de la comparaison) ;
-     S5  un lot créé par un collègue est bien rapatrié.
+     S5  un lot créé par un collègue est bien rapatrié ;
+     S6  autoSync() ne renvoie JAMAIS un état local périmé au serveur : le
+         pull précède le push, donc l'app ne dépend pas du garde-fou SQL
+         « conflit_statut » de op_upsert_lot (absent de la 1re version du
+         script) pour éviter de faire régresser le serveur ;
+     S7  effet de bord documenté : CAEKDB.deleteLot étant intercepté, un
+         archivage LOCAL (bassin.js, lots écrasés depuis plus de 24 h)
+         supprime aussi le lot CÔTÉ SERVEUR, donc pour tous les appareils.
 
    Exécution :  node validation/bassin_sync_validation.js
    Aucune dépendance, aucun accès réseau : le module est chargé dans un
@@ -67,16 +74,23 @@ function makeEnv(localLots, serverRows, queue) {
   sandbox.window = sandbox;
   sandbox.CAEKDB = CAEKDB;
   sandbox.CAEKOperateurs = { isLogged: function () { return true; }, token: function () { return "T"; } };
+  var supprimes = [];
   sandbox.CAEKServer = {
     configured: function () { return true; },
     listLots: function () { return Promise.resolve(JSON.parse(JSON.stringify(serverRows))); },
-    upsertLot: function (t, k) { pushed.push(k); return Promise.resolve({ ok: true }); },
-    deleteLotByKey: function () { return Promise.resolve({ ok: true }); }
+    upsertLot: function (t, k, l) {
+      pushed.push({ cle: k, statut: l && l.statut });
+      return Promise.resolve({ ok: true });
+    },
+    deleteLotByKey: function (t, k) { supprimes.push(k); return Promise.resolve({ ok: true }); }
   };
 
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(MODULE, "utf8"), sandbox);
-  return { sandbox: sandbox, lots: function () { return lots; }, meta: meta, pushed: pushed };
+  return {
+    sandbox: sandbox, lots: function () { return lots; },
+    meta: meta, pushed: pushed, supprimes: supprimes
+  };
 }
 
 var results = [];
@@ -165,6 +179,43 @@ chain = chain.then(function () {
       check("le lot est créé localement", env.lots().length === 1, env.lots());
       check("pull signale un changement", r.changed === true, r);
     });
+});
+
+/* ---- S6 : autoSync() ne pousse pas d'état périmé ------------------------
+   Même situation que S1, mais par autoSync() complet (pull + push). Le
+   serveur ne doit recevoir AUCUN upsert « en_bassin » : sinon, sur une base
+   où op_upsert_lot n'a pas le garde-fou 'conflit_statut', l'appareil périmé
+   ferait revenir le lot dans le bassin pour toute l'équipe. */
+chain = chain.then(function () {
+  console.log("\nS6 — autoSync() : le pull précède le push (pas de régression serveur)");
+  var env = makeEnv(
+    [{ id: 1, lotKey: "K1", ref: "ECPM169", statut: "en_bassin", _syncedAt: "2026-07-01T00:00:00Z" }],
+    [{ lot_key: "K1", labo_id: "L1", statut: "sorti",
+       payload: { lotKey: "K1", ref: "ECPM169", statut: "sorti", dateSortie: "2026-08-05" } }],
+    { K1: "upsert" });
+  env.sandbox.CAEKLots.init();
+  return env.sandbox.CAEKLots.autoSync().then(function () {
+    var regressions = env.pushed.filter(function (p) { return p.statut === "en_bassin"; });
+    check("aucun « en_bassin » périmé n'est envoyé au serveur",
+      regressions.length === 0, env.pushed);
+    check("le lot local a bien adopté « sorti »", env.lots()[0].statut === "sorti", env.lots()[0].statut);
+  });
+});
+
+/* ---- S7 : effet de bord de l'archivage local ---------------------------
+   Constat, pas une régression : le hook sur CAEKDB.deleteLot fait qu'une
+   suppression LOCALE se propage au serveur. bassin.js (autoArchive) appelle
+   CAEKDB.deleteLot sur les lots écrasés depuis plus de 24 h : l'archivage
+   d'un appareil supprime donc le lot pour tous les autres. */
+chain = chain.then(function () {
+  console.log("\nS7 — archivage local : la suppression se propage au serveur");
+  var env = makeEnv([{ id: 1, lotKey: "K1", ref: "ECPM169", statut: "ecrase" }], [], {});
+  env.sandbox.CAEKLots.init();
+  // Appel identique à celui de bassin.js -> autoArchive().
+  return env.sandbox.CAEKDB.deleteLot(1).then(function () {
+    check("CAEKDB.deleteLot déclenche op_delete_lot côté serveur",
+      env.supprimes.indexOf("K1") >= 0, env.supprimes);
+  });
 });
 
 chain.then(function () {

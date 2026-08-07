@@ -325,9 +325,21 @@ var CAEKLots = (function () {
     };
   }
 
+  // ORDRE : pull PUIS push. Le pull réaligne d'abord la copie locale et
+  // abandonne les envois devenus périmés ; seules les modifications
+  // réellement plus avancées que le serveur sont ensuite poussées.
+  //
+  // Dans l'ordre inverse (l'ancien), un appareil resté en arrière renvoyait
+  // son état périmé AVANT de découvrir celui du serveur : si le garde-fou
+  // 'conflit_statut' de op_upsert_lot n'est pas déployé sur la base — il a
+  // été ajouté après la première version du script SQL — le serveur
+  // régressait (« sorti » -> « en bassin ») pour TOUT LE MONDE. On ne
+  // dépend plus de ce garde-fou côté serveur.
   function autoSync() {
-    if (!ready() || !online()) { return Promise.resolve(); }
-    return processQueue().then(pull);
+    if (!ready() || !online()) { return Promise.resolve({ ok: false, changed: false }); }
+    return pull().then(function (r) {
+      return processQueue().then(function () { return r; });
+    });
   }
 
   function init() {
