@@ -575,8 +575,16 @@ var CAEKCompression = (function () {
     }
     box.innerHTML = lots.map(function (l) {
       var essais = Array.isArray(l.essais) ? l.essais : [];
+      // Classe de beton du lot -> facteur cube/cylindre. Sans classe
+      // exploitable, la colonne cylindrique reste vide : jamais la valeur
+      // cubique recopiee, qui serait un faux resultat.
+      var classe = CAEKModel.classeBetonLot(l, null);
+      var paire = CAEKModel.classePaire(classe);
       var lignes = essais.map(function (e, idx) {
         var age = diffDays(l.dateCoulage, e.dateEssai);
+        var estCube = (e.forme || "cube") !== "cylindre";
+        var rcCyl = estCube ? CAEKModel.cubeVersCylindre(e.rc, classe)
+                            : (num(e.rc) > 0 ? num(e.rc) : null);
         return "<tr><td>" + (e.numInterne || (idx + 1)) + "</td>" +
           "<td>" + escapeHtml(e.code || "") + "</td>" +
           "<td>" + escapeHtml(formeLabel(e.forme)) + "</td>" +
@@ -584,9 +592,43 @@ var CAEKCompression = (function () {
           "<td>" + (e.masse === "" || e.masse == null ? "—" : e.masse) + "</td>" +
           "<td>" + (e.force === "" || e.force == null ? "—" : e.force) + "</td>" +
           "<td><strong>" + (e.rc === "" || e.rc == null ? "—" : e.rc) + "</strong></td>" +
+          "<td>" + (rcCyl == null ? "—" : rcCyl) + "</td>" +
           "<td>" + fmtDate(e.dateEssai) + (age === "" ? "" : " (" + age + "j)") + "</td>" +
           "<td>" + escapeHtml(e.observation || "") + "</td></tr>";
       }).join("");
+
+      // Moyenne du lot + jalon temoin a 7 jours (75 % de la classe).
+      var vals = essais.map(function (e) { return num(e.rc); })
+        .filter(function (n) { return n > 0; });
+      var moyenne = vals.length
+        ? Math.round((vals.reduce(function (a, n) { return a + n; }, 0) / vals.length) * 100) / 100
+        : null;
+      var aCube = essais.some(function (e) { return (e.forme || "cube") !== "cylindre"; });
+      var moyCyl = (moyenne != null && aCube) ? CAEKModel.cubeVersCylindre(moyenne, classe)
+                                             : moyenne;
+      var ageLot = essais.length ? diffDays(l.dateCoulage, essais[0].dateEssai) : "";
+      var jal = (moyenne != null && ageLot === 7)
+        ? CAEKModel.jalon7j(moyenne, classe, aCube ? "cube" : "cylindre") : null;
+      var moyenneHtml = "";
+      if (moyenne != null) {
+        moyenneHtml = "<div class=\"comp-hist-moy" + (jal && !jal.atteint ? " is-sous-jalon" : "") + "\">" +
+          "<strong>" + tr("Moyenne du lot") + " : " + moyenne + " MPa</strong>" +
+          (aCube ? " (" + tr("cubique") + ")" : " (" + tr("cylindrique") + ")") +
+          (aCube && moyCyl != null
+            ? " · " + tr("équivalent cylindre") + " : <strong>" + moyCyl + " MPa</strong>" : "") +
+          (paire ? " · " + tr("classe") + " " + escapeHtml(classe) +
+            " (" + tr("facteur") + " " + paire.facteur + ")"
+            : " · <span class=\"comp-hist-noclasse\">&#9888; " +
+              tr("classe de béton absente : conversion impossible") + "</span>") +
+          (jal
+            ? (jal.atteint
+              ? "<div class=\"comp-hist-jalon is-ok\">&#9989; " + tr("Jalon 7 j atteint") +
+                " : " + moyenne + " &#8805; " + jal.seuil + " MPa (75 % " + tr("de") + " " + jal.reference + ")</div>"
+              : "<div class=\"comp-hist-jalon is-bad\">&#9888; " + tr("SOUS LE JALON 7 j") +
+                " : " + moyenne + " &lt; " + jal.seuil + " MPa (75 % " + tr("de") + " " + jal.reference + ")</div>")
+            : "") +
+          "</div>";
+      }
       var zone = [l.bloc ? "Bloc " + l.bloc : "", l.etage, l.partie].filter(Boolean).join(" · ");
       return "<div class=\"comp-hist-item\">" +
         "<div class=\"rep-top\"><span class=\"rep-ref\">&#10004; " + escapeHtml(l.ref) + "</span>" +
@@ -603,8 +645,8 @@ var CAEKCompression = (function () {
           (l.motifEcart ? " — " + escapeHtml(tr(l.motifEcart)) : "") +
           (l.justificationEcart ? " : " + escapeHtml(l.justificationEcart) : "") + "</div>" : "") +
         "<div class=\"comp-hist-table-wrap\"><table class=\"comp-hist-table\">" +
-        "<thead><tr><th>N°</th><th>Code</th><th>" + tr("Type") + "</th><th>" + tr("Dim.") + "</th><th>" + tr("Masse") + "</th><th>F (kN)</th><th>Rc</th><th>" + tr("Date (âge)") + "</th><th>" + tr("Obs.") + "</th></tr></thead>" +
-        "<tbody>" + lignes + "</tbody></table></div>" +
+        "<thead><tr><th>N°</th><th>Code</th><th>" + tr("Type") + "</th><th>" + tr("Dim.") + "</th><th>" + tr("Masse") + "</th><th>F (kN)</th><th>Rc</th><th>" + tr("Rc cyl.") + "</th><th>" + tr("Date (âge)") + "</th><th>" + tr("Obs.") + "</th></tr></thead>" +
+        "<tbody>" + lignes + "</tbody></table></div>" + moyenneHtml +
         "<div class=\"comp-hist-meta\">" + tr("Opérateur") + " : " + escapeHtml(l.operateurEssai || "—") +
         (l.qualificationEssai ? " (" + escapeHtml(l.qualificationEssai) + ")" : "") + "</div>" +
         "</div>";
@@ -614,7 +656,8 @@ var CAEKCompression = (function () {
   var HIST_HEADERS = ["Client", "Projet", "Référence coulage", "Date coulage", "Ouvrage",
     "Ouvrage autre", "Bloc", "Étage", "Partie", "Malaxeur/toupie",
     "Code éprouvette", "N° interne lot", "Âge prévu (j)", "Âge réel (j)", "Type", "Dimensions (mm)", "Masse (kg)",
-    "Force (kN)", "Rc (MPa)", "Date prévue", "Date essai", "Motif écart", "Justification écart",
+    "Force (kN)", "Rc (MPa)", "Classe béton", "Facteur conversion", "Rc cylindrique (MPa)",
+    "Date prévue", "Date essai", "Motif écart", "Justification écart",
     "Opérateur", "Qualification", "Observation"];
 
   function dimsText(e) {
@@ -625,7 +668,12 @@ var CAEKCompression = (function () {
   function histRows() {
     var rows = [];
     filteredHistLots().forEach(function (l) {
+      var classe = CAEKModel.classeBetonLot(l, null);
+      var paire = CAEKModel.classePaire(classe);
       (Array.isArray(l.essais) ? l.essais : []).forEach(function (e, idx) {
+        var estCube = (e.forme || "cube") !== "cylindre";
+        var rcCyl = estCube ? CAEKModel.cubeVersCylindre(e.rc, classe)
+                            : (num(e.rc) > 0 ? num(e.rc) : null);
         rows.push([
           l.client || "", l.nomProjet || "", l.ref, l.dateCoulage || "",
           l.ouvrage || "", l.ouvrageAutre || "", l.bloc || "", l.etage || "", l.partie || "",
@@ -633,6 +681,7 @@ var CAEKCompression = (function () {
           (l.agePrevu != null ? l.agePrevu : l.ageJours) || "", diffDays(l.dateCoulage, e.dateEssai),
           formeLabel(e.forme), dimsText(e),
           e.masse === "" ? "" : e.masse, e.force === "" ? "" : e.force, e.rc === "" ? "" : e.rc,
+          classe || "", paire ? paire.facteur : "", rcCyl == null ? "" : rcCyl,
           l.datePrevue || "", e.dateEssai || "", l.motifEcart || "", l.justificationEcart || "",
           l.operateurEssai || "", l.qualificationEssai || "", e.observation || ""
         ]);

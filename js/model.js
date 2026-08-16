@@ -345,6 +345,68 @@ var CAEKModel = (function () {
     return !!(c && c.eprRecuperees && c.codificationConfirmee);
   }
 
+  /* ================= Conversion cube -> cylindre =================
+     Miroir EXACT de la regle bureau (documents_beton.facteur_conversion_
+     classe) : la classe s'ecrit C<fck,cyl>/<fck,cube> et le facteur est le
+     rapport des deux resistances caracteristiques, arrondi a 2 decimales
+     (C35/45 -> 0.78 ; C30/37 -> 0.81). La saisie terrain est libre : le « C »
+     peut manquer (« 30/37 ») et le separateur etre mal frappe (« C35l45 ») ;
+     en revanche fck,cyl doit rester INFERIEUR a fck,cube, sinon ce n'est pas
+     une classe et rien n'est deduit (on ne devine jamais un facteur).
+     ATTENTION : sans classe exploitable il n'y a PAS de valeur cylindrique.
+     Afficher la valeur cubique a sa place serait un faux resultat. */
+  function classePaire(classe) {
+    var s = normDigits(classe == null ? "" : classe);
+    var m = /C?\s*(\d{1,3}(?:[.,]\d+)?)\s*[/\\|lL_-]\s*(\d{1,3}(?:[.,]\d+)?)/.exec(String(s));
+    if (!m) { return null; }
+    var cyl = parseFloat(m[1].replace(",", "."));
+    var cube = parseFloat(m[2].replace(",", "."));
+    if (!(cyl > 0) || !(cube > 0) || cyl >= cube) { return null; }
+    return { cyl: cyl, cube: cube, facteur: Math.round((cyl / cube) * 100) / 100 };
+  }
+
+  function facteurConversionClasse(classe) {
+    var p = classePaire(classe);
+    return p ? p.facteur : null;
+  }
+
+  // Classe de beton d'un LOT. Le lot porte sa classe depuis la repartition
+  // (`classe`) ; les lots anterieurs a cette evolution ne l'ont pas, d'ou le
+  // repli sur le coulage passe en second argument (peut etre absent).
+  function classeBetonLot(lot, coulage) {
+    var l = lot || {};
+    var direct = l.classe || l.classeBeton || (l.formulation || {}).classe;
+    if (direct) { return direct; }
+    var c = coulage || {};
+    var mal = (c.malaxeurs || [])[0] || {};
+    return (mal.formulation || {}).classe || c.classeBeton || c.classe || "";
+  }
+
+  // Conversion d'une valeur cubique en cylindrique. Retourne null si la
+  // classe ne permet pas de deduire un facteur : l'appelant DOIT alors
+  // afficher l'absence de valeur, jamais la valeur cubique.
+  function cubeVersCylindre(valeurCubique, classe) {
+    var f = facteurConversionClasse(classe);
+    var v = parseFloat(valeurCubique);
+    if (f == null || !isFinite(v)) { return null; }
+    return Math.round(v * f * 100) / 100;
+  }
+
+  /* Jalon temoin a 7 jours : la resistance doit atteindre 75 % de la classe.
+     Comparaison faite sur la MEME base que la mesure — une moyenne cubique se
+     compare a fck,cube, une moyenne cylindrique a fck,cyl. Ex. classe 35/45,
+     moyenne cubique 29 MPa : seuil 45 x 0.75 = 33.75 > 29 -> sous le jalon. */
+  var SEUIL_JALON_7J = 0.75;
+
+  function jalon7j(moyenne, classe, base) {
+    var p = classePaire(classe);
+    var m = parseFloat(moyenne);
+    if (!p || !isFinite(m)) { return null; }
+    var reference = (base === "cylindre") ? p.cyl : p.cube;
+    var seuil = Math.round(reference * SEUIL_JALON_7J * 100) / 100;
+    return { seuil: seuil, reference: reference, atteint: m >= seuil, moyenne: m };
+  }
+
   return {
     normDigits: normDigits,
     floatOrNull: floatOrNull,
@@ -366,6 +428,12 @@ var CAEKModel = (function () {
     codification: codification,
     proposeRepartition: proposeRepartition,
     typesInfo: typesInfo,
-    recuperationOk: recuperationOk
+    recuperationOk: recuperationOk,
+    classePaire: classePaire,
+    facteurConversionClasse: facteurConversionClasse,
+    classeBetonLot: classeBetonLot,
+    cubeVersCylindre: cubeVersCylindre,
+    jalon7j: jalon7j,
+    SEUIL_JALON_7J: SEUIL_JALON_7J
   };
 })();

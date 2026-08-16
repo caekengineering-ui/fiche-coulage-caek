@@ -393,6 +393,8 @@ body {
 }
 .result-card.is-ok { background: #eaf6ea; border: 1px solid #b6dcb6; color: #205020; }
 .result-card.is-error { background: #fdeaea; border: 1px solid #f0b6b6; color: #9a1a1a; }
+/* Jalon temoin non atteint : resultat exploitable mais a signaler. */
+.result-card.is-warn { background: #fff3e0; border: 1px solid #f0c98a; color: #8a5a00; }
 .result-card .warn { margin-top: 8px; font-size: 13px; color: #8a5a00; }
 
 .projets-liste { margin-top: 12px; }
@@ -1220,6 +1222,33 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
   font-size: 13px;
 }
 
+/* Repartition pas encore validee : pastille « ! » + lisere rouge, visibles
+   des la liste du bassin pour reperer une erreur d'age avant l'echeance. */
+.shape-v {
+  position: absolute;
+  top: 2px;
+  left: 6px;
+  font-weight: 900;
+  font-size: 14px;
+  color: #fff;
+  background: var(--caek-red);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+}
+.bassin-shape.has-v { outline: 2px dashed var(--caek-red); outline-offset: -3px; }
+
+/* Bandeau « repartition non validee » dans le detail du lot. */
+.repart-urgent {
+  background: #fdeaea;
+  border: 2px solid var(--caek-red);
+  color: var(--caek-red-dark);
+  margin-bottom: 10px;
+}
+.repart-valid { margin-bottom: 10px; }
+
 /* ---- Overlay detail / ecrasement ---- */
 .bassin-overlay {
   position: fixed;
@@ -1442,6 +1471,14 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
 .comp-hist-table th { background: var(--gray-bg); font-weight: 700; }
 .comp-hist-table td strong { color: var(--caek-red); }
 .comp-hist-meta { font-size: 13px; color: var(--text-muted); }
+/* Moyenne du lot + jalon temoin 7 j (75 % de la classe de beton). */
+.comp-hist-moy { font-size: 13px; margin: 6px 0 4px; padding: 8px 10px; border-radius: var(--radius);
+  background: #eef4fb; border: 1px solid #cfe0f2; }
+.comp-hist-moy.is-sous-jalon { background: #fff3e0; border-color: #f0c98a; }
+.comp-hist-noclasse { color: #8a5a00; font-weight: 600; }
+.comp-hist-jalon { margin-top: 5px; font-weight: 700; }
+.comp-hist-jalon.is-ok { color: #205020; }
+.comp-hist-jalon.is-bad { color: var(--caek-red-dark); }
 
 /* ---------- Historique compression : periode + partage ---------- */
 .comp-hist-periode { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }

@@ -311,6 +311,7 @@ var CAEKValidation = (function () {
       return out + "</select>";
     }
 
+    var nbMalaxeurs = (c.malaxeurs || []).length;
     (c.malaxeurs || []).forEach(function (m, i) {
       var f = m.formulation || {};
       html += "<div class=\"valid-mal\"><div class=\"valid-mal-head\"><strong>Malaxeur " + (i + 1) + "</strong>" +
@@ -328,6 +329,12 @@ var CAEKValidation = (function () {
       html += "</div>" +
         "<button type=\"button\" class=\"btn-text\" data-act=\"ved-save-modele\" data-mal=\"" + i + "\" data-ref=\"" + escapeHtml(c.ref) + "\">" +
         "&#128190; Enregistrer cette formulation comme modèle</button>" +
+        // Coulage à plusieurs malaxeurs alimentés par la MÊME formulation :
+        // évite de ressaisir les 23 champs pour chaque malaxeur.
+        (nbMalaxeurs > 1
+          ? "<button type=\"button\" class=\"btn-text\" data-act=\"ved-generaliser\" data-mal=\"" + i + "\">" +
+            "&#128203; Appliquer cette formulation à tous les malaxeurs</button>"
+          : "") +
         "</div>";
     });
 
@@ -363,6 +370,43 @@ var CAEKValidation = (function () {
       if (fd[0] === "fournisseur") { return; }
       if (p[fd[0]] != null && p[fd[0]] !== "") { vset("ved-m" + i + "-" + fd[0], p[fd[0]]); }
     });
+  }
+
+  /* Généralise la formulation du malaxeur `src` à TOUS les autres malaxeurs
+     du coulage. Un même coulage est très souvent alimenté par une seule
+     centrale avec une seule formulation : sans cela, le vérificateur devait
+     ressaisir les 23 champs pour chaque malaxeur.
+
+     Seule la FORMULATION est copiée. L'heure de prélèvement, la quantité,
+     l'affaissement et la température restent propres à chaque malaxeur : ce
+     sont des mesures relevées sur le terrain, jamais des valeurs à dupliquer. */
+  function generaliserFormulation(src, itemEl) {
+    var champs = document.querySelectorAll(".valid-edit .valid-mal");
+    var total = champs.length;
+    if (total < 2) { return; }
+    var vide = FORM_FIELDS.every(function (fd) { return !vval("ved-m" + src + "-" + fd[0]); });
+    if (vide) {
+      resultBox(itemEl, "&#9888; La formulation du malaxeur " + (src + 1) +
+        " est vide : renseignez-la avant de la généraliser.", true);
+      return;
+    }
+    if (!window.confirm("Appliquer la formulation du malaxeur " + (src + 1) +
+        " aux " + (total - 1) + " autre(s) malaxeur(s) ?\n\n" +
+        "Les formulations actuellement saisies sur les autres malaxeurs seront " +
+        "remplacées.\nLes heures, quantités, affaissements et températures ne " +
+        "sont PAS modifiés.")) { return; }
+    var valeurs = {};
+    FORM_FIELDS.forEach(function (fd) { valeurs[fd[0]] = vval("ved-m" + src + "-" + fd[0]); });
+    var appliques = 0;
+    for (var i = 0; i < total; i++) {
+      if (i === src) { continue; }
+      FORM_FIELDS.forEach(function (fd) { vset("ved-m" + i + "-" + fd[0], valeurs[fd[0]]); });
+      // Le modèle éventuellement choisi pour ce malaxeur ne correspond plus.
+      vset("ved-m" + i + "-modele", "");
+      appliques++;
+    }
+    resultBox(itemEl, "&#10004; Formulation du malaxeur " + (src + 1) + " appliquée à " +
+      appliques + " autre(s) malaxeur(s). Vérifiez puis enregistrez pour valider.", false);
   }
 
   // Enregistre la formulation saisie (malaxeur i) comme modèle réutilisable
@@ -565,30 +609,29 @@ var CAEKValidation = (function () {
     var surface = revSurface(forme, d1, d2);
     return surface > 0 ? Math.round((revNum(rc) * surface / 1000) * 10) / 10 : 0;
   }
-  function classeBetonLot(row) {
+  // Âge RÉEL du lot en jours (date d'essai − date de coulage), jamais
+  // l'échéance planifiée : une date d'écrasement corrigée doit changer l'âge.
+  function ageReelLot(row) {
+    var lp = (row && row.payload) || {};
+    var dc = Date.parse(lp.dateCoulage || "");
+    var de = Date.parse(lp.dateEssai || "");
+    if (isNaN(dc) || isNaN(de)) { return null; }
+    var j = Math.round((de - dc) / 86400000);
+    return j >= 0 ? j : null;
+  }
+
+  // Coulage d'origine d'un lot, s'il est encore dans la liste des soumis.
+  // Une fois le coulage validé il en disparaît : le lot doit alors porter sa
+  // propre classe (posée à la répartition depuis `bassin.js`).
+  function coulageDuLot(row) {
     var ref = (row && (row.ref || row.coulage_ref)) || "";
     for (var i = 0; i < _rows.length; i++) {
-      if (_rows[i].ref !== ref) { continue; }
-      var c = _rows[i].payload || {};
-      var mal = (c.malaxeurs || [])[0] || {};
-      return (mal.formulation || {}).classe || c.classeBeton || c.classe || "";
+      if (_rows[i].ref === ref) { return _rows[i].payload || {}; }
     }
-    // Le coulage est déjà validé (absent de la liste « soumis ») : la classe
-    // reste lisible sur le lot lui-même.
-    var p = (row && row.payload) || {};
-    return p.classe || p.classeBeton || (p.formulation || {}).classe || "";
+    return null;
   }
-  // Classe de béton -> (fck cyl, fck cube). Même règle que le bureau
-  // (documents_beton.facteur_conversion_classe) : le « C » peut manquer
-  // (« 30/37 ») et le séparateur être mal frappé (« C35l45 ») ; fck,cyl doit
-  // rester inférieur à fck,cube, sinon ce n'est pas une classe.
-  function classePaire(classe) {
-    var s = window.CAEKModel ? CAEKModel.normDigits(classe) : String(classe == null ? "" : classe);
-    var m = /C?\s*(\d{1,3}(?:[.,]\d+)?)\s*[/\\|lL_-]\s*(\d{1,3}(?:[.,]\d+)?)/.exec(String(s));
-    if (!m) { return null; }
-    var cyl = parseFloat(m[1].replace(",", ".")), cube = parseFloat(m[2].replace(",", "."));
-    if (!(cyl > 0) || !(cube > 0) || cyl >= cube) { return null; }
-    return { cyl: cyl, cube: cube, facteur: Math.round((cyl / cube) * 100) / 100 };
+  function classeBetonLot(row) {
+    return CAEKModel.classeBetonLot((row && row.payload) || {}, coulageDuLot(row));
   }
 
   function revSummaryHtml(row, essais) {
@@ -598,13 +641,42 @@ var CAEKValidation = (function () {
     if (!values.length) { return "<p class=\"hint rev-summary\">Renseignez les résistances pour afficher la moyenne.</p>"; }
     var mean = Math.round((values.reduce(function (a, n) { return a + n; }, 0) / values.length) * 100) / 100;
     var classe = classeBetonLot(row);
-    var p = classePaire(classe);
+    var p = CAEKModel.classePaire(classe);
+    // Base de la mesure : des cubes donnent une moyenne CUBIQUE, des cylindres
+    // une moyenne déjà cylindrique (aucune conversion à appliquer).
     var hasCube = (essais || []).some(function (e) { return (e.forme || "cube") !== "cylindre"; });
-    var cyl = (hasCube && p) ? Math.round((mean * p.facteur) * 100) / 100 : mean;
-    var cible = p ? " · classe " + escapeHtml(classe) + " : cible cyl. " + p.cyl +
-      " MPa (facteur " + p.facteur + ")" : "";
-    return "<div class=\"result-card rev-summary is-ok\"><strong>Moyenne Rc : " + mean + " MPa</strong>" +
-      "<br>Équivalent cylindre : <strong>" + cyl + " MPa</strong>" + cible + "</div>";
+    var base = hasCube ? "cube" : "cylindre";
+
+    // Équivalent cylindre : UNIQUEMENT si la classe donne un facteur. Sans
+    // classe exploitable il n'y a pas de valeur cylindrique — afficher la
+    // moyenne cubique à sa place serait un faux résultat.
+    var ligneCyl;
+    if (!hasCube) {
+      ligneCyl = "<br>Éprouvettes cylindriques : moyenne déjà cylindrique.";
+    } else if (p) {
+      ligneCyl = "<br>Équivalent cylindre : <strong>" +
+        CAEKModel.cubeVersCylindre(mean, classe) + " MPa</strong>" +
+        " · classe " + escapeHtml(classe) + " (facteur " + p.facteur + ")";
+    } else {
+      ligneCyl = "<br>&#9888; Équivalent cylindre indisponible : classe de béton " +
+        (classe ? "illisible (« " + escapeHtml(classe) + " »)" : "absente") +
+        ". Renseignez la classe du coulage pour obtenir la conversion.";
+    }
+
+    // Jalon témoin à 7 jours : 75 % de la résistance de la classe.
+    var jalonHtml = "";
+    var jal = (ageReelLot(row) === 7) ? CAEKModel.jalon7j(mean, classe, base) : null;
+    if (jal) {
+      jalonHtml = jal.atteint
+        ? "<br>&#9989; Jalon 7 j atteint : " + mean + " &#8805; " + jal.seuil +
+          " MPa (75 % de " + jal.reference + ")"
+        : "<br><strong>&#9888; Sous le jalon 7 j : " + mean + " &lt; " + jal.seuil +
+          " MPa (75 % de " + jal.reference + ")</strong>";
+    }
+    var cls = (jal && !jal.atteint) ? "result-card rev-summary is-warn" : "result-card rev-summary is-ok";
+    return "<div class=\"" + cls + "\"><strong>Moyenne Rc " +
+      (hasCube ? "cubique" : "cylindrique") + " : " + mean + " MPa</strong>" +
+      ligneCyl + jalonHtml + "</div>";
   }
 
   function revPanelHtml(row) {
@@ -1129,6 +1201,10 @@ var CAEKValidation = (function () {
       var a = act.getAttribute("data-act");
       var ref = act.getAttribute("data-ref");
       if (a === "ved-save-modele") { saveModeleFromVed(act.getAttribute("data-mal"), item); return; }
+      if (a === "ved-generaliser") {
+        generaliserFormulation(parseInt(act.getAttribute("data-mal"), 10) || 0, item);
+        return;
+      }
       if (a === "valider") { valider(ref, item); }
       else if (a === "corriger") { _editRef = ref; _openRef = ref; render(); }
       else if (a === "annuler-edit") { _editRef = null; render(); }
