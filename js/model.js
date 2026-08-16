@@ -345,6 +345,60 @@ var CAEKModel = (function () {
     return !!(c && c.eprRecuperees && c.codificationConfirmee);
   }
 
+  /* ============ Sechage : disponibilite a l'essai ============
+     Regle de JOUR, pas de duree glissante. Un lot sorti le jour J est pret
+     le lendemain J+1 a 8 h.
+
+     Pourquoi pas 24 h glissantes : les operateurs saisissent souvent la sortie
+     en FIN de journee (19 h) pour ne pas interrompre le travail reel, alors
+     que la sortie physique a eu lieu bien plus tot. Avec un delai glissant, le
+     lot ne devenait disponible que le lendemain a 19 h. L'equipe etait alors
+     deja partie, sans avoir vu qu'il restait des eprouvettes a ecraser.
+     La regle de jour supprime ce piege : l'heure de saisie n'a plus d'effet.
+
+     On se fonde sur le JOUR de sortie (`dateSortie`), pas sur l'horodatage de
+     saisie : c'est le jour ou l'eprouvette a quitte le bassin qui compte. */
+  var HEURE_PRET_ESSAI = 8;
+
+  function _jourSortie(lot) {
+    var l = lot || {};
+    var j = _jour(l.dateSortie);
+    if (j) { return j; }
+    // Ancienne donnee : repli sur l'horodatage de saisie.
+    return _jour(l.sortiAt);
+  }
+
+  // Moment exact ou le lot devient disponible : lendemain de la sortie a 8 h.
+  // null si aucune date exploitable (donnee ancienne -> jamais bloquante).
+  function momentPretEssai(lot) {
+    var j = _jourSortie(lot);
+    if (!j) { return null; }
+    var d = _ajouteJours(j, 1);
+    d.setHours(HEURE_PRET_ESSAI, 0, 0, 0);
+    return d;
+  }
+
+  function lotPretEssai(lot, maintenant) {
+    var l = lot || {};
+    if (l.forceTest) { return true; }
+    var m = momentPretEssai(l);
+    if (!m) { return true; }   // sans date : ne bloque jamais l'essai
+    return (maintenant || new Date()) >= m;
+  }
+
+  // Libelle d'attente lisible : « demain a 8 h », « aujourd'hui a 8 h »…
+  function attenteEssaiLabel(lot, maintenant) {
+    var m = momentPretEssai(lot);
+    if (!m) { return ""; }
+    var now = maintenant || new Date();
+    var auj = _jour(now), cible = _jour(m);
+    var d = Math.round((cible - auj) / 86400000);
+    var h = HEURE_PRET_ESSAI + " h";
+    if (d <= 0) { return "aujourd'hui à " + h; }
+    if (d === 1) { return "demain à " + h; }
+    return "dans " + d + " jours à " + h;
+  }
+
   /* ============ Validation de la repartition : echeance ============
      L'operateur SOUMET la repartition, l'ingenieur la VALIDE. Si l'ingenieur
      ne s'est pas prononce, la repartition de l'operateur est reputee acceptee
@@ -483,6 +537,10 @@ var CAEKModel = (function () {
     proposeRepartition: proposeRepartition,
     typesInfo: typesInfo,
     recuperationOk: recuperationOk,
+    HEURE_PRET_ESSAI: HEURE_PRET_ESSAI,
+    momentPretEssai: momentPretEssai,
+    lotPretEssai: lotPretEssai,
+    attenteEssaiLabel: attenteEssaiLabel,
     DELAI_VALIDATION_REPARTITION_J: DELAI_VALIDATION_REPARTITION_J,
     echeanceValidationRepartition: echeanceValidationRepartition,
     repartitionTacite: repartitionTacite,

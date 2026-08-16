@@ -391,6 +391,13 @@
         <label class="comp-per-f"><span>Au</span><input id="comp-hist-au" class="field" type="date"></label>
         <button id="comp-hist-periode-reset" class="btn-text" type="button">Tout</button>
       </div>
+      <!-- Ces deux actions etaient deja ecrites et cablees dans compression.js
+           (exportHistoriqueXls / shareHistorique) mais leurs boutons manquaient
+           dans le HTML : les fonctions n'etaient donc jamais atteignables. -->
+      <div class="comp-hist-actions">
+        <button id="comp-hist-partager" class="btn-secondary" type="button">&#128228; Partager les résultats</button>
+        <button id="comp-hist-export-xls" class="btn-text" type="button">&#128202; Exporter (Excel)</button>
+      </div>
       <div id="comp-hist-result" class="result-card" hidden></div>
       <div id="comp-historique-count" class="hint"></div>
       <div id="comp-historique-liste"></div>

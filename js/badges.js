@@ -123,11 +123,10 @@ var CAEKBadges = (function () {
         else if (diff <= 0) { s.retard++; }
       } else if (l.statut === "sorti") {
         s.sorti++;
-        // « À tester » seulement si le séchage 24 h est terminé (ou forcé) :
-        // les lots en séchage restent affichés côté bassin uniquement.
-        var tSortie = l.sortiAt ? Date.parse(l.sortiAt) : NaN;
-        var pret = l.forceTest || isNaN(tSortie) || (Date.now() - tSortie) >= 24 * 60 * 60 * 1000;
-        if (pret) { s.aTester++; }
+        // « À tester » seulement si le séchage est terminé (ou forcé) : les
+        // lots en séchage restent affichés côté bassin uniquement. Règle de
+        // JOUR partagée (sorti le jour J -> prêt le lendemain à 8 h).
+        if (CAEKModel.lotPretEssai(l)) { s.aTester++; }
         var f = filledCount(l), n = intOr0(l.nombre);
         if (f > 0 && f < n) { s.incomplet++; }
         s.eprRestantes += Math.max(0, n - f);

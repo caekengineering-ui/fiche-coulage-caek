@@ -1515,6 +1515,7 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
   color: var(--caek-red-dark);
 }
 
+.comp-hist-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px; }
 .comp-hist-noclasse { color: #8a5a00; font-weight: 600; }
 /* Synthese moyenne / min / max, cubique face a cylindrique. Toujours visible
    sans faire defiler le tableau : c'est ce qu'on annonce au client. */

@@ -792,32 +792,18 @@ var CAEKBassin = (function () {
     });
   }
 
-  /* ---------- Séchage 24 h + passage forcé à la machine ---------- */
-  var DELAI_SECHAGE_MS = 24 * 60 * 60 * 1000;
+  /* ---------- Séchage (règle de JOUR) + passage forcé à la machine ----------
+     Un lot sorti le jour J est prêt le lendemain à 8 h — voir
+     CAEKModel.momentPretEssai. Règle unique et partagée : le bassin, le module
+     compression et les badges doivent s'accorder au lot près. */
   var MOTIFS_FORCE = ["Éprouvette ayant dépassé son séjour", "Jour férié",
     "Problème machine / presse", "Contrainte exceptionnelle du laboratoire", "Autre"];
 
   function TT(s) { return (window.I18N && I18N.T) ? I18N.T(s) : s; }
 
-  function sortiAtMs(l) {
-    var t = l && l.sortiAt ? Date.parse(l.sortiAt) : NaN;
-    return isNaN(t) ? null : t;
-  }
-  // Prêt pour l'essai : forcé, sans horodatage (ancienne donnée), ou 24 h écoulées.
-  function lotPretEssai(l) {
-    if (l.forceTest) { return true; }
-    var t = sortiAtMs(l);
-    if (t == null) { return true; }
-    return (Date.now() - t) >= DELAI_SECHAGE_MS;
-  }
-  function heuresRestantesSechage(l) {
-    var t = sortiAtMs(l);
-    if (t == null) { return 0; }
-    var ms = DELAI_SECHAGE_MS - (Date.now() - t);
-    return ms > 0 ? Math.ceil(ms / 3600000) : 0;
-  }
+  function lotPretEssai(l) { return CAEKModel.lotPretEssai(l); }
 
-  // Passage anticipé (avant 24 h) : exceptionnel, motif obligatoire.
+  // Passage anticipé (avant la disponibilité) : exceptionnel, motif obligatoire.
   // L'action se fait DEPUIS LE BASSIN (zone des lots sortis), pas depuis
   // le module compression. Les motifs sont traduits (TT) avant affichage.
   function forcerPassage(id) {
@@ -825,11 +811,11 @@ var CAEKBassin = (function () {
     for (var i = 0; i < _lots.length; i++) { if (_lots[i].id === id) { lot = _lots[i]; break; } }
     if (!lot || lot.statut !== "sorti" || lotPretEssai(lot)) { return; }
     var prof = window.CAEKProfil
-      ? CAEKProfil.require("Profil opérateur requis pour forcer le passage avant 24 h.")
+      ? CAEKProfil.require("Profil opérateur requis pour forcer le passage avant séchage complet.")
       : { nom: "", qualification: "" };
     if (!prof) { return; }
     var liste = MOTIFS_FORCE.map(function (m, i2) { return (i2 + 1) + ". " + TT(m); }).join("\n");
-    var rep = window.prompt("Passage anticipé (moins de 24 h hors bassin) — action exceptionnelle.\n\n" +
+    var rep = window.prompt("Passage anticipé (avant le lendemain 8 h) — action exceptionnelle.\n\n" +
       "Indiquez le motif (numéro ou texte libre) :\n" + liste);
     if (rep == null) { return; }
     rep = String(rep).trim();
@@ -1036,8 +1022,9 @@ var CAEKBassin = (function () {
       if (!lotPretEssai(lot)) {
         // Encore en séchage : l'essai n'est pas proposé dans le module
         // compression ; le passage forcé se fait ICI (exceptionnel, motif).
-        action += "<div class=\"result-card is-warn\">&#9203; En séchage (délai 24 h hors bassin)<br>" +
-          "Disponible pour essai dans ~<strong>" + heuresRestantesSechage(lot) + " h</strong></div>" +
+        action += "<div class=\"result-card is-warn\">&#9203; En séchage hors bassin<br>" +
+          "Disponible pour essai <strong>" +
+          escapeHtml(CAEKModel.attenteEssaiLabel(lot)) + "</strong></div>" +
           "<button type=\"button\" class=\"btn-primary bassin-forcer\" data-id=\"" + lot.id + "\">" +
           "&#128296; Passage forcé à la machine</button>";
       } else {

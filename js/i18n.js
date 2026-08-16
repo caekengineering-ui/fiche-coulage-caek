@@ -643,8 +643,23 @@ var I18N = (function () {
     "Choisir dans la galerie": "اختيار من المعرض",
 
     // ---- Bassin : séchage + passage forcé ----
-    "En séchage (délai 24 h hors bassin)": "قيد التجفيف (مهلة 24 ساعة خارج الحوض)",
-    "Disponible pour essai dans ~": "متاح للاختبار بعد ~",
+    "En séchage hors bassin": "قيد التجفيف خارج الحوض",
+    "Disponible pour essai": "متاح للاختبار",
+    "aujourd'hui à 8 h": "اليوم على الساعة 8",
+    "demain à 8 h": "غداً على الساعة 8",
+    "Passage anticipé (avant le lendemain 8 h) — action exceptionnelle.":
+      "تمرير مبكر (قبل الغد على الساعة 8) — إجراء استثنائي.",
+    "Profil opérateur requis pour forcer le passage avant séchage complet.":
+      "ملف المشغّل مطلوب لفرض التمرير قبل اكتمال التجفيف.",
+    "Résultats du lot": "نتائج الدفعة",
+    "Cubique": "مكعبية",
+    "Cylindrique": "أسطوانية",
+    "Moyenne": "المعدل",
+    "Minimum": "الأدنى",
+    "Maximum": "الأقصى",
+    "éprouvettes déjà cylindriques": "عيّنات أسطوانية أصلاً",
+    "Partager les résultats": "مشاركة النتائج",
+    "Exporter (Excel)": "تصدير (إكسل)",
     "Passage forcé à la machine": "مرور قسري إلى الآلة",
     "Passage forcé": "مرور قسري",
     "Motif obligatoire.": "السبب إجباري.",

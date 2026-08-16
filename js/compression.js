@@ -80,21 +80,9 @@ var CAEKCompression = (function () {
   var _aTester = [];
   var _historique = [];
 
-  // Délai conseillé hors bassin avant essai (24 h).
-  var DELAI_SECHAGE_MS = 24 * 60 * 60 * 1000;
-
-  function sortiAtMs(l) {
-    var t = l && l.sortiAt ? Date.parse(l.sortiAt) : NaN;
-    return isNaN(t) ? null : t;
-  }
-  // Un lot sorti est PRÊT à tester : s'il a été forcé, s'il n'a pas d'horodatage
-  // de sortie (ancienne donnée), ou si 24 h se sont écoulées depuis la sortie.
-  function pretATester(l) {
-    if (l.forceTest) { return true; }
-    var t = sortiAtMs(l);
-    if (t == null) { return true; }
-    return (Date.now() - t) >= DELAI_SECHAGE_MS;
-  }
+  // Séchage : règle de JOUR partagée (sorti le jour J -> prêt le lendemain
+  // à 8 h), définie une seule fois dans CAEKModel.
+  function pretATester(l) { return CAEKModel.lotPretEssai(l); }
 
   // Coulage d'origine par référence. La classe de béton est saisie dans la
   // FORMULATION du coulage, pas sur le lot : sans cette table, les lots créés
