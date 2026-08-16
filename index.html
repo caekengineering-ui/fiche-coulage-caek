@@ -925,6 +925,10 @@
 
   <footer class="app-footer">
     <span>Logiciel interne CAEK ENGINEERING LAB — Module Béton · Version 3.0 (en développement)</span>
+    <!-- Version REELLEMENT servie, demandee au service worker actif (voir
+         js/app.js). Un numero ecrit en dur ici mentirait : il resterait juste
+         en apparence meme si le telephone tourne sur un ancien cache. -->
+    <span id="app-build" class="app-build" data-i18n-skip="true">…</span>
   </footer>
 
   <script src="vendor/xlsx.full.min.js"></script>

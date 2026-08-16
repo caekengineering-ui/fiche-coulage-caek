@@ -659,6 +659,8 @@ var I18N = (function () {
     "Maximum": "الأقصى",
     "éprouvettes déjà cylindriques": "عيّنات أسطوانية أصلاً",
     "Partager les résultats": "مشاركة النتائج",
+    "version ancienne — rafraîchir": "إصدار قديم — يرجى التحديث",
+    "hors cache": "خارج التخزين المؤقت",
     "Exporter (Excel)": "تصدير (إكسل)",
     "Passage forcé à la machine": "مرور قسري إلى الآلة",
     "Passage forcé": "مرور قسري",

@@ -997,6 +997,17 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
 .btn-home { margin-top: 18px; }
 
 /* ---------- Footer ---------- */
+/* Version reellement servie : toujours lisible, en chiffres occidentaux et
+   jamais inversee en arabe (c'est un identifiant technique, pas du texte). */
+.app-build {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
 .app-footer {
   padding: 10px 16px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom));

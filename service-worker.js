@@ -5,7 +5,7 @@
    Pour publier une mise a jour : incrementer CACHE_VERSION.
    ============================================================ */
 
-var CACHE_VERSION = "caek-beton-v93";
+var CACHE_VERSION = "caek-beton-v94";
 
 var APP_SHELL = [
   "./",
@@ -112,6 +112,20 @@ self.addEventListener("activate", function (event) {
     })
   );
   self.clients.claim();
+});
+
+/* ---- Version reellement servie ----
+   La page demande « version » et affiche la reponse en pied d'ecran. On
+   renvoie la version du service worker ACTIF, pas une constante ecrite dans
+   la page : si le telephone tourne encore sur un ancien cache, c'est cet
+   ancien numero qui s'affiche. L'utilisateur voit donc tout de suite s'il
+   n'a pas recu la mise a jour, au lieu de lire un numero toujours juste
+   en apparence. */
+self.addEventListener("message", function (event) {
+  if (!event.data || event.data.type !== "version") { return; }
+  var reponse = { type: "version", version: CACHE_VERSION };
+  if (event.ports && event.ports[0]) { event.ports[0].postMessage(reponse); return; }
+  if (event.source && event.source.postMessage) { event.source.postMessage(reponse); }
 });
 
 // ---- Notifications push (Web Push) ----

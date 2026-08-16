@@ -264,12 +264,53 @@
     if (window.CAEKBadges) { CAEKBadges.refresh(); }
   });
 
+  /* ---------- Version affichee en pied d'ecran ----------
+     On demande sa version au service worker ACTIF plutot que d'ecrire un
+     numero en dur : c'est le seul moyen de savoir ce que l'appareil execute
+     reellement. Si le telephone tourne encore sur un ancien cache, l'ancien
+     numero s'affiche et l'utilisateur sait qu'il doit rafraichir. */
+  // Le pied porte data-i18n-skip (le numero de version ne doit jamais etre
+  // traduit ni inverse) : les messages d'etat sont donc traduits ici, a la
+  // pose. Un numero comme « caek-beton-v94 » n'est pas une cle du
+  // dictionnaire et traverse I18N.T inchange.
+  function afficherVersion(texte) {
+    var el = document.getElementById("app-build");
+    if (!el) { return; }
+    el.textContent = (window.I18N && I18N.T) ? I18N.T(texte) : texte;
+  }
+
+  function lireVersionServiceWorker() {
+    if (!("serviceWorker" in navigator)) { afficherVersion("hors cache"); return; }
+    navigator.serviceWorker.getRegistration().then(function (reg) {
+      var sw = reg && (reg.active || reg.waiting || reg.installing);
+      if (!sw) { afficherVersion("hors cache"); return; }
+      // MessageChannel : reponse directe, sans écouteur global a nettoyer.
+      var canal = new MessageChannel();
+      var repondu = false;
+      canal.port1.onmessage = function (ev) {
+        repondu = true;
+        if (ev.data && ev.data.version) { afficherVersion(ev.data.version); }
+      };
+      sw.postMessage({ type: "version" }, [canal.port2]);
+      // Ancien service worker en cache : il ignore ce message et ne repond
+      // jamais. Rendre ce cas visible est precisement le but de l'affichage.
+      setTimeout(function () {
+        if (!repondu) { afficherVersion("version ancienne — rafraîchir"); }
+      }, 1500);
+    }).catch(function () { afficherVersion(""); });
+  }
+
   /* ---------- Service Worker (hors-ligne) ---------- */
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
-      navigator.serviceWorker.register("service-worker.js").catch(function (err) {
+      navigator.serviceWorker.register("service-worker.js").then(function () {
+        return navigator.serviceWorker.ready;
+      }).then(lireVersionServiceWorker).catch(function (err) {
         console.warn("Service Worker non enregistre :", err);
+        afficherVersion("hors cache");
       });
     });
+  } else {
+    window.addEventListener("load", function () { afficherVersion("hors cache"); });
   }
 })();
