@@ -1475,7 +1475,54 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
 .comp-hist-moy { font-size: 13px; margin: 6px 0 4px; padding: 8px 10px; border-radius: var(--radius);
   background: #eef4fb; border: 1px solid #cfe0f2; }
 .comp-hist-moy.is-sous-jalon { background: #fff3e0; border-color: #f0c98a; }
+/* ---- Ecran Validation : trois validations distinctes ----
+   Coulage, repartition et essais n'ont ni les memes consequences ni les memes
+   verificateurs. Un filet rouge franc separe les sections pour qu'on ne valide
+   jamais l'une en croyant valider l'autre. */
+.valid-section { margin: 0 0 22px; }
+.valid-section + .valid-section { padding-top: 18px; border-top: 3px solid var(--caek-red); }
+.valid-section-titre {
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--caek-red);
+  color: var(--caek-red-dark);
+  font-size: 16px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.valid-section-nb {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 11px;
+  background: var(--caek-red);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  vertical-align: middle;
+}
+/* Repartition pas encore controlee : meme code visuel que le bassin. */
+.rep-item.is-a-controler { border-left: 4px solid var(--caek-red); }
+.badge-a-controler { background: var(--caek-red); color: #fff; }
+.valid-line-cle {
+  margin: 6px 0;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  background: #fdeaea;
+  border: 1px solid var(--caek-red);
+  color: var(--caek-red-dark);
+}
+
 .comp-hist-noclasse { color: #8a5a00; font-weight: 600; }
+/* Synthese moyenne / min / max, cubique face a cylindrique. Toujours visible
+   sans faire defiler le tableau : c'est ce qu'on annonce au client. */
+.comp-hist-synth { width: 100%; border-collapse: collapse; font-size: 13px; }
+.comp-hist-synth th, .comp-hist-synth td { padding: 3px 6px; text-align: right; }
+.comp-hist-synth th:first-child, .comp-hist-synth td:first-child { text-align: left; }
+.comp-hist-synth thead th { border-bottom: 1px solid #cfe0f2; font-weight: 700; }
+.comp-hist-synth-note { margin-top: 4px; font-size: 12px; color: var(--text-muted); }
 .comp-hist-jalon { margin-top: 5px; font-weight: 700; }
 .comp-hist-jalon.is-ok { color: #205020; }
 .comp-hist-jalon.is-bad { color: var(--caek-red-dark); }

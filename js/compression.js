@@ -96,9 +96,27 @@ var CAEKCompression = (function () {
     return (Date.now() - t) >= DELAI_SECHAGE_MS;
   }
 
+  // Coulage d'origine par référence. La classe de béton est saisie dans la
+  // FORMULATION du coulage, pas sur le lot : sans cette table, les lots créés
+  // avant que la répartition ne recopie la classe n'ont aucune classe et la
+  // conversion cube -> cylindre devient impossible à tort.
+  var _coulagesParRef = {};
+
+  function classeDuLot(l) {
+    return CAEKModel.classeBetonLot(l, _coulagesParRef[l && l.ref]);
+  }
+
   function refresh() {
     if (!window.CAEKDB) { return; }
-    CAEKDB.getAllLots().then(function (all) {
+    // Coulages ET lots chargés ensemble : le rendu lit la table des coulages
+    // pour retrouver la classe, elle doit donc être prête AVANT de rendre.
+    Promise.all([
+      CAEKDB.getAllCoulages().catch(function () { return []; }),
+      CAEKDB.getAllLots()
+    ]).then(function (res) {
+      _coulagesParRef = {};
+      (res[0] || []).forEach(function (c) { if (c && c.ref) { _coulagesParRef[c.ref] = c; } });
+      var all = res[1];
       // Filtre labo (administrateur seulement ; opérateur déjà scopé serveur).
       var lots = (all || []).filter(function (l) {
         return !window.CAEKLaboFilter || CAEKLaboFilter.match(l && l.laboId);
@@ -578,7 +596,7 @@ var CAEKCompression = (function () {
       // Classe de beton du lot -> facteur cube/cylindre. Sans classe
       // exploitable, la colonne cylindrique reste vide : jamais la valeur
       // cubique recopiee, qui serait un faux resultat.
-      var classe = CAEKModel.classeBetonLot(l, null);
+      var classe = classeDuLot(l);
       var paire = CAEKModel.classePaire(classe);
       var lignes = essais.map(function (e, idx) {
         var age = diffDays(l.dateCoulage, e.dateEssai);
@@ -597,29 +615,53 @@ var CAEKCompression = (function () {
           "<td>" + escapeHtml(e.observation || "") + "</td></tr>";
       }).join("");
 
-      // Moyenne du lot + jalon temoin a 7 jours (75 % de la classe).
+      // Synthese du lot : moyenne, MIN et MAX. Les clients raisonnent en
+      // cylindrique : les trois valeurs sont donc donnees dans les deux bases,
+      // lisibles sans faire defiler le tableau.
       var vals = essais.map(function (e) { return num(e.rc); })
         .filter(function (n) { return n > 0; });
+      var arrondi = function (n) { return Math.round(n * 100) / 100; };
       var moyenne = vals.length
-        ? Math.round((vals.reduce(function (a, n) { return a + n; }, 0) / vals.length) * 100) / 100
+        ? arrondi(vals.reduce(function (a, n) { return a + n; }, 0) / vals.length)
         : null;
+      var mini = vals.length ? arrondi(Math.min.apply(null, vals)) : null;
+      var maxi = vals.length ? arrondi(Math.max.apply(null, vals)) : null;
       var aCube = essais.some(function (e) { return (e.forme || "cube") !== "cylindre"; });
-      var moyCyl = (moyenne != null && aCube) ? CAEKModel.cubeVersCylindre(moyenne, classe)
-                                             : moyenne;
+      // Deja cylindriques -> aucune conversion. Sinon conversion par la classe,
+      // et null si la classe ne permet pas de deduire un facteur.
+      var versCyl = function (v) {
+        if (v == null) { return null; }
+        return aCube ? CAEKModel.cubeVersCylindre(v, classe) : v;
+      };
+      var moyCyl = versCyl(moyenne), minCyl = versCyl(mini), maxCyl = versCyl(maxi);
       var ageLot = essais.length ? diffDays(l.dateCoulage, essais[0].dateEssai) : "";
       var jal = (moyenne != null && ageLot === 7)
         ? CAEKModel.jalon7j(moyenne, classe, aCube ? "cube" : "cylindre") : null;
       var moyenneHtml = "";
       if (moyenne != null) {
+        // Trois lignes Moyenne / Min / Max, chacune dans les deux bases.
+        // « — » quand la classe ne permet pas de convertir : jamais la valeur
+        // cubique recopiee en face de « cylindrique ».
+        var ligneSynth = function (libelle, cube, cyl, fort) {
+          var g = fort ? "strong" : "span";
+          return "<tr><td>" + tr(libelle) + "</td>" +
+            "<td><" + g + ">" + (cube == null ? "—" : cube) + "</" + g + "></td>" +
+            "<td><" + g + ">" + (cyl == null ? "—" : cyl) + "</" + g + "></td></tr>";
+        };
         moyenneHtml = "<div class=\"comp-hist-moy" + (jal && !jal.atteint ? " is-sous-jalon" : "") + "\">" +
-          "<strong>" + tr("Moyenne du lot") + " : " + moyenne + " MPa</strong>" +
-          (aCube ? " (" + tr("cubique") + ")" : " (" + tr("cylindrique") + ")") +
-          (aCube && moyCyl != null
-            ? " · " + tr("équivalent cylindre") + " : <strong>" + moyCyl + " MPa</strong>" : "") +
-          (paire ? " · " + tr("classe") + " " + escapeHtml(classe) +
-            " (" + tr("facteur") + " " + paire.facteur + ")"
-            : " · <span class=\"comp-hist-noclasse\">&#9888; " +
+          "<table class=\"comp-hist-synth\"><thead><tr><th>" + tr("Résultats du lot") + "</th>" +
+          "<th>" + tr("Cubique") + "</th><th>" + tr("Cylindrique") + "</th></tr></thead><tbody>" +
+          ligneSynth("Moyenne", moyenne, moyCyl, true) +
+          ligneSynth("Minimum", mini, minCyl, false) +
+          ligneSynth("Maximum", maxi, maxCyl, false) +
+          "</tbody></table>" +
+          "<div class=\"comp-hist-synth-note\">" +
+          (paire
+            ? tr("classe") + " " + escapeHtml(classe) + " · " + tr("facteur") + " " + paire.facteur +
+              (aCube ? "" : " · " + tr("éprouvettes déjà cylindriques"))
+            : "<span class=\"comp-hist-noclasse\">&#9888; " +
               tr("classe de béton absente : conversion impossible") + "</span>") +
+          "</div>" +
           (jal
             ? (jal.atteint
               ? "<div class=\"comp-hist-jalon is-ok\">&#9989; " + tr("Jalon 7 j atteint") +
@@ -668,7 +710,7 @@ var CAEKCompression = (function () {
   function histRows() {
     var rows = [];
     filteredHistLots().forEach(function (l) {
-      var classe = CAEKModel.classeBetonLot(l, null);
+      var classe = classeDuLot(l);
       var paire = CAEKModel.classePaire(classe);
       (Array.isArray(l.essais) ? l.essais : []).forEach(function (e, idx) {
         var estCube = (e.forme || "cube") !== "cylindre";
@@ -715,16 +757,40 @@ var CAEKCompression = (function () {
     lots.forEach(function (l) {
       refs[l.ref] = true;
       if (l.operateurEssai) { operateurs[l.operateurEssai] = true; }
+      var classe = classeDuLot(l);
+      var paire = CAEKModel.classePaire(classe);
+      var aCube = (Array.isArray(l.essais) ? l.essais : [])
+        .some(function (e) { return (e.forme || "cube") !== "cylindre"; });
+      var vals = [];
       (Array.isArray(l.essais) ? l.essais : []).forEach(function (e) {
         nbEpr++;
         var age = diffDays(l.dateCoulage, e.dateEssai);
+        var estCube = (e.forme || "cube") !== "cylindre";
+        var cyl = estCube ? CAEKModel.cubeVersCylindre(e.rc, classe)
+                          : (num(e.rc) > 0 ? num(e.rc) : null);
+        if (num(e.rc) > 0) { vals.push(num(e.rc)); }
         lignes.push("- " + (e.code || l.ref) +
           " | " + (age === "" ? (l.age === "autre" ? l.ageJours + "j" : l.age) : age + "j") +
           " | " + formeLabel(e.forme) +
           " | Rc = " + (e.rc === "" || e.rc == null ? "—" : e.rc) + " MPa" +
+          // Le client raisonne en cylindrique : la valeur convertie part avec.
+          (cyl == null ? "" : " (cyl. " + cyl + " MPa)") +
           " | F = " + (e.force === "" || e.force == null ? "—" : e.force) + " kN" +
           " | " + fmtDate(e.dateEssai));
       });
+      // Synthese du lot : moyenne, min et max, dans les deux bases.
+      if (vals.length) {
+        var r = function (n) { return Math.round(n * 100) / 100; };
+        var moy = r(vals.reduce(function (a, n) { return a + n; }, 0) / vals.length);
+        var mn = r(Math.min.apply(null, vals)), mx = r(Math.max.apply(null, vals));
+        var c = function (v) { return aCube ? CAEKModel.cubeVersCylindre(v, classe) : v; };
+        var cm = c(moy), cn = c(mn), cx = c(mx);
+        lignes.push("  → " + l.ref + " — moyenne " + moy + " / min " + mn + " / max " + mx + " MPa cubique" +
+          (cm == null
+            ? " (conversion impossible : classe de béton absente)"
+            : " · cylindrique : moyenne " + cm + " / min " + cn + " / max " + cx + " MPa" +
+              (paire ? " (classe " + classe + ", facteur " + paire.facteur + ")" : "")));
+      }
     });
     var per = periodeLabel();
     var refList = Object.keys(refs);

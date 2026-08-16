@@ -345,6 +345,60 @@ var CAEKModel = (function () {
     return !!(c && c.eprRecuperees && c.codificationConfirmee);
   }
 
+  /* ============ Validation de la repartition : echeance ============
+     L'operateur SOUMET la repartition, l'ingenieur la VALIDE. Si l'ingenieur
+     ne s'est pas prononce, la repartition de l'operateur est reputee acceptee
+     — sinon un silence bloquerait indefiniment le lot.
+
+     L'acceptation tacite tombe au plus tot de :
+       - repartition + 6 jours ;
+       - la veille du 1er essai prevu (en tout etat de cause AVANT le 1er test,
+         sinon on ecraserait sur une repartition jamais arretee).
+     Les dates sont comparees en JOURS pleins, jamais en millisecondes : une
+     repartition faite a 18 h ne doit pas expirer une demi-journee plus tot
+     qu'une repartition faite a 6 h. */
+  var DELAI_VALIDATION_REPARTITION_J = 6;
+
+  function _jour(v) {
+    if (!v) { return null; }
+    var d = new Date(v);
+    if (isNaN(d.getTime())) { return null; }
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function _ajouteJours(d, n) {
+    return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate() + n) : null;
+  }
+
+  // Date a laquelle la repartition est tacitement acceptee. null si elle ne
+  // peut pas etre calculee (aucune date exploitable).
+  function echeanceValidationRepartition(lot) {
+    var l = lot || {};
+    var base = _jour(l.dateRepartition) || _jour(l.dateCoulage);
+    var limiteDelai = _ajouteJours(base, DELAI_VALIDATION_REPARTITION_J);
+    // La veille du 1er essai : l'acceptation doit preceder l'ecrasement.
+    var veilleEssai = _ajouteJours(_jour(l.datePrevue), -1);
+    if (limiteDelai && veilleEssai) {
+      return limiteDelai < veilleEssai ? limiteDelai : veilleEssai;
+    }
+    return limiteDelai || veilleEssai;
+  }
+
+  // La repartition est-elle tacitement acceptee a la date `maintenant` ?
+  function repartitionTacite(lot, maintenant) {
+    var ech = echeanceValidationRepartition(lot);
+    if (!ech) { return false; }
+    var auj = _jour(maintenant || new Date());
+    return !!auj && auj >= ech;
+  }
+
+  // Jours restants avant l'acceptation tacite (negatif = deja depassee).
+  function joursAvantTacite(lot, maintenant) {
+    var ech = echeanceValidationRepartition(lot);
+    var auj = _jour(maintenant || new Date());
+    if (!ech || !auj) { return null; }
+    return Math.round((ech - auj) / 86400000);
+  }
+
   /* ================= Conversion cube -> cylindre =================
      Miroir EXACT de la regle bureau (documents_beton.facteur_conversion_
      classe) : la classe s'ecrit C<fck,cyl>/<fck,cube> et le facteur est le
@@ -429,6 +483,10 @@ var CAEKModel = (function () {
     proposeRepartition: proposeRepartition,
     typesInfo: typesInfo,
     recuperationOk: recuperationOk,
+    DELAI_VALIDATION_REPARTITION_J: DELAI_VALIDATION_REPARTITION_J,
+    echeanceValidationRepartition: echeanceValidationRepartition,
+    repartitionTacite: repartitionTacite,
+    joursAvantTacite: joursAvantTacite,
     classePaire: classePaire,
     facteurConversionClasse: facteurConversionClasse,
     classeBetonLot: classeBetonLot,

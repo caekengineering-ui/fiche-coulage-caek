@@ -1107,8 +1107,11 @@ var CAEKBassin = (function () {
   }
   // Répartition en attente de contrôle ? (drapeau posé à la répartition ;
   // les lots antérieurs à cette évolution ne sont jamais signalés à tort.)
+  // L'acceptation TACITE lève l'attente : passé le délai, la répartition de
+  // l'opérateur fait foi et le lot ne doit plus être signalé.
   function repartitionEnAttente(lot) {
-    return !!(lot && lot.repartitionAValider && !lot.repartitionValideePar);
+    if (!lot || !lot.repartitionAValider || lot.repartitionValideePar) { return false; }
+    return !CAEKModel.repartitionTacite(lot);
   }
 
   function repartitionBanniereHtml(lot) {
@@ -1118,11 +1121,26 @@ var CAEKBassin = (function () {
         (lot.repartitionValideeLe ? " le " + fmtDate(lot.repartitionValideeLe) : "") +
         "</div>";
     }
+    // Délai écoulé sans réponse de l'ingénieur : la répartition de l'opérateur
+    // fait foi. On l'affiche explicitement plutôt que de rester muet.
+    if (lot && lot.repartitionAValider && !lot.repartitionValideePar
+        && CAEKModel.repartitionTacite(lot)) {
+      return "<div class=\"result-card repart-tacite\">&#8987; Répartition acceptée " +
+        "automatiquement (sans réponse de l'ingénieur dans le délai). " +
+        "Elle reste celle soumise par " +
+        escapeHtml(lot.operateurRepartition || "l'opérateur") + ".</div>";
+    }
     if (!repartitionEnAttente(lot)) { return ""; }
+    var reste = CAEKModel.joursAvantTacite(lot);
     var html = "<div class=\"result-card repart-urgent\">" +
       "<strong>&#9888; URGENT — RÉPARTITION NON VALIDÉE</strong><br>" +
       "Les âges et les dates d'essai n'ont pas encore été contrôlés. " +
       "Une erreur d'âge ne se verra qu'à l'échéance, quand il sera trop tard." +
+      (reste == null ? "" :
+        "<br><strong>" + (reste <= 0
+          ? "Acceptation automatique aujourd'hui."
+          : "Sans réponse, acceptation automatique dans " + reste + " jour(s).") +
+        "</strong>") +
       "</div>";
     if (peutValiderRepartition()) {
       html += "<button type=\"button\" class=\"btn-primary bassin-valider-repart\" data-ref=\"" +
