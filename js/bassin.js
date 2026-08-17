@@ -866,18 +866,13 @@ var CAEKBassin = (function () {
     var st = dispStatut(l);
     var rTag = (st === "retard") ? "<span class=\"shape-r\">R</span>" : "";
     var ageLabel = (l.age === "autre" ? l.ageJours + "j" : l.age);
-    // Répartition non encore contrôlée : pastille « ! » visible dès la liste,
-    // pour que l'erreur d'âge soit vue AVANT l'échéance.
-    var vTag = repartitionEnAttente(l) ? "<span class=\"shape-v\">!</span>" : "";
-    var titre = l.ref + " · " + typeLabel(l.type) + " · " + ageLabel +
-      (repartitionEnAttente(l) ? " · RÉPARTITION NON VALIDÉE" : "");
-    return "<button type=\"button\" class=\"" + shapeClass(l) +
-      (repartitionEnAttente(l) ? " has-v" : "") + "\" data-id=\"" + l.id + "\" " +
+    var titre = l.ref + " · " + typeLabel(l.type) + " · " + ageLabel;
+    return "<button type=\"button\" class=\"" + shapeClass(l) + "\" data-id=\"" + l.id + "\" " +
       "title=\"" + escapeHtml(titre) + "\">" +
       "<span class=\"shape-nb\">" + l.nombre + "</span>" +
       "<span class=\"shape-age\">" + escapeHtml(ageLabel) + "</span>" +
       "<span class=\"shape-ref\">" + escapeHtml(l.ref || "") + "</span>" +
-      rTag + vTag + "</button>";
+      rTag + "</button>";
   }
 
   // Le titre contient des nombres dynamiques : il ne peut pas être traduit
@@ -1047,7 +1042,6 @@ var CAEKBassin = (function () {
 
     body.innerHTML =
       "<h2 class=\"block-title\">Lot " + escapeHtml(lot.ref) + "</h2>" +
-      repartitionBanniereHtml(lot) +
       "<div class=\"det-grid\">" + rows + "</div>" +
       "<div id=\"bassin-sortie-zone\" data-id=\"" + lot.id + "\" data-st=\"" + st + "\">" + action + "</div>" +
       revoir;
@@ -1068,113 +1062,13 @@ var CAEKBassin = (function () {
     $("bassin-detail").hidden = false;
   }
 
-  /* ============================================================
-     VALIDATION DE LA RÉPARTITION (ingénieur / responsable)
-     ------------------------------------------------------------
-     Une erreur d'age saisie par l'operateur a la repartition reste
-     invisible jusqu'a l'echeance — donc trop tard. La repartition est
-     signalee en ROUGE tant qu'un ingenieur/responsable ne l'a pas
-     controlee.
-
-     ATTENTION — portée réelle du contrôle : le schéma déployé
-     synchronise le lot comme un `jsonb` libre (`op_upsert_lot`),
-     sans RPC de validation ni vérification de rôle côté serveur.
-     Le contrôle de rôle ci-dessous est donc CLIENT uniquement : il
-     guide et trace, il n'est pas opposable à un client modifié. Une
-     validation opposable exigerait une migration (cf. le run
-     d'audit 2026-08-15 : ne jamais supposer une migration déployée).
-     ============================================================ */
-  function roleMetier() {
-    return (window.CAEKOperateurs && CAEKOperateurs.roleMetier)
-      ? CAEKOperateurs.roleMetier() : "operator";
-  }
-  function peutValiderRepartition() {
-    var r = roleMetier();
-    return r === "engineer" || r === "responsable" || r === "principal_admin";
-  }
-  // Répartition en attente de contrôle ? (drapeau posé à la répartition ;
-  // les lots antérieurs à cette évolution ne sont jamais signalés à tort.)
-  // L'acceptation TACITE lève l'attente : passé le délai, la répartition de
-  // l'opérateur fait foi et le lot ne doit plus être signalé.
-  function repartitionEnAttente(lot) {
-    if (!lot || !lot.repartitionAValider || lot.repartitionValideePar) { return false; }
-    return !CAEKModel.repartitionTacite(lot);
-  }
-
-  function repartitionBanniereHtml(lot) {
-    if (lot && lot.repartitionValideePar) {
-      return "<div class=\"result-card is-ok repart-valid\">&#10004; Répartition validée par " +
-        escapeHtml(lot.repartitionValideePar) +
-        (lot.repartitionValideeLe ? " le " + fmtDate(lot.repartitionValideeLe) : "") +
-        "</div>";
-    }
-    // Délai écoulé sans réponse de l'ingénieur : la répartition de l'opérateur
-    // fait foi. On l'affiche explicitement plutôt que de rester muet.
-    if (lot && lot.repartitionAValider && !lot.repartitionValideePar
-        && CAEKModel.repartitionTacite(lot)) {
-      return "<div class=\"result-card repart-tacite\">&#8987; Répartition acceptée " +
-        "automatiquement (sans réponse de l'ingénieur dans le délai). " +
-        "Elle reste celle soumise par " +
-        escapeHtml(lot.operateurRepartition || "l'opérateur") + ".</div>";
-    }
-    if (!repartitionEnAttente(lot)) { return ""; }
-    var reste = CAEKModel.joursAvantTacite(lot);
-    var html = "<div class=\"result-card repart-urgent\">" +
-      "<strong>&#9888; URGENT — RÉPARTITION NON VALIDÉE</strong><br>" +
-      "Les âges et les dates d'essai n'ont pas encore été contrôlés. " +
-      "Une erreur d'âge ne se verra qu'à l'échéance, quand il sera trop tard." +
-      (reste == null ? "" :
-        "<br><strong>" + (reste <= 0
-          ? "Acceptation automatique aujourd'hui."
-          : "Sans réponse, acceptation automatique dans " + reste + " jour(s).") +
-        "</strong>") +
-      "</div>";
-    if (peutValiderRepartition()) {
-      html += "<button type=\"button\" class=\"btn-primary bassin-valider-repart\" data-ref=\"" +
-        escapeHtml(lot.ref) + "\">&#9989; Valider la répartition de ce coulage</button>";
-    } else {
-      html += "<p class=\"hint\">Seul un ingénieur ou un responsable peut valider la répartition.</p>";
-    }
-    return html;
-  }
-
-  // Valide la répartition de TOUS les lots encore en bassin du coulage :
-  // la répartition est un acte global, jamais lot par lot.
-  // NB : nom distinct de `validerRepartition(form, coulage)` (ligne ~512), qui
-  // SOUMET la répartition côté opérateur. Deux actes différents, et deux
-  // déclarations homonymes s'écraseraient silencieusement (hoisting).
-  function validerRepartitionParIngenieur(ref) {
-    if (!peutValiderRepartition()) { return; }
-    var prof = window.CAEKProfil
-      ? CAEKProfil.require("Profil requis pour valider une répartition.") : null;
-    if (window.CAEKProfil && !prof) { return; }
-    CAEKDB.getLotsByRef(ref).then(function (lots) {
-      var cibles = (lots || []).filter(repartitionEnAttente);
-      if (!cibles.length) { return null; }
-      var recap = cibles.map(function (l) {
-        return "  · E" + (l.prel || "?") + " — " + l.nombre + " épr. " +
-          (l.age === "autre" ? l.ageJours + "j" : l.age) +
-          " — essai prévu le " + fmtDate(l.datePrevue);
-      }).join("\n");
-      if (!window.confirm("Valider la répartition de " + ref + " ?\n\n" + recap +
-          "\n\nVérifiez que les âges et les dates d'essai sont corrects.")) { return null; }
-      var now = new Date().toISOString();
-      return Promise.all(cibles.map(function (l) {
-        l.repartitionValideePar = (prof && prof.nom) || "";
-        l.repartitionValideeRole = roleMetier();
-        l.repartitionValideeLe = now;
-        return CAEKDB.updateLot(l);
-      })).then(function () { return cibles.length; });
-    }).then(function (n) {
-      if (!n) { return; }
-      $("bassin-detail").hidden = true;
-      refreshBassin();
-      if (window.CAEKBadges) { CAEKBadges.refresh(); }
-      window.alert("Répartition validée : " + n + " lot(s) de " + ref + ".");
-    }).catch(function (e) {
-      window.alert("Erreur lors de la validation : " + (e && e.message || e));
-    });
-  }
+  // Validation de la répartition par l'ingénieur/responsable : écran
+  // Validation UNIQUEMENT (module validation.js), pas ici. Poser deux
+  // entrées pour la même action — une ici, une là-bas — avait fini par
+  // dérouter l'utilisateur plus qu'autre chose. Ce module se contente de
+  // poser le drapeau `repartitionAValider` à la création du lot (ci-dessus,
+  // dans `confirmerRepartition`) ; le reste (récapitulatif, acceptation
+  // tacite, action Valider/Corriger) est entièrement dans validation.js.
 
   function detRow(label, val) {
     return "<div class=\"det-row\"><span class=\"det-label\">" + escapeHtml(label) +
@@ -1237,15 +1131,6 @@ var CAEKBassin = (function () {
     var confirmSortie = window.I18N && I18N.f
       ? I18N.f("Confirmer la sortie pour essai de ce lot ({n} éprouvette(s)) ?", { n: lot.nombre })
       : "Confirmer la sortie pour essai de ce lot (" + lot.nombre + " éprouvette(s)) ?";
-    // Répartition jamais contrôlée : dernier moment utile pour voir une erreur
-    // d'âge. On AVERTIT sans bloquer — bloquer ferait manquer l'échéance
-    // d'essai si aucun ingénieur n'est disponible, ce qui serait pire.
-    if (repartitionEnAttente(lot)) {
-      confirmSortie = "⚠ RÉPARTITION NON VALIDÉE par un ingénieur/responsable.\n" +
-        "Âge : " + (lot.age === "autre" ? lot.ageJours + " jours" : lot.age) +
-        " — essai prévu le " + fmtDate(lot.datePrevue) + ".\n" +
-        "Vérifiez que l'âge est correct AVANT de sortir le lot.\n\n" + confirmSortie;
-    }
     if (!window.confirm(confirmSortie)) { return; }
 
     lot.statut = "sorti";
@@ -1459,8 +1344,6 @@ var CAEKBassin = (function () {
         if (ev.target.closest && ev.target.closest("#sortie-valider")) { confirmSortie(); return; }
         var fb = ev.target.closest ? ev.target.closest(".bassin-forcer") : null;
         if (fb) { forcerPassage(intOr0(fb.getAttribute("data-id"))); return; }
-        var vr = ev.target.closest ? ev.target.closest(".bassin-valider-repart") : null;
-        if (vr) { validerRepartitionParIngenieur(vr.getAttribute("data-ref")); return; }
         var rev = ev.target.closest ? ev.target.closest(".bassin-revoir") : null;
         if (rev) {
           overlay.hidden = true;
@@ -1481,10 +1364,19 @@ var CAEKBassin = (function () {
     if (share) { share.addEventListener("click", shareArchives); }
   }
 
+  // Entrée publique pour l'action « Corriger » de l'écran Validation
+  // (validation.js) : ouvre exactement le même écran de reprise que le
+  // bouton interne « Revoir la répartition de ce coulage ».
+  function revoirRepartition(ref) {
+    _pendingRevoirRef = ref;
+    if (window.CAEKApp) { CAEKApp.navigate("screen-repartir"); }
+  }
+
   return {
     init: init,
     refreshRepartir: refreshRepartir,
     refreshBassin: refreshBassin,
-    refreshArchives: refreshArchives
+    refreshArchives: refreshArchives,
+    revoirRepartition: revoirRepartition
   };
 })();

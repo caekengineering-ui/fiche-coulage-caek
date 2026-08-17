@@ -1233,33 +1233,6 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
   font-size: 13px;
 }
 
-/* Repartition pas encore validee : pastille « ! » + lisere rouge, visibles
-   des la liste du bassin pour reperer une erreur d'age avant l'echeance. */
-.shape-v {
-  position: absolute;
-  top: 2px;
-  left: 6px;
-  font-weight: 900;
-  font-size: 14px;
-  color: #fff;
-  background: var(--caek-red);
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  line-height: 16px;
-  text-align: center;
-}
-.bassin-shape.has-v { outline: 2px dashed var(--caek-red); outline-offset: -3px; }
-
-/* Bandeau « repartition non validee » dans le detail du lot. */
-.repart-urgent {
-  background: #fdeaea;
-  border: 2px solid var(--caek-red);
-  color: var(--caek-red-dark);
-  margin-bottom: 10px;
-}
-.repart-valid { margin-bottom: 10px; }
-
 /* ---- Overlay detail / ecrasement ---- */
 .bassin-overlay {
   position: fixed;

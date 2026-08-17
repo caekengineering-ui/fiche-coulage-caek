@@ -617,6 +617,7 @@ var I18N = (function () {
     "Enregistrement serveur impossible.": "تعذّر التسجيل على الخادم.",
 
     // ---- Validation coulage ----
+    "Valider": "المصادقة",
     "Corriger": "تصحيح",
     "Corriger / renvoyer le coulage": "تصحيح / إعادة الصبّ",
     "Renvoyer à l'opérateur": "إعادة إلى المُشغّل",
@@ -879,9 +880,14 @@ var I18N = (function () {
     "Répartition validée.": "تمت المصادقة على التوزيع.",
     "À contrôler": "للمراجعة",
     "Réparti par": "وزّعها",
+    "Réparti par :": "وزّعها:",
+    "Éprouvettes prélevées": "العيّنات المأخوذة",
+    "Éprouvettes prélevées :": "العيّنات المأخوذة:",
     "Confirmez que ces valeurs sont correctes.": "أكّد صحّة هذه القيم.",
     "Vérifiez que l'âge et la date d'essai correspondent à ce qui a été convenu. Après l'échéance, l'erreur n'est plus rattrapable.":
       "تأكّد من مطابقة العمر وتاريخ الاختبار لما تمّ الاتفاق عليه. بعد الاستحقاق لا يمكن تدارك الخطأ.",
+    "Vérifiez que les âges et les dates d'essai correspondent à ce qui a été convenu. Après l'échéance, l'erreur n'est plus rattrapable.":
+      "تأكّد من مطابقة الأعمار وتواريخ الاختبار لما تمّ الاتفاق عليه. بعد الاستحقاق لا يمكن تدارك الخطأ.",
     "Résultats du lot": "نتائج الدفعة",
     "Cubique": "مكعّبي",
     "Cylindrique": "أسطواني",
@@ -1370,6 +1376,20 @@ var I18N = (function () {
     ["(au plus tard la veille du 1er essai).", "(على أبعد تقدير عشيّة الاختبار الأول)."],
     ["Acceptation automatique aujourd'hui.", "موافقة تلقائية اليوم."],
     ["Dernier jour", "اليوم الأخير"],
+    // Récapitulatif groupé par coulage (une répartition = plusieurs échéances).
+    ["Proposé à", "المقترح عند"],
+    ["Synchronisation du coulage…", "جارٍ مزامنة الصبّ…"],
+    ["Coulage indisponible sur cet appareil : ouvrez le Répertoire pour le synchroniser.",
+      "الصبّ غير متوفّر على هذا الجهاز: افتح السجلّ لمزامنته."],
+    ["Coulage introuvable sur cet appareil, même après synchronisation.",
+      "تعذّر العثور على الصبّ على هذا الجهاز، حتى بعد المزامنة."],
+    ["Vérifiez la connexion, puis ouvrez le Répertoire.",
+      "تحقّق من الاتصال، ثم افتح السجلّ."],
+    ["Synchronisation impossible :", "تعذّرت المزامنة:"],
+    ["jour(s)", "يوم/أيام"],
+    ["Répartition validée (", "تمت المصادقة على التوزيع ("],
+    ["échéance(s)).", "استحقاق(ات))."],
+    ["échéance(s) déjà validée(s).", "استحقاق(ات) سبقت المصادقة عليها."],
     ["Essai prévu le :", "الاختبار مقرر يوم:"],
     ["répartition(s) ·", "توزيع ·"],
     ["résultat(s) à valider", "نتيجة للمصادقة"],

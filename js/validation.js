@@ -538,76 +538,165 @@ var CAEKValidation = (function () {
       escapeHtml(valeur == null || valeur === "" ? "—" : valeur) + "</div>";
   }
 
-  // Fiche d'un lot testé : TOUT ce qui identifie le coulage d'origine
-  // (ouvrage, dates, codification) doit être visible avant de valider.
-  /* Carte « répartition à contrôler ». Ce qui est vérifié ici, c'est l'ÂGE et
-     la DATE D'ESSAI : une erreur d'âge saisie à la répartition reste invisible
-     jusqu'à l'échéance, quand il est trop tard pour écraser au bon moment. */
-  function repItemHtml(row) {
-    var p = row.payload || {};
-    var codes = lotCodes(p);
-    var age = p.age === "autre" ? (p.ageJours + " j") : (p.age || (row.age_jours + " j"));
-    return "<div class=\"rep-item is-a-controler\" data-key=\"" + escapeHtml(row.lot_key) + "\">" +
+  // Une répartition produit en général PLUSIEURS lots (un par échéance : 7 j,
+  // 28 j…) en une seule action opérateur. L'ingénieur doit voir CETTE action
+  // comme un tout — un récapitulatif par coulage, pas une carte par lot — sans
+  // quoi la même répartition apparaît fragmentée en autant de cartes qu'il y
+  // a d'échéances.
+  function groupesRepartition() {
+    var byRef = {}, ordre = [];
+    _lotsR.forEach(function (row) {
+      if (!byRef[row.coulage_ref]) { byRef[row.coulage_ref] = []; ordre.push(row.coulage_ref); }
+      byRef[row.coulage_ref].push(row);
+    });
+    return ordre.map(function (ref) { return byRef[ref]; });
+  }
+
+  // Fiche d'une répartition à contrôler : identification du coulage (ouvrage,
+  // date, codification), puis le nombre d'éprouvettes proposé à CHAQUE
+  // ÉCHÉANCE par l'opérateur. C'est l'âge qui doit être vérifié : une erreur
+  // saisie ici reste invisible jusqu'à l'écrasement, quand il est trop tard
+  // pour la corriger.
+  function repGroupeHtml(lots) {
+    var ref = lots[0].coulage_ref;
+    var p0 = lots[0].payload || {};
+    var parAge = lots.slice().sort(function (a, b) {
+      return (a.age_jours || 0) - (b.age_jours || 0);
+    });
+    var totalEpr = 0, codes = [];
+    parAge.forEach(function (row) {
+      var p = row.payload || {};
+      totalEpr += num(p.nombre);
+      codes = codes.concat(lotCodes(p));
+    });
+    // Échéance la plus proche du groupe : c'est elle qui borne l'acceptation
+    // tacite (« veille du 1er essai »), pas la plus lointaine.
+    var pUrgent = parAge.reduce(function (a, row) {
+      var p = row.payload || {};
+      return (!a || (p.datePrevue && (!a.datePrevue || p.datePrevue < a.datePrevue))) ? p : a;
+    }, null) || {};
+    var lignesAges = parAge.map(function (row) {
+      var p = row.payload || {};
+      var age = p.age === "autre" ? (p.ageJours + " j") : (p.age || (row.age_jours + " j"));
+      return "<div class=\"valid-line valid-line-cle\"><strong>Proposé à " + escapeHtml(age) +
+        " : " + num(p.nombre) + " éprouvette(s)</strong> — essai prévu le " +
+        escapeHtml(p.datePrevue ? fmtDate(p.datePrevue) : "?") + "</div>";
+    }).join("");
+    return "<div class=\"rep-item is-a-controler\" data-ref=\"" + escapeHtml(ref) + "\">" +
       "<div class=\"rep-row\"><div class=\"rep-open\">" +
-      "<div class=\"rep-top\"><span class=\"rep-ref\">" + escapeHtml(row.coulage_ref) +
-      " · E" + escapeHtml(p.prel || "?") + "</span>" +
+      "<div class=\"rep-top\"><span class=\"rep-ref\">" + escapeHtml(ref) + "</span>" +
       "<span class=\"badge badge-a-controler\">À contrôler</span></div>" +
-      "<div class=\"rep-ent\">" + escapeHtml(p.client || p.entreprise || "—") + "</div>" +
+      "<div class=\"rep-ent\">" + escapeHtml(p0.client || p0.entreprise || "—") + "</div>" +
       "</div></div>" +
       "<div class=\"valid-detail\">" +
-      ligne("Projet", p.nomProjet) +
-      ligne("Ouvrage coulé", designationOuvrage(p)) +
-      ligne("Date du coulage", p.dateCoulage ? fmtDate(p.dateCoulage) : "") +
-      "<div class=\"valid-line valid-line-cle\"><strong>Âge : " + escapeHtml(age) +
-      " — essai prévu le " + escapeHtml(p.datePrevue ? fmtDate(p.datePrevue) : "?") +
-      "</strong></div>" +
-      ligne("Éprouvettes", (p.nombre || codes.length) + " · " + (p.type || "cube")) +
+      ligne("Projet", p0.nomProjet) +
+      ligne("Ouvrage coulé", designationOuvrage(p0)) +
+      ligne("Date du coulage", p0.dateCoulage ? fmtDate(p0.dateCoulage) : "") +
+      ligne("Éprouvettes prélevées", totalEpr + " · " + (p0.type || "cube")) +
       ligne("Codification échantillon", codes.join(" · ")) +
-      ligne("Réparti par", p.operateurRepartition) +
+      lignesAges +
+      ligne("Réparti par", p0.operateurRepartition) +
       (function () {
         // Compte à rebours avant acceptation tacite : l'ingénieur doit savoir
         // combien de temps il lui reste pour se prononcer.
-        var reste = CAEKModel.joursAvantTacite(p);
+        var reste = CAEKModel.joursAvantTacite(pUrgent);
         if (reste == null) { return ""; }
         return "<div class=\"valid-line valid-line-delai\">" + (reste <= 0
           ? "&#8987; <strong>Dernier jour</strong> : sans réponse, la répartition de l'opérateur sera acceptée."
           : "&#8987; Sans réponse, acceptation automatique dans <strong>" + reste +
             " jour(s)</strong> (au plus tard la veille du 1er essai).") + "</div>";
       }()) +
-      "<p class=\"hint\">Vérifiez que l'âge et la date d'essai correspondent à ce qui a été convenu. Après l'échéance, l'erreur n'est plus rattrapable.</p>" +
+      "<p class=\"hint\">Vérifiez que les âges et les dates d'essai correspondent à ce qui a été convenu. Après l'échéance, l'erreur n'est plus rattrapable.</p>" +
       "<div class=\"oper-actions\">" +
-      "<button type=\"button\" class=\"btn-primary\" data-act=\"valider-repartition\" data-key=\"" +
-      escapeHtml(row.lot_key) + "\">&#9989; Valider cette répartition</button></div>" +
+      "<button type=\"button\" class=\"btn-primary\" data-act=\"valider-repartition\" data-ref=\"" +
+      escapeHtml(ref) + "\">&#9989; Valider</button>" +
+      "<button type=\"button\" class=\"btn-text\" data-act=\"corriger-repartition\" data-ref=\"" +
+      escapeHtml(ref) + "\">&#9999;&#65039; Corriger</button>" +
+      "</div>" +
       "<div class=\"valid-result result-card\" hidden></div>" +
       "</div></div>";
   }
 
-  function validerRepartitionLot(key, itemEl) {
-    var row = null;
-    for (var i = 0; i < _lotsR.length; i++) {
-      if (_lotsR[i].lot_key === key) { row = _lotsR[i]; break; }
-    }
-    if (!row) { return; }
-    var p = row.payload || {};
-    var age = p.age === "autre" ? (p.ageJours + " j") : (p.age || "?");
-    if (!window.confirm("Valider la répartition de " + row.coulage_ref + " ?\n\n" +
-        "Âge : " + age + "\nEssai prévu le : " + (p.datePrevue ? fmtDate(p.datePrevue) : "?") +
+  // Valide TOUS les lots de la répartition (un par échéance) en une seule
+  // action : c'est un acte global, jamais lot par lot — l'ingénieur contrôle
+  // une répartition, pas des lots isolés.
+  function validerGroupeRepartition(ref, itemEl) {
+    var lots = _lotsR.filter(function (r) { return r.coulage_ref === ref; });
+    if (!lots.length) { return; }
+    var recap = lots.map(function (row) {
+      var p = row.payload || {};
+      var age = p.age === "autre" ? (p.ageJours + " j") : (p.age || (row.age_jours + " j"));
+      return "  · " + age + " : " + num(p.nombre) + " épr. — essai prévu le " +
+        (p.datePrevue ? fmtDate(p.datePrevue) : "?");
+    }).join("\n");
+    if (!window.confirm("Valider la répartition de " + ref + " ?\n\n" + recap +
         "\n\nConfirmez que ces valeurs sont correctes.")) { return; }
-    var maj = {};
-    Object.keys(p).forEach(function (k) { maj[k] = p[k]; });
+    var token = CAEKOperateurs.token();
     var s = (window.CAEKOperateurs && CAEKOperateurs.session) ? CAEKOperateurs.session() : null;
-    maj.repartitionValideePar = (s && (s.nom || s.identifiant)) || "";
-    maj.repartitionValideeRole = _roleMetier();
-    maj.repartitionValideeLe = new Date().toISOString();
-    CAEKServer.upsertLot(CAEKOperateurs.token(), key, maj).then(function (r) {
-      if (!r || r.ok !== true) {
-        resultBox(itemEl, "&#9888; Échec de la validation (" + escapeHtml((r && r.error) || "?") + ").", true);
+    var nomValidateur = (s && (s.nom || s.identifiant)) || "";
+    var role = _roleMetier();
+    var maintenant = new Date().toISOString();
+    var faits = 0, erreur = null, chaine = Promise.resolve();
+    lots.forEach(function (row) {
+      chaine = chaine.then(function () {
+        if (erreur) { return null; }
+        var maj = {};
+        Object.keys(row.payload || {}).forEach(function (k) { maj[k] = row.payload[k]; });
+        maj.repartitionValideePar = nomValidateur;
+        maj.repartitionValideeRole = role;
+        maj.repartitionValideeLe = maintenant;
+        return CAEKServer.upsertLot(token, row.lot_key, maj).then(function (r) {
+          if (!r || r.ok !== true) { erreur = (r && r.error) || "?"; return null; }
+          faits++;
+        });
+      });
+    });
+    chaine.then(function () {
+      if (erreur) {
+        resultBox(itemEl, "&#9888; Échec de la validation (" + escapeHtml(erreur) + ")" +
+          (faits ? " — " + faits + " échéance(s) déjà validée(s)." : "."), true);
         return;
       }
-      resultBox(itemEl, "&#10004; Répartition validée.", false);
+      resultBox(itemEl, "&#10004; Répartition validée (" + faits + " échéance(s)).", false);
       setTimeout(refresh, 600);
     }).catch(function (e) {
       resultBox(itemEl, "&#9888; Réseau requis : " + escapeHtml(e && e.message || ""), true);
+    });
+  }
+
+  /* Renvoie à l'écran de répartition pour reprendre les âges (même écran que
+     celui utilisé par l'opérateur).
+
+     ATTENTION : cet écran lit la base LOCALE de l'appareil, alors que cette
+     liste-ci vient du SERVEUR. Sur le téléphone de l'ingénieur, le coulage
+     réparti par l'opérateur n'est pas forcément en local — `CAEKCoulages.pull()`
+     n'est déclenché que par l'écran Répertoire. Sans la synchro ci-dessous,
+     « Corriger » débouchait sur la liste générique « à répartir », sans le
+     coulage visé : l'ingénieur n'avait aucun moyen de comprendre pourquoi. */
+  function corrigerGroupeRepartition(ref, itemEl) {
+    if (!window.CAEKBassin || !CAEKBassin.revoirRepartition) { return; }
+    var aller = function () { CAEKBassin.revoirRepartition(ref); };
+    var presentEnLocal = function () {
+      if (!window.CAEKDB || !CAEKDB.getAllCoulages) { return Promise.resolve(true); }
+      return CAEKDB.getAllCoulages().then(function (list) {
+        return (list || []).some(function (c) { return c.ref === ref; });
+      }).catch(function () { return true; });
+    };
+    presentEnLocal().then(function (present) {
+      if (present) { aller(); return null; }
+      // Absent : on le rapatrie avant de naviguer.
+      if (!window.CAEKCoulages || !CAEKCoulages.pull) {
+        resultBox(itemEl, "&#9888; Coulage indisponible sur cet appareil : ouvrez le Répertoire pour le synchroniser.", true);
+        return null;
+      }
+      resultBox(itemEl, "&#8987; Synchronisation du coulage…", false);
+      return CAEKCoulages.pull().then(presentEnLocal).then(function (ok) {
+        if (ok) { aller(); return null; }
+        resultBox(itemEl, "&#9888; Coulage introuvable sur cet appareil, même après synchronisation. " +
+          "Vérifiez la connexion, puis ouvrez le Répertoire.", true);
+      });
+    }).catch(function (e) {
+      resultBox(itemEl, "&#9888; Synchronisation impossible : " + escapeHtml(e && e.message || ""), true);
     });
   }
 
@@ -1004,12 +1093,13 @@ var CAEKValidation = (function () {
         (nb ? contenu : "<p class=\"hint\">&#10004; " + vide + "</p>") +
         "</section>";
     }
+    var groupesRep = groupesRepartition();
     var html =
       section("&#128230;", "Validation des coulages", _rows.length,
         function () { return _rows.map(itemHtml).join(""); }() ,
         "Aucun coulage en attente.") +
-      section("&#129514;", "Validation des répartitions", _lotsR.length,
-        function () { return _lotsR.map(repItemHtml).join(""); }(),
+      section("&#129514;", "Validation des répartitions", groupesRep.length,
+        function () { return groupesRep.map(repGroupeHtml).join(""); }(),
         "Aucune répartition en attente.") +
       section("&#128296;", "Validation des essais d'écrasement", _lotsT.length,
         function () { return _lotsT.map(lotItemHtml).join(""); }(),
@@ -1017,10 +1107,10 @@ var CAEKValidation = (function () {
     box.innerHTML = html;
     var cnt = $("valid-count");
     if (cnt) {
-      cnt.textContent = _rows.length + " coulage(s) · " + _lotsR.length +
+      cnt.textContent = _rows.length + " coulage(s) · " + groupesRep.length +
         " répartition(s) · " + _lotsT.length + " résultat(s) à valider";
     }
-    updateBadgeDisplay(_rows.length + _lotsR.length + _lotsT.length);
+    updateBadgeDisplay(_rows.length + groupesRep.length + _lotsT.length);
     loadMedias();
   }
 
@@ -1317,7 +1407,8 @@ var CAEKValidation = (function () {
       }
       else if (a === "renvoyer") { renvoyer(ref, item); }
       else if (a === "valider-lot") { validerLot(act.getAttribute("data-key"), item); }
-      else if (a === "valider-repartition") { validerRepartitionLot(act.getAttribute("data-key"), item); }
+      else if (a === "valider-repartition") { validerGroupeRepartition(act.getAttribute("data-ref"), item); }
+      else if (a === "corriger-repartition") { corrigerGroupeRepartition(act.getAttribute("data-ref"), item); }
       else if (a === "reviser-lot") {
         var rkey = act.getAttribute("data-key");
         var rpanel = item ? item.querySelector(".valid-revision") : null;
