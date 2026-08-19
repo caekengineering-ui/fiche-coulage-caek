@@ -500,19 +500,34 @@ var CAEKModel = (function () {
     return Math.round(v * f * 100) / 100;
   }
 
-  /* Jalon temoin a 7 jours : la resistance doit atteindre 75 % de la classe.
+  /* Jalons temoins : la resistance attendue depend de l'AGE de l'essai.
+       -  7 jours :  75 % de la classe (montee en resistance).
+       - 28 jours : 100 % de la classe (resistance caracteristique due).
      Comparaison faite sur la MEME base que la mesure — une moyenne cubique se
      compare a fck,cube, une moyenne cylindrique a fck,cyl. Ex. classe 35/45,
-     moyenne cubique 29 MPa : seuil 45 x 0.75 = 33.75 > 29 -> sous le jalon. */
-  var SEUIL_JALON_7J = 0.75;
+     moyenne cubique 29 MPa a 7 j : seuil 45 x 0.75 = 33.75 > 29 -> sous le
+     jalon ; la meme moyenne a 28 j se compare a 45 MPa.
+     Tout autre age n'a pas de jalon normatif ici : on n'en invente pas. */
+  var JALONS = { 7: 0.75, 28: 1 };
 
-  function jalon7j(moyenne, classe, base) {
+  // `age` : age REEL de l'essai en jours (date d'essai - date de coulage).
+  // Retourne null si l'age n'a pas de jalon, ou si la classe est inexploitable.
+  function jalonAge(age, moyenne, classe, base) {
+    var part = JALONS[parseInt(age, 10)];
+    if (!part) { return null; }
     var p = classePaire(classe);
     var m = parseFloat(moyenne);
     if (!p || !isFinite(m)) { return null; }
     var reference = (base === "cylindre") ? p.cyl : p.cube;
-    var seuil = Math.round(reference * SEUIL_JALON_7J * 100) / 100;
-    return { seuil: seuil, reference: reference, atteint: m >= seuil, moyenne: m };
+    var seuil = Math.round(reference * part * 100) / 100;
+    return {
+      age: parseInt(age, 10),
+      pourcentage: Math.round(part * 100),
+      seuil: seuil,
+      reference: reference,
+      atteint: m >= seuil,
+      moyenne: m
+    };
   }
 
   return {
@@ -549,7 +564,7 @@ var CAEKModel = (function () {
     facteurConversionClasse: facteurConversionClasse,
     classeBetonLot: classeBetonLot,
     cubeVersCylindre: cubeVersCylindre,
-    jalon7j: jalon7j,
-    SEUIL_JALON_7J: SEUIL_JALON_7J
+    jalonAge: jalonAge,
+    JALONS: JALONS
   };
 })();

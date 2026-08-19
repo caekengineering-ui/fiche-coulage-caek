@@ -16,6 +16,7 @@ var CAEKValidation = (function () {
   "use strict";
 
   var _rows = [];        // coulages 'soumis' (lignes serveur)
+  var _coulagesParRef = {};  // ref -> payload, TOUS statuts (classe de béton)
   var _lotsR = [];       // lots 'en_bassin' dont la RÉPARTITION reste à valider
   var _lotsT = [];       // lots 'teste' (résultats d'écrasement à valider)
   var _labos = {};       // id -> nom
@@ -39,6 +40,10 @@ var CAEKValidation = (function () {
     return p.length === 3 ? (p[2] + "/" + p[1] + "/" + p[0]) : s;
   }
   function num(v) { var s = window.CAEKModel ? CAEKModel.normDigits(v) : String(v == null ? "" : v); var n = parseFloat(s.replace(",", ".")); return isNaN(n) ? 0 : n; }
+  // Traduction à la CONSTRUCTION, pour les textes contenant des valeurs
+  // dynamiques (âge, seuil, classe) : le traducteur de DOM ne reconnaît pas
+  // ces nœuds mélangés, alors qu'une clé exacte se résout ici sans ambiguïté.
+  function tr(s) { return window.I18N ? I18N.T(s) : s; }
   function modeCoulageLabel(c) {
     var mode = (c && c.modeCoulage) || "";
     if (mode === "pompe") { return "Pompe"; }
@@ -700,6 +705,61 @@ var CAEKValidation = (function () {
     });
   }
 
+  /* Synthèse d'un lot testé, affichée AVANT de valider : moyenne / min / max
+     en cubique et en cylindrique, plus le jalon témoin de l'âge (75 % de la
+     classe à 7 j, 100 % à 28 j). C'est sur ces valeurs que l'ingénieur juge
+     le résultat — les lui faire calculer de tête serait une source d'erreur.
+     Sans classe exploitable, aucune valeur cylindrique n'est affichée :
+     recopier la valeur cubique en face de « cylindrique » serait un faux. */
+  function syntheseLotHtml(row) {
+    var p = row.payload || {};
+    var essais = p.essais || [];
+    var vals = essais.map(function (e) { return revNum(e.rc) || revRc(e.force, e.forme, e.dim1, e.dim2); })
+      .filter(function (n) { return n > 0; });
+    if (!vals.length) { return ""; }
+    var arr = function (n) { return Math.round(n * 100) / 100; };
+    var moy = arr(vals.reduce(function (a, n) { return a + n; }, 0) / vals.length);
+    var mini = arr(Math.min.apply(null, vals));
+    var maxi = arr(Math.max.apply(null, vals));
+    var classe = classeBetonLot(row);
+    var paire = CAEKModel.classePaire(classe);
+    var hasCube = essais.some(function (e) { return (e.forme || "cube") !== "cylindre"; });
+    var base = hasCube ? "cube" : "cylindre";
+    var versCyl = function (v) { return hasCube ? CAEKModel.cubeVersCylindre(v, classe) : v; };
+    var lig = function (lib, cube, cyl, fort) {
+      var g = fort ? "strong" : "span";
+      return "<tr><td>" + lib + "</td>" +
+        "<td><" + g + ">" + cube + "</" + g + "></td>" +
+        "<td><" + g + ">" + (cyl == null ? "—" : cyl) + "</" + g + "></td></tr>";
+    };
+    var jal = CAEKModel.jalonAge(ageReelLot(row), moy, classe, base);
+    var jalonHtml = "";
+    if (jal) {
+      jalonHtml = jal.atteint
+        ? "<div class=\"comp-hist-jalon is-ok\">&#9989; " + tr("Jalon") + " " + jal.age + " " +
+          tr("j atteint") + " : " + moy + " &#8805; " + jal.seuil + " MPa (" +
+          jal.pourcentage + " % " + tr("de") + " " + jal.reference + ")</div>"
+        : "<div class=\"comp-hist-jalon is-bad\">&#9888; " + tr("SOUS LE JALON") + " " + jal.age +
+          " " + tr("j") + " : " + moy + " &lt; " + jal.seuil + " MPa (" +
+          jal.pourcentage + " % " + tr("de") + " " + jal.reference + ")</div>";
+    }
+    return "<div class=\"valid-synth" + (jal && !jal.atteint ? " is-sous-jalon" : "") + "\">" +
+      "<table class=\"comp-hist-synth\"><thead><tr><th>" + tr("Résultats du lot") + "</th>" +
+      "<th>" + tr("Cubique") + "</th><th>" + tr("Cylindrique") + "</th></tr></thead><tbody>" +
+      lig(tr("Moyenne"), moy, versCyl(moy), true) +
+      lig(tr("Minimum"), mini, versCyl(mini), false) +
+      lig(tr("Maximum"), maxi, versCyl(maxi), false) +
+      "</tbody></table>" +
+      "<div class=\"comp-hist-synth-note\">" +
+      (!hasCube
+        ? tr("éprouvettes déjà cylindriques")
+        : (paire
+          ? tr("classe") + " " + escapeHtml(classe) + " · " + tr("facteur") + " " + paire.facteur
+          : "<span class=\"comp-hist-noclasse\">&#9888; " +
+            tr("classe de béton absente : conversion impossible") + "</span>")) +
+      "</div>" + jalonHtml + "</div>";
+  }
+
   function lotItemHtml(row) {
     var p = row.payload || {};
     var labo = _labos[row.labo_id] || "—";
@@ -729,6 +789,7 @@ var CAEKValidation = (function () {
       (p.ecartEssai ? "<div class=\"valid-line\">&#9888; Essai hors date prévue" +
         (p.motifEcart ? " — " + escapeHtml(p.motifEcart) : "") +
         (p.justificationEcart ? " : " + escapeHtml(p.justificationEcart) : "") + "</div>" : "") +
+      syntheseLotHtml(row) +
       "</div>" +
       "<div class=\"oper-actions\">" +
       "<button type=\"button\" class=\"btn-primary\" data-act=\"valider-lot\" data-key=\"" +
@@ -781,15 +842,14 @@ var CAEKValidation = (function () {
     return j >= 0 ? j : null;
   }
 
-  // Coulage d'origine d'un lot, s'il est encore dans la liste des soumis.
-  // Une fois le coulage validé il en disparaît : le lot doit alors porter sa
-  // propre classe (posée à la répartition depuis `bassin.js`).
+  // Coulage d'origine d'un lot. La classe de béton est saisie dans la
+  // FORMULATION du coulage : on la cherche dans l'index de tous les coulages
+  // du labo, pas seulement les « soumis » — sinon la classe disparaît dès que
+  // le coulage est validé, et les lots anciens (créés avant que la classe ne
+  // soit recopiée sur le lot à la répartition) n'en ont aucune.
   function coulageDuLot(row) {
     var ref = (row && (row.ref || row.coulage_ref)) || "";
-    for (var i = 0; i < _rows.length; i++) {
-      if (_rows[i].ref === ref) { return _rows[i].payload || {}; }
-    }
-    return null;
+    return _coulagesParRef[ref] || null;
   }
   function classeBetonLot(row) {
     return CAEKModel.classeBetonLot((row && row.payload) || {}, coulageDuLot(row));
@@ -824,15 +884,17 @@ var CAEKValidation = (function () {
         ". Renseignez la classe du coulage pour obtenir la conversion.";
     }
 
-    // Jalon témoin à 7 jours : 75 % de la résistance de la classe.
+    // Jalon témoin : 75 % de la classe à 7 j, 100 % à 28 j. L'ingénieur juge
+    // ainsi le résultat AVANT de valider, sans calcul mental.
     var jalonHtml = "";
-    var jal = (ageReelLot(row) === 7) ? CAEKModel.jalon7j(mean, classe, base) : null;
+    var jal = CAEKModel.jalonAge(ageReelLot(row), mean, classe, base);
     if (jal) {
       jalonHtml = jal.atteint
-        ? "<br>&#9989; Jalon 7 j atteint : " + mean + " &#8805; " + jal.seuil +
-          " MPa (75 % de " + jal.reference + ")"
-        : "<br><strong>&#9888; Sous le jalon 7 j : " + mean + " &lt; " + jal.seuil +
-          " MPa (75 % de " + jal.reference + ")</strong>";
+        ? "<br>&#9989; " + tr("Jalon") + " " + jal.age + " " + tr("j atteint") + " : " + mean +
+          " &#8805; " + jal.seuil + " MPa (" + jal.pourcentage + " % " + tr("de") + " " + jal.reference + ")"
+        : "<br><strong>&#9888; " + tr("SOUS LE JALON") + " " + jal.age + " " + tr("j") + " : " +
+          mean + " &lt; " + jal.seuil + " MPa (" + jal.pourcentage + " % " + tr("de") + " " +
+          jal.reference + ")</strong>";
     }
     var cls = (jal && !jal.atteint) ? "result-card rev-summary is-warn" : "result-card rev-summary is-ok";
     return "<div class=\"" + cls + "\"><strong>Moyenne Rc " +
@@ -1196,6 +1258,15 @@ var CAEKValidation = (function () {
       _labos = {};
       ((out[1] && out[1].labos) || []).forEach(function (b) { _labos[b.id] = b.nom; });
       _rows = (out[0] || []).filter(function (r) { return r.statut === "soumis"; });
+      // Index de TOUS les coulages du labo, quel que soit leur statut.
+      // `op_list_coulages` les renvoie tous : ne garder que les « soumis »
+      // faisait perdre la classe de béton dès que le coulage était validé
+      // (il quitte alors `_rows`), d'où le message « classe absente » sur
+      // des lots parfaitement renseignés.
+      _coulagesParRef = {};
+      (out[0] || []).forEach(function (c) {
+        if (c && c.ref) { _coulagesParRef[c.ref] = c.payload || {}; }
+      });
       _lotsT = (out[2] || []).filter(function (r) { return r.statut === "teste" && r.lot_key; });
       // Répartitions en attente de contrôle : signalées à la répartition
       // (`repartitionAValider`) et pas encore validées. Les lots créés avant

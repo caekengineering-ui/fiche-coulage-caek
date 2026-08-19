@@ -623,8 +623,9 @@ var CAEKCompression = (function () {
       };
       var moyCyl = versCyl(moyenne), minCyl = versCyl(mini), maxCyl = versCyl(maxi);
       var ageLot = essais.length ? diffDays(l.dateCoulage, essais[0].dateEssai) : "";
-      var jal = (moyenne != null && ageLot === 7)
-        ? CAEKModel.jalon7j(moyenne, classe, aCube ? "cube" : "cylindre") : null;
+      // Jalon temoin selon l'age reel : 75 % de la classe a 7 j, 100 % a 28 j.
+      var jal = (moyenne != null)
+        ? CAEKModel.jalonAge(ageLot, moyenne, classe, aCube ? "cube" : "cylindre") : null;
       var moyenneHtml = "";
       if (moyenne != null) {
         // Trois lignes Moyenne / Min / Max, chacune dans les deux bases.
@@ -652,10 +653,12 @@ var CAEKCompression = (function () {
           "</div>" +
           (jal
             ? (jal.atteint
-              ? "<div class=\"comp-hist-jalon is-ok\">&#9989; " + tr("Jalon 7 j atteint") +
-                " : " + moyenne + " &#8805; " + jal.seuil + " MPa (75 % " + tr("de") + " " + jal.reference + ")</div>"
-              : "<div class=\"comp-hist-jalon is-bad\">&#9888; " + tr("SOUS LE JALON 7 j") +
-                " : " + moyenne + " &lt; " + jal.seuil + " MPa (75 % " + tr("de") + " " + jal.reference + ")</div>")
+              ? "<div class=\"comp-hist-jalon is-ok\">&#9989; " + tr("Jalon") + " " + jal.age + " " +
+                tr("j atteint") + " : " + moyenne + " &#8805; " + jal.seuil + " MPa (" +
+                jal.pourcentage + " % " + tr("de") + " " + jal.reference + ")</div>"
+              : "<div class=\"comp-hist-jalon is-bad\">&#9888; " + tr("SOUS LE JALON") + " " + jal.age +
+                " " + tr("j") + " : " + moyenne + " &lt; " + jal.seuil + " MPa (" +
+                jal.pourcentage + " % " + tr("de") + " " + jal.reference + ")</div>")
             : "") +
           "</div>";
       }

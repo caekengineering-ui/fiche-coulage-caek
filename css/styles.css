@@ -1508,6 +1508,15 @@ textarea.field { resize: vertical; min-height: 48px; font-family: inherit; }
 .comp-hist-synth th:first-child, .comp-hist-synth td:first-child { text-align: left; }
 .comp-hist-synth thead th { border-bottom: 1px solid #cfe0f2; font-weight: 700; }
 .comp-hist-synth-note { margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+/* Synthese d'un lot dans l'ecran Validation (memes reperes que l'historique). */
+.valid-synth {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #cfe0f2;
+  border-radius: 8px;
+  background: #f4f9ff;
+}
+.valid-synth.is-sous-jalon { background: #fff3e0; border-color: #f0c98a; }
 .comp-hist-jalon { margin-top: 5px; font-weight: 700; }
 .comp-hist-jalon.is-ok { color: #205020; }
 .comp-hist-jalon.is-bad { color: var(--caek-red-dark); }

@@ -903,8 +903,12 @@ var I18N = (function () {
     "de": "من",
     "classe de béton absente : conversion impossible":
       "صنف الخرسانة غير محدّد: التحويل غير ممكن",
-    "Jalon 7 j atteint": "بلوغ عتبة 7 أيام",
-    "SOUS LE JALON 7 j": "دون عتبة 7 أيام",
+    // Jalons témoins : l'âge est dynamique (7 j -> 75 %, 28 j -> 100 %),
+    // les libellés sont donc assemblés autour du nombre.
+    "Jalon": "عتبة",
+    "j atteint": "يوم مُحقّقة",
+    "SOUS LE JALON": "دون العتبة",
+    "j": "يوم",
     "essai le": "اختبار يوم",
     "Coulé le": "صُبّ يوم",
     "Opérateur": "المُشغّل",
@@ -1407,9 +1411,9 @@ var I18N = (function () {
       "أدخل صنف الصبّ للحصول على التحويل."],
     ["illisible («", "غير مقروء («"],
     ["absente", "غير محدّد"],
-    ["Sous le jalon 7 j :", "دون عتبة 7 أيام:"],
-    ["Jalon 7 j atteint :", "بلوغ عتبة 7 أيام:"],
+    // Jalons : l'âge et le pourcentage varient (7 j -> 75 %, 28 j -> 100 %).
     ["MPa (75 % de", "MPa (75 % من"],
+    ["MPa (100 % de", "MPa (100 % من"],
     ["(facteur", "(معامل"],
     ["Référence coulage", "مرجع الصبّ"],
     ["Opérateur(s) :", "المُشغّل(ون):"],
