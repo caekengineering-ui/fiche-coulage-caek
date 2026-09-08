@@ -25,6 +25,7 @@ var CAEKMedias = (function () {
   function objUrl(path) {
     return CAEK_CONFIG.SUPABASE_URL + "/storage/v1/object/" + BUCKET + "/" + path;
   }
+  function edgeUrl() { return CAEK_CONFIG.SUPABASE_URL + "/functions/v1/media-access"; }
   function headers(extra) {
     var h = {
       "apikey": CAEK_CONFIG.SUPABASE_ANON,
@@ -44,10 +45,53 @@ var CAEKMedias = (function () {
     return EXT[mime] || (categorie === "audio" ? "webm" : "jpg");
   }
 
-  function upload(path, blob) {
+  function uuid() {
+    if (window.crypto && crypto.randomUUID) { return crypto.randomUUID(); }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (ch) {
+      var r = Math.random() * 16 | 0;
+      return (ch === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  function blobBase64(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var s = String(reader.result || "");
+        resolve(s.slice(s.indexOf(",") + 1));
+      };
+      reader.onerror = function () { reject(reader.error || new Error("lecture_media")); };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function uploadEdge(ref, mediaUuid, path, blob) {
+    if (!window.CAEKOperateurs || !CAEKOperateurs.token()) { return Promise.reject(new Error("auth")); }
+    return blobBase64(blob).then(function (base64) {
+      return fetch(edgeUrl(), {
+        method: "POST",
+        headers: headers({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          action: "upload", token: CAEKOperateurs.token(), coulageRef: ref,
+          mediaUuid: mediaUuid, storagePath: path,
+          mime: (blob && blob.type) || "application/octet-stream",
+          taille: (blob && blob.size) || 0, base64: base64
+        })
+      });
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok || body.ok !== true) { throw new Error("media-access " + res.status); }
+        return true;
+      });
+    });
+  }
+
+  // Repli de transition : INSERT unique uniquement. L'ancien x-upsert=true
+  // exigeait UPDATE, explicitement interdit par les règles Storage Phase 0.
+  function uploadDirect(path, blob) {
     return fetch(objUrl(path), {
       method: "POST",
-      headers: headers({ "Content-Type": (blob && blob.type) || "application/octet-stream", "x-upsert": "true" }),
+      headers: headers({ "Content-Type": (blob && blob.type) || "application/octet-stream" }),
       body: blob
     }).then(function (res) {
       if (!res.ok) {
@@ -56,6 +100,25 @@ var CAEKMedias = (function () {
         });
       }
       return true;
+    });
+  }
+
+  function register(ref, mediaUuid, path, blob) {
+    if (!window.CAEKServer || !CAEKServer.mediaRegister || !window.CAEKOperateurs) {
+      return Promise.resolve(true);
+    }
+    return CAEKServer.mediaRegister(CAEKOperateurs.token(), {
+      uuid: mediaUuid, coulageRef: ref, storagePath: path,
+      mime: (blob && blob.type) || "", taille: (blob && blob.size) || 0
+    }).then(function (r) {
+      if (!r || r.ok !== true) { throw new Error((r && r.error) || "media_register"); }
+      return true;
+    });
+  }
+
+  function upload(ref, mediaUuid, path, blob) {
+    return uploadEdge(ref, mediaUuid, path, blob).catch(function () {
+      return uploadDirect(path, blob).then(function () { return register(ref, mediaUuid, path, blob); });
     });
   }
 
@@ -74,9 +137,11 @@ var CAEKMedias = (function () {
           if (!ph || !ph.blob) { return; }
           var cat = ph.categorie || "photo";
           var type = (cat === "audio") ? "audio" : "photo";
-          var path = "coulages/" + ref + "/" + cat + "_" + ph.id + "." + extOf(ph.blob, cat);
-          return upload(path, ph.blob).then(function () {
-            medias.push({ path: path, categorie: cat, type: type });
+          if (!ph.mediaUuid) { ph.mediaUuid = uuid(); }
+          var keepUuid = (CAEKDB.updatePhoto ? CAEKDB.updatePhoto(ph) : Promise.resolve());
+          var path = "coulages/" + ref + "/" + cat + "_" + ph.mediaUuid + "." + extOf(ph.blob, cat);
+          return keepUuid.then(function () { return upload(ref, ph.mediaUuid, path, ph.blob); }).then(function () {
+            medias.push({ uuid: ph.mediaUuid, path: path, categorie: cat, type: type });
           }).catch(function () { incomplet = true; });
         });
       }, Promise.resolve()).then(function () {
@@ -85,8 +150,18 @@ var CAEKMedias = (function () {
     }).catch(function () { return { medias: [], incomplet: true }; });
   }
 
-  function fetchBlob(path) {
-    return fetch(objUrl(path), { headers: headers() }).then(function (res) {
+  function fetchBlob(path, ref, mediaUuid) {
+    var signed = (ref && mediaUuid && window.CAEKOperateurs && CAEKOperateurs.token())
+      ? fetch(edgeUrl(), {
+          method: "POST", headers: headers({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ action: "read", token: CAEKOperateurs.token(),
+            coulageRef: ref, mediaUuid: mediaUuid })
+        }).then(function (res) { return res.json(); }).then(function (r) {
+          if (!r || r.ok !== true || !r.url) { throw new Error("signature_media"); }
+          return fetch(r.url);
+        })
+      : Promise.reject(new Error("manifest_legacy"));
+    return signed.catch(function () { return fetch(objUrl(path), { headers: headers() }); }).then(function (res) {
       if (!res.ok) { throw new Error("Storage " + res.status); }
       return res.blob();
     });

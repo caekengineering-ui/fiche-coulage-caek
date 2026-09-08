@@ -167,6 +167,11 @@ var CAEKOperateurs = (function () {
       writeSession(_session);
       applyActive();
       renderAll();
+      // Les référentiels en mémoire peuvent appartenir à la session
+      // précédente. Ils sont rechargés avec le nouveau jeton avant la saisie.
+      if (window.CAEKLaboFilter) { CAEKLaboFilter.refresh(); }
+      if (window.CAEKCentrales) { CAEKCentrales.refresh(); }
+      if (window.CAEKFormulations) { CAEKFormulations.refresh(); }
       if (window.CAEKBadges) { CAEKBadges.refresh(); }
       return { ok: true };
     }).catch(function (e) {
@@ -180,9 +185,11 @@ var CAEKOperateurs = (function () {
   function logout() {
     _session = null;
     writeSession(null);
+    try { localStorage.removeItem("caek_labo_filter"); } catch (e) {}
     if (window.CAEKProfil) { CAEKProfil.clear(); }
     applyRoleClass();
     renderAll();
+    if (window.CAEKBadges) { CAEKBadges.refresh(); }
     if (window.CAEKApp) { CAEKApp.navigate("screen-login"); }
   }
 

@@ -126,6 +126,14 @@ var CAEKServer = (function () {
       { p_token: token, p_fournisseur: fournisseur, p_nom: nom, p_payload: payload });
   }
 
+  /* ---------- Médias ---------- */
+  function mediaRegister(token, media) {
+    return _rpc("media_register", { p_token: token, p_media: media });
+  }
+  function mediaList(token, ref) {
+    return _rpc("media_list", { p_token: token, p_ref: ref });
+  }
+
   /* ---------- Référentiels ---------- */
   function listClients(token) { return _rpc("op_list_clients", { p_token: token }); }
   function listProjets(token) { return _rpc("op_list_projets", { p_token: token }); }
@@ -284,6 +292,7 @@ var CAEKServer = (function () {
     allocPrels: allocPrels, coulageEvent: coulageEvent,
     reviserEprouvette: reviserEprouvette, listAudit: listAudit,
     listFormulations: listFormulations, proposerFormulation: proposerFormulation,
+    mediaRegister: mediaRegister, mediaList: mediaList,
     listCentrales: listCentrales, adminUpsertCentrale: adminUpsertCentrale,
     listClients: listClients, listProjets: listProjets,
     listEvacuations: listEvacuations, addEvacuation: addEvacuation,

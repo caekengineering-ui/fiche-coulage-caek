@@ -94,6 +94,30 @@ var CAEKCompression = (function () {
     return CAEKModel.classeBetonLot(l, _coulagesParRef[l && l.ref]);
   }
 
+  function provenanceDuLot(l) {
+    var c = _coulagesParRef[l && l.ref] || {};
+    var mals = Array.isArray(c.malaxeurs) ? c.malaxeurs : [];
+    function uniques(values) {
+      var seen = {}, out = [];
+      values.filter(Boolean).forEach(function (v) {
+        v = String(v).trim();
+        if (v && !seen[v]) { seen[v] = true; out.push(v); }
+      });
+      return out.join(" · ");
+    }
+    var fournisseurs = mals.map(function (m) { return ((m.formulation || {}).fournisseur || ""); });
+    var descriptions = mals.map(function (m) {
+      var f = m.formulation || {};
+      return f.nom || [f.classe, f.dosage ? f.dosage + " kg" : "", f.dmax ? "Dmax " + f.dmax : ""].filter(Boolean).join(" / ");
+    });
+    return {
+      centrale: l.centrale || c.centrale || uniques(fournisseurs),
+      formulation: l.formulationNom || c.formulationNom || c.formulationId || uniques(descriptions),
+      bl: l.numBL || uniques(mals.map(function (m) { return m.numBL; })),
+      camion: l.numCamion || uniques(mals.map(function (m) { return m.numCamion; }))
+    };
+  }
+
   function refresh() {
     if (!window.CAEKDB) { return; }
     // Coulages ET lots chargés ensemble : le rendu lit la table des coulages
@@ -663,6 +687,7 @@ var CAEKCompression = (function () {
           "</div>";
       }
       var zone = [l.bloc ? "Bloc " + l.bloc : "", l.etage, l.partie].filter(Boolean).join(" · ");
+      var provenance = provenanceDuLot(l);
       return "<div class=\"comp-hist-item\">" +
         "<div class=\"rep-top\"><span class=\"rep-ref\">&#10004; " + escapeHtml(l.ref) + "</span>" +
         "<span class=\"comp-type\">" + escapeHtml(l.age === "autre" ? l.ageJours + "j" : l.age) +
@@ -673,6 +698,11 @@ var CAEKCompression = (function () {
         (zone ? " · " + escapeHtml(zone) : "") + "</div>" +
         "<div class=\"comp-hist-ctx\">" + tr("Coulé le") + " " + escapeHtml(fmtDate(l.dateCoulage)) +
         (l.ouvrageAutre ? " · " + tr("Autres") + " : " + escapeHtml(l.ouvrageAutre) : "") + "</div>" +
+        "<div class=\"comp-hist-ctx comp-hist-provenance\"><strong>&#127981; Centrale :</strong> " +
+        escapeHtml(provenance.centrale || "—") +
+        " · <strong>Formulation :</strong> " + escapeHtml(provenance.formulation || "—") +
+        " · <strong>BL :</strong> " + escapeHtml(provenance.bl || "—") +
+        " · <strong>Camion :</strong> " + escapeHtml(provenance.camion || "—") + "</div>" +
         (l.ecartEssai ? "<div class=\"comp-hist-ecart\">&#9888; Essai hors date prévue (prévu " +
           intOr0(l.agePrevu) + " j" + (l.datePrevue ? ", le " + escapeHtml(fmtDate(l.datePrevue)) : "") + ")" +
           (l.motifEcart ? " — " + escapeHtml(tr(l.motifEcart)) : "") +
@@ -686,7 +716,8 @@ var CAEKCompression = (function () {
     }).join("");
   }
 
-  var HIST_HEADERS = ["Client", "Projet", "Référence coulage", "Date coulage", "Ouvrage",
+  var HIST_HEADERS = ["Client", "Projet", "Centrale", "Formulation", "N° BL", "N° camion",
+    "Référence coulage", "Date coulage", "Ouvrage",
     "Ouvrage autre", "Bloc", "Étage", "Partie", "Malaxeur/toupie",
     "Code éprouvette", "N° interne lot", "Âge prévu (j)", "Âge réel (j)", "Type", "Dimensions (mm)", "Masse (kg)",
     "Force (kN)", "Rc (MPa)", "Classe béton", "Facteur conversion", "Rc cylindrique (MPa)",
@@ -703,12 +734,14 @@ var CAEKCompression = (function () {
     filteredHistLots().forEach(function (l) {
       var classe = classeDuLot(l);
       var paire = CAEKModel.classePaire(classe);
+      var provenance = provenanceDuLot(l);
       (Array.isArray(l.essais) ? l.essais : []).forEach(function (e, idx) {
         var estCube = (e.forme || "cube") !== "cylindre";
         var rcCyl = estCube ? CAEKModel.cubeVersCylindre(e.rc, classe)
                             : (num(e.rc) > 0 ? num(e.rc) : null);
         rows.push([
-          l.client || "", l.nomProjet || "", l.ref, l.dateCoulage || "",
+          l.client || "", l.nomProjet || "", provenance.centrale, provenance.formulation,
+          provenance.bl, provenance.camion, l.ref, l.dateCoulage || "",
           l.ouvrage || "", l.ouvrageAutre || "", l.bloc || "", l.etage || "", l.partie || "",
           e.malaxeur || "", e.code || "", e.numInterne || (idx + 1),
           (l.agePrevu != null ? l.agePrevu : l.ageJours) || "", diffDays(l.dateCoulage, e.dateEssai),
@@ -753,6 +786,10 @@ var CAEKCompression = (function () {
       var aCube = (Array.isArray(l.essais) ? l.essais : [])
         .some(function (e) { return (e.forme || "cube") !== "cylindre"; });
       var vals = [];
+      var provenance = provenanceDuLot(l);
+      lignes.push("- Provenance " + (l.ref || "") + " : centrale " + (provenance.centrale || "—") +
+        " | formulation " + (provenance.formulation || "—") + " | BL " + (provenance.bl || "—") +
+        " | camion " + (provenance.camion || "—"));
       (Array.isArray(l.essais) ? l.essais : []).forEach(function (e) {
         nbEpr++;
         var age = diffDays(l.dateCoulage, e.dateEssai);
@@ -841,10 +878,9 @@ var CAEKCompression = (function () {
     aoa.push(HIST_HEADERS);
     aoa = aoa.concat(rows);
     var ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = [{ wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 12 }, { wch: 18 }, { wch: 16 },
-      { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 13 }, { wch: 16 }, { wch: 12 },
-      { wch: 7 }, { wch: 9 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 12 },
-      { wch: 16 }, { wch: 16 }, { wch: 24 }];
+    ws["!cols"] = HIST_HEADERS.map(function (h) {
+      return { wch: Math.max(10, Math.min(28, String(h).length + 4)) };
+    });
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Essais compression");
     XLSX.writeFile(wb, "essais_compression.xlsx");

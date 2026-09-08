@@ -322,6 +322,16 @@ var CAEKDB = (function () {
     });
   }
 
+  function updatePhoto(photo) {
+    return tx("photos", "readwrite").then(function (store) {
+      return new Promise(function (resolve, reject) {
+        var req = store.put(photo);
+        req.onsuccess = function () { resolve({ ok: true }); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
   function deletePhoto(id) {
     return tx("photos", "readwrite").then(function (store) {
       return new Promise(function (resolve, reject) {
@@ -588,6 +598,7 @@ var CAEKDB = (function () {
     deleteCoulage: deleteCoulage,
     addPhoto: addPhoto,
     getPhotosByRef: getPhotosByRef,
+    updatePhoto: updatePhoto,
     deletePhoto: deletePhoto,
     addLots: addLots,
     getAllLots: getAllLots,

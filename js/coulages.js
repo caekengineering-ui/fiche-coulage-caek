@@ -27,6 +27,7 @@ var CAEKCoulages = (function () {
   var QUEUE_KEY = "coulagesQueue";   // meta HISTORIQUE (migrée vers l'outbox)
   var _pushTimer = null;
   var _pushRefs = {};                // refs en attente de push différé
+  var _pushChains = {};              // sérialise les envois d'une même fiche
   var _syncRpcAbsent = false;        // op_sync_coulage absent du serveur -> repli legacy
 
   // Phase 1 : identité stable de la fiche, indépendante de la référence.
@@ -241,7 +242,7 @@ var CAEKCoulages = (function () {
     }).catch(function (e) { return enqueue(ref, "save", (e && e.message) || "réseau"); });
   }
 
-  function pushBrouillon(ref) {
+  function pushBrouillonOnce(ref) {
     if (!window.CAEKDB) { return Promise.resolve(); }
     return CAEKDB.getCoulage(ref).then(function (c) {
       if (!c || (c.statut || "brouillon") !== "brouillon") { return; }
@@ -259,6 +260,18 @@ var CAEKCoulages = (function () {
         });
       });
     });
+  }
+
+  // Deux sauvegardes rapprochées d'une même fiche ne doivent jamais partir
+  // avec la même version de base. Le second envoi relit IndexedDB seulement
+  // après l'accusé du premier, ce qui élimine les faux conflits mono-appareil.
+  function pushBrouillon(ref) {
+    var previous = _pushChains[ref] || Promise.resolve();
+    var current = previous.catch(function () {}).then(function () {
+      return pushBrouillonOnce(ref);
+    });
+    _pushChains[ref] = current.then(function () {}, function () {});
+    return current;
   }
 
   /* ---------- Soumission ---------- */
@@ -485,7 +498,17 @@ var CAEKCoulages = (function () {
     if (!window.CAEKDB || rawUpdate) { return; }
     rawUpdate = CAEKDB.updateCoulage.bind(CAEKDB);
     CAEKDB.updateCoulage = function (c) {
-      return rawUpdate(c).then(function (res) { schedulePush(c); return res; });
+      // Une vue de formulaire ouverte avant un accusé serveur peut encore
+      // porter une ancienne `_version`. Ne jamais laisser cette copie écraser
+      // les métadonnées de synchronisation plus récentes déjà persistées.
+      return CAEKDB.getCoulage(c && c.ref).then(function (existing) {
+        if (existing) {
+          if ((existing._version || 0) > (c._version || 0)) { c._version = existing._version; }
+          if (existing._syncedAt && !c._syncedAt) { c._syncedAt = existing._syncedAt; }
+          if (existing._conflit && !c._conflit) { c._conflit = existing._conflit; }
+        }
+        return rawUpdate(c);
+      }).then(function (res) { schedulePush(c); return res; });
     };
     if (CAEKDB.addCoulage) {
       var rawAdd = CAEKDB.addCoulage.bind(CAEKDB);

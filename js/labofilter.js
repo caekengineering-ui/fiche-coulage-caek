@@ -7,7 +7,8 @@
    tous les labos. Il choisit « Tous » ou un labo précis pour
    observer ce qui s'y passe (répertoire, bassin, écrasements).
 
-   match(laboId) : true si non-admin OU filtre vide OU égalité.
+   match(laboId) : contrôle TOUJOURS le périmètre de la session avant
+   d'appliquer l'éventuel filtre d'affichage administrateur.
    Utilisé par repertoire.js / bassin.js / compression.js / badges.js.
    ============================================================ */
 var CAEKLaboFilter = (function () {
@@ -31,12 +32,22 @@ var CAEKLaboFilter = (function () {
     try { if (id) { localStorage.setItem(LS, id); } else { localStorage.removeItem(LS); } } catch (e) {}
   }
 
-  // Cœur du filtre : un opérateur n'est jamais filtré (déjà scopé serveur).
+  // Cœur du filtre : le serveur reste la source d'autorité, mais le cache
+  // local ne doit jamais exposer les données d'une session précédente.
   function match(laboId) {
-    if (!isAdmin()) { return true; }
+    var s = (window.CAEKOperateurs && CAEKOperateurs.session)
+      ? CAEKOperateurs.session() : null;
+    if (!s) { return false; }
+    var id = String(laboId || "");
+    if (!isAdmin()) {
+      return !!s.labo_id && id === String(s.labo_id);
+    }
+    var allowed = (window.CAEKOperateurs && CAEKOperateurs.adminLabos)
+      ? CAEKOperateurs.adminLabos() : null;
+    if (allowed && allowed.length && allowed.indexOf(id) < 0) { return false; }
     var f = get();
     if (!f) { return true; }
-    return String(laboId || "") === String(f);
+    return id === String(f);
   }
 
   function laboNom(id) {

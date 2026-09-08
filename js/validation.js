@@ -19,6 +19,7 @@ var CAEKValidation = (function () {
   var _coulagesParRef = {};  // ref -> payload, TOUS statuts (classe de béton)
   var _lotsR = [];       // lots 'en_bassin' dont la RÉPARTITION reste à valider
   var _lotsT = [];       // lots 'teste' (résultats d'écrasement à valider)
+  var _lotsAll = [];     // tous statuts : contexte des jalons précédents
   var _labos = {};       // id -> nom
   var _openRef = null;   // détail déplié
   var _editRef = null;   // coulage en cours de CORRECTION par le vérificateur
@@ -185,6 +186,11 @@ var CAEKValidation = (function () {
         (m.quantite ? " · " + escapeHtml(String(m.quantite)) + " m³" : "") +
         (m.affaissement ? " · Aff. " + escapeHtml(String(m.affaissement)) + " cm" : "") +
         (m.temperature ? " · " + escapeHtml(String(m.temperature)) + " °C" : "") + "</div>" +
+        ((m.numCamion || m.numBL) ? "<div class=\"valid-mal-trace\">" +
+          (m.numCamion ? "&#128666; Camion / toupie : <strong>" + escapeHtml(m.numCamion) + "</strong>" : "") +
+          (m.numCamion && m.numBL ? " · " : "") +
+          (m.numBL ? "&#128196; BL : <strong>" + escapeHtml(m.numBL) + "</strong>" : "") +
+          "</div>" : "") +
         "<div class=\"valid-mal-form\">&#129514; Formulation : " + formulationHtml(m.formulation) + "</div>" +
         "<div class=\"valid-mal-prel\">Prélèvement : " + prel + "</div>" +
         "</div>";
@@ -760,6 +766,55 @@ var CAEKValidation = (function () {
       "</div>" + jalonHtml + "</div>";
   }
 
+  function ageLotValeur(row) {
+    var p = (row && row.payload) || {};
+    var age = num(p.agePrevu || p.ageJours || row.age_jours);
+    if (!age && p.age) { age = num(String(p.age).replace(/[^0-9.,-]/g, "")); }
+    if (!age) { age = num(ageReelLot(row)); }
+    return age;
+  }
+
+  function statsLot(row) {
+    var essais = ((row && row.payload) || {}).essais || [];
+    var vals = essais.map(function (e) {
+      return revNum(e.rc) || revRc(e.force, e.forme, e.dim1, e.dim2);
+    }).filter(function (n) { return n > 0; });
+    if (!vals.length) { return null; }
+    var arr = function (n) { return Math.round(n * 100) / 100; };
+    return {
+      moyenne: arr(vals.reduce(function (a, n) { return a + n; }, 0) / vals.length),
+      minimum: arr(Math.min.apply(null, vals)), maximum: arr(Math.max.apply(null, vals)),
+      nombre: vals.length
+    };
+  }
+
+  // Au contrôle d'un résultat 28 j (ou autre âge), présenter le dernier
+  // jalon déjà validé du même coulage. C'est un contexte de diagnostic, pas
+  // une règle normative ni une seconde action de validation.
+  function precedentLotHtml(row) {
+    var ageCourant = ageLotValeur(row);
+    var precedents = _lotsAll.filter(function (l) {
+      return l && l.lot_key !== row.lot_key && l.coulage_ref === row.coulage_ref &&
+        l.statut === "valide" && ageLotValeur(l) > 0 && ageLotValeur(l) < ageCourant && statsLot(l);
+    }).sort(function (a, b) { return ageLotValeur(b) - ageLotValeur(a); });
+    if (!precedents.length) { return ""; }
+    var prev = precedents[0], ps = statsLot(prev), cs = statsLot(row);
+    var delta = cs ? Math.round((cs.moyenne - ps.moyenne) * 100) / 100 : null;
+    var pct = (cs && ps.moyenne)
+      ? Math.round(((cs.moyenne - ps.moyenne) / ps.moyenne) * 1000) / 10 : null;
+    var tendance = delta == null ? "" :
+      " · évolution <strong>" + (delta > 0 ? "+" : "") + delta + " MPa" +
+      (pct == null ? "" : " (" + (pct > 0 ? "+" : "") + pct + " %)") + "</strong>";
+    var warn = delta != null && delta <= 0;
+    return "<div class=\"valid-synth valid-previous" + (warn ? " is-sous-jalon" : "") + "\">" +
+      "<div class=\"valid-line\"><strong>&#128200; Résultat précédent du même coulage — " +
+      ageLotValeur(prev) + " j</strong></div>" +
+      "<div class=\"valid-line\">" + ps.nombre + " éprouvette(s) · moyenne <strong>" +
+      ps.moyenne + " MPa</strong> · min " + ps.minimum + " · max " + ps.maximum + tendance + "</div>" +
+      (warn ? "<div class=\"comp-hist-jalon is-bad\">&#9888; Résistance sans progression : vérifier les valeurs, dates, dimensions et la traçabilité avant décision.</div>" : "") +
+      "</div>";
+  }
+
   function lotItemHtml(row) {
     var p = row.payload || {};
     var labo = _labos[row.labo_id] || "—";
@@ -790,6 +845,7 @@ var CAEKValidation = (function () {
         (p.motifEcart ? " — " + escapeHtml(p.motifEcart) : "") +
         (p.justificationEcart ? " : " + escapeHtml(p.justificationEcart) : "") + "</div>" : "") +
       syntheseLotHtml(row) +
+      precedentLotHtml(row) +
       "</div>" +
       "<div class=\"oper-actions\">" +
       "<button type=\"button\" class=\"btn-primary\" data-act=\"valider-lot\" data-key=\"" +
@@ -1206,7 +1262,7 @@ var CAEKValidation = (function () {
       return pa - pb;
     });
     sorted.forEach(function (m) {
-      CAEKMedias.fetchBlob(m.path).then(function (blob) {
+      CAEKMedias.fetchBlob(m.path, ref, m.uuid).then(function (blob) {
         var u = URL.createObjectURL(blob);
         _urls.push(u);
         var d = document.createElement("div");
@@ -1267,13 +1323,14 @@ var CAEKValidation = (function () {
       (out[0] || []).forEach(function (c) {
         if (c && c.ref) { _coulagesParRef[c.ref] = c.payload || {}; }
       });
-      _lotsT = (out[2] || []).filter(function (r) { return r.statut === "teste" && r.lot_key; });
+      _lotsAll = out[2] || [];
+      _lotsT = _lotsAll.filter(function (r) { return r.statut === "teste" && r.lot_key; });
       // Répartitions en attente de contrôle : signalées à la répartition
       // (`repartitionAValider`) et pas encore validées. Les lots créés avant
       // cette évolution ne portent pas le drapeau et ne remontent donc pas.
       // Passé le délai, la répartition de l'opérateur est tacitement acceptée :
       // elle sort de la liste, l'ingénieur n'a plus rien à trancher.
-      _lotsR = (out[2] || []).filter(function (r) {
+      _lotsR = _lotsAll.filter(function (r) {
         var p = r.payload || {};
         return r.statut === "en_bassin" && r.lot_key &&
           p.repartitionAValider && !p.repartitionValideePar &&

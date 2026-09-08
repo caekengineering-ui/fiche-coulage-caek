@@ -5,7 +5,7 @@
    Pour publier une mise a jour : incrementer CACHE_VERSION.
    ============================================================ */
 
-var CACHE_VERSION = "caek-beton-v96";
+var CACHE_VERSION = "caek-beton-v97";
 
 var APP_SHELL = [
   "./",
