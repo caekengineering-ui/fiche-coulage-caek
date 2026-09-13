@@ -164,7 +164,7 @@ var CAEKBassin = (function () {
       // Index par ref : présence d'un lot sorti/testé/écrasé ou d'une archive => verrouillé.
       var locked = {};
       lots.forEach(function (l) {
-        if (l.statut === "sorti" || l.statut === "teste" || l.statut === "ecrase") { locked[l.ref] = true; }
+        if (l.statut !== "en_bassin") { locked[l.ref] = true; }
       });
       archives.forEach(function (a) { locked[a.ref] = true; });
 
@@ -347,6 +347,11 @@ var CAEKBassin = (function () {
       });
       // Les lots historiques 6 + 3 à la même échéance deviennent d'emblée
       // une seule ligne de 9 dans l'éditeur. L'enregistrement reste explicite.
+      var used = {};
+      rebuilt.forEach(function (l) { (l.codes || []).forEach(function (c) { used[CAEKIntegrite.code(c)] = true; }); });
+      var missing = CAEKModel.allCodes(coulage).filter(function (c) { return !used[c.code]; });
+      if (missing.length) { rebuilt.push({prel: missing[0].prel, type: missing[0].type,
+        codes: missing, nombre: missing.length, age: "28j", ageJours: 28}); }
       return mergeLotsByEcheance(rebuilt);
     }
     return mergeLotsByEcheance(window.CAEKModel ? CAEKModel.proposeRepartition(coulage) : []);
@@ -446,6 +451,9 @@ var CAEKBassin = (function () {
     var isEdit = !!(existingLots && existingLots.length);
     var lots = buildRepLots(coulage, existingLots);
     form._repLots = lots;
+    form._expected = (existingLots || []).map(function (l) {
+      return {lotKey: l.lotKey, updatedAt: l._serverUpdatedAt || null};
+    }).sort(function (a, b) { return a.lotKey < b.lotKey ? -1 : 1; });
 
     var rows = lots.map(lotRepRowHtml).join("");
 
@@ -517,6 +525,12 @@ var CAEKBassin = (function () {
     var total = intOr0(form.getAttribute("data-total"));
     var kept = readLotRows(form);
     if (!kept.length) { window.alert("Aucun lot à répartir."); return; }
+    if (form._saving) { return; }
+    var bilan = CAEKIntegrite.verifier(coulage, kept);
+    if (!bilan.ok) { window.alert(bilan.erreurs.join("\n")); return; }
+    if (!window.CAEKOperateurs || !CAEKOperateurs.isLogged() || navigator.onLine === false) {
+      window.alert("Connexion requise pour confirmer la répartition complète. Votre saisie reste affichée."); return;
+    }
 
     // Validations : âge valide pour chaque lot.
     var bad = "";
@@ -588,11 +602,12 @@ var CAEKBassin = (function () {
 
     // Garde-fou + remplacement : on revérifie qu'aucun lot n'est écrasé
     // et qu'aucune archive n'existe pour ce coulage avant de réécrire.
+    form._saving = true;
     Promise.all([CAEKDB.getLotsByRef(coulage.ref), CAEKDB.getAllArchives()]).then(function (out) {
       var existants = out[0] || [];
       var archives = (out[1] || []).filter(function (a) { return a.ref === coulage.ref; });
       var bloque = existants.some(function (l) {
-        return l.statut === "sorti" || l.statut === "teste" || l.statut === "ecrase";
+        return l.statut !== "en_bassin";
       });
       if (bloque || archives.length) {
         window.alert("Cette répartition ne peut plus être modifiée : un lot a déjà été sorti pour essai, testé ou archivé.");
@@ -600,10 +615,10 @@ var CAEKBassin = (function () {
         refreshRepartir();
         return Promise.reject({ handled: true });
       }
-      // Supprime l'ancienne répartition (lots encore en bassin) puis réécrit.
-      return Promise.all(existants.map(function (l) { return CAEKDB.deleteLot(l.id); }));
-    }).then(function () {
-      return CAEKDB.addLots(lots);
+      return CAEKServer.replaceRepartition(CAEKOperateurs.token(), coulage.ref, lots, form._expected || []);
+    }).then(function (r) {
+      if (!r || !r.ok) { throw new Error(CAEKIntegrite.message(r)); }
+      return CAEKLots.accepterRepartition(coulage.ref, form._expected || []);
     }).then(function () {
       coulage.bassinReparti = true;
       coulage.dateRepartition = now;
@@ -630,6 +645,7 @@ var CAEKBassin = (function () {
       refreshRepartir();
     }).catch(function (err) {
       if (err && err.handled) { return; }
+      form._saving = false;
       window.alert("Erreur lors de la répartition : " + (err && err.message || err));
     });
   }

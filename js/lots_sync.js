@@ -105,6 +105,7 @@ var CAEKLots = (function () {
   // (création concurrente sur un autre appareil), le numéro et les codes
   // SERVEUR sont adoptés — jamais deux E identiques pour un même coulage.
   function allocIfNeeded(l) {
+    if (l.integriteVersion) { return Promise.resolve(); }
     if (_allocRpcAbsent || !CAEKServer.allocPrels) { return Promise.resolve(); }
     if (!l.prelUuid || l._prelAlloue) { return Promise.resolve(); }
     var eprUuids = (l.codes || []).map(function (x) { return x.eprUuid; }).filter(Boolean);
@@ -137,7 +138,7 @@ var CAEKLots = (function () {
         return rawUpdate(l).then(function () { return dequeue(l.lotKey); });
       }
       if (r && (r.error === "verrouille" || r.error === "conflit_statut" ||
-                r.error === "conflit_resultats" || r.error === "autre_labo")) {
+                r.error === "conflit_resultats" || r.error === "conflit_revision" || r.error === "correction_controlee_requise" || r.error === "autre_labo")) {
         // Refus DÉFINITIF : serveur plus avancé que la copie hors-ligne, ou
         // lot hors du périmètre de cet opérateur. Réessayer indéfiniment
         // laisserait la clé en file, ce qui bloquerait le pull de ce lot
@@ -193,7 +194,7 @@ var CAEKLots = (function () {
   function empreinte(lot) {
     var cles = [], k;
     for (k in lot) {
-      if (Object.prototype.hasOwnProperty.call(lot, k) && k !== "_syncedAt") { cles.push(k); }
+      if (Object.prototype.hasOwnProperty.call(lot, k) && k !== "_syncedAt" && k !== "_serverUpdatedAt") { cles.push(k); }
     }
     cles.sort();
     return JSON.stringify(cles.map(function (c) { return [c, lot[c]]; }));
@@ -222,7 +223,8 @@ var CAEKLots = (function () {
           // push n'est pas encore parti. On ne la réécrit jamais avec un
           // serveur en retard, et on (re)programme sa remontée — sans quoi un
           // pull déclenché juste après l'action annulerait celle-ci.
-          if (local && rLocal > rServeur) { schedulePush(row.lot_key); return; }
+          var revisionRecente = Number(row.payload.correctionRevision || 0) > Number((local || {}).correctionRevision || 0);
+          if (local && rLocal > rServeur && !revisionRecente) { schedulePush(row.lot_key); return; }
 
           // (2) Push local en attente : il ne prime que s'il est au moins
           // aussi avancé que le serveur (même arbitrage que op_upsert_lot).
@@ -235,10 +237,12 @@ var CAEKLots = (function () {
           // DÉFINITIVEMENT sur cet appareil : un lot sorti du bassin par un
           // collègue continuait de s'afficher « en bassin / en retard ».
           if (queue[row.lot_key]) {
-            if (rLocal >= rServeur) { return; }
+            if (rLocal >= rServeur && !revisionRecente) { return; }
             obsoletes.push(row.lot_key);
           }
           var merged = row.payload;
+          merged.statut = row.statut;
+          merged._serverUpdatedAt = row.updated_at;
           merged.lotKey = row.lot_key;
           merged.laboId = row.labo_id || merged.laboId || "";
           if (row.statut === "valide") { merged.resultatsValides = true; }
@@ -246,6 +250,7 @@ var CAEKLots = (function () {
           if (local) {
             merged.id = local.id;                       // id local conservé
             if (empreinte(local) !== empreinte(merged)) { changed = true; work.push(rawUpdate(merged)); }
+            else if (local._serverUpdatedAt !== merged._serverUpdatedAt) { work.push(rawUpdate(merged)); }
           } else {
             delete merged.id;                           // nouvel id local auto
             changed = true;
@@ -348,8 +353,18 @@ var CAEKLots = (function () {
     setTimeout(autoSync, 2000);
   }
 
+  function accepterRepartition(ref, expected) {
+    var keys = (expected || []).map(function (x) { return x.lotKey; });
+    keys.forEach(function (k) { delete _pushKeys[k]; });
+    return CAEKDB.getLotsByRef(ref).then(function (lots) {
+      return Promise.all((lots || []).filter(function (l) { return keys.indexOf(l.lotKey) >= 0; })
+        .map(function (l) { return rawDelete(l.id); }));
+    }).then(function () { return dequeueAll(keys); }).then(pull);
+  }
+
   return {
     init: init,
+    accepterRepartition: accepterRepartition,
     pull: pull,
     processQueue: processQueue,
     // Phase 3 : clés en attente de synchro (affichage des états).

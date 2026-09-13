@@ -122,7 +122,7 @@ var CAEKCompression = (function () {
     if (!window.CAEKDB) { return; }
     // Coulages ET lots chargés ensemble : le rendu lit la table des coulages
     // pour retrouver la classe, elle doit donc être prête AVANT de rendre.
-    Promise.all([
+    return Promise.all([
       CAEKDB.getAllCoulages().catch(function () { return []; }),
       CAEKDB.getAllLots()
     ]).then(function (res) {
@@ -138,7 +138,7 @@ var CAEKCompression = (function () {
       // aussi l'action « Passage forcé à la machine ».
       var sortis = (lots || []).filter(function (l) { return l.statut === "sorti"; });
       _aTester = sortis.filter(pretATester);
-      _historique = (lots || []).filter(function (l) { return l.statut === "teste"; });
+      _historique = (lots || []).filter(function (l) { return l.statut === "teste" || l.statut === "valide"; });
       _aTester.sort(function (a, b) { return String(a.datePrevue).localeCompare(String(b.datePrevue)); });
       _historique.sort(function (a, b) { return String(b.dateEssai || "").localeCompare(String(a.dateEssai || "")); });
       renderAtester();
@@ -244,9 +244,12 @@ var CAEKCompression = (function () {
 
   function buildEssaisFromLot(lot) {
     var existing = Array.isArray(lot.essais) ? lot.essais : [];
+    var byCode = {};
+    existing.forEach(function (e) { if (e.code) { byCode[e.code] = e; } });
     var codes = lotCodes(lot);
     return codes.map(function (c, i) {
-      var prev = existing[i] || {};
+      if (typeof c === "string") { c = {code: c}; }
+      var prev = byCode[c.code] || {};
       var forme = prev.forme || defaultForme(c.type);
       var def = (forme === "cylindre") ? DEF_CYL : DEF_CUBE;
       return {
@@ -271,6 +274,7 @@ var CAEKCompression = (function () {
     var lot = findLot(_aTester, id) || findLot(_historique, id);
     if (!lot) { return; }
     _editLot = lot;
+    _pendingEssais = null;
     _editEssais = buildEssaisFromLot(lot);
     var body = $("comp-detail-body");
     if (!body) { return; }
@@ -291,6 +295,8 @@ var CAEKCompression = (function () {
         "<button type=\"button\" class=\"btn-secondary\" id=\"comp-apply-all\">&#128203; " + tr("Appliquer ces dimensions à tout le lot") + "</button>" +
       "</div>" +
       "<div id=\"comp-rows\">" + rows + "</div>" +
+      "<button type=\"button\" class=\"btn-secondary\" id=\"comp-complement\">Corriger / compléter les éprouvettes</button>" +
+      (lot.correctionEnAttente ? "<p class=\"hint\">Complément en attente d'autorisation du responsable. Les résultats peuvent être saisis.</p>" : "") +
       "<div class=\"comp-valider-wrap\">" +
         "<button type=\"button\" class=\"btn-secondary\" id=\"comp-save-draft\">&#128190; " + tr("Enregistrer (brouillon)") + "</button>" +
         "<button type=\"button\" class=\"btn-primary\" id=\"comp-valider\">&#10004; " + tr("Valider l'essai du lot") + "</button>" +
@@ -302,6 +308,66 @@ var CAEKCompression = (function () {
       _editEssais.forEach(function (e, i) { updateSurfaceDisplay(rowsBox.children[i]); });
     }
     $("comp-detail").hidden = false;
+    if (lot.statut !== "sorti") {
+      body.querySelectorAll("#comp-rows input, #comp-rows select, #comp-save-draft, #comp-valider, #comp-apply-all").forEach(function (el) { el.disabled = true; });
+    }
+  }
+
+  function completerEprouvettes() {
+    var lot = _editLot;
+    if (!lot || !lot.lotKey || navigator.onLine === false) {
+      window.alert("Connexion requise pour vérifier les codes et enregistrer le complément."); return;
+    }
+    var bouton = $("comp-complement");
+    if (bouton.disabled) { return; }
+    bouton.disabled = true;
+    var token = CAEKOperateurs.token(), revision = Number(lot.correctionRevision || 0);
+    var ajout, motif, prelevement = null;
+    CAEKServer.listLots(token, null).then(function (rows) {
+      var used = {};
+      (rows || []).filter(function (r) { return r.coulage_ref === lot.ref; }).forEach(function (r) {
+        (r.codes || []).forEach(function (c) { used[CAEKIntegrite.code(c)] = true; });
+      });
+      var c = _coulagesParRef[lot.ref];
+      var libres = c ? CAEKModel.allCodes(c).map(CAEKIntegrite.code).filter(function (s) { return !used[s]; }) : [];
+      var texte = window.prompt("Éprouvettes supplémentaires : vérifiez les codes physiques, puis indiquez leurs codes complets séparés par une virgule.\n\n" +
+        "Lot actuel : " + lot.nombre + " éprouvette(s).\n" +
+        (libres.length ? "Codes non affectés proposés : " + libres.join(", ") : "Aucun code non affecté connu. Si le prélèvement est sous-déclaré, le responsable peut le rectifier à l'étape suivante."), libres.join(", "));
+      if (texte == null) { throw {cancelled: true}; }
+      ajout = texte.split(/[\s,;]+/).filter(Boolean);
+      if (!ajout.length) { throw new Error("Indiquez les codes supplémentaires."); }
+      if (CAEKOperateurs.isAdmin() && ajout.some(function (s) { return libres.indexOf(s) < 0; }) &&
+          window.confirm("Faut-il rectifier le nombre prélevé sur un malaxeur existant ?")) {
+        var mi = window.prompt("Numéro du malaxeur prélevé à rectifier (ex. 1) :", "1");
+        if (mi == null) { throw {cancelled: true}; }
+        var nb = window.prompt("Nombre TOTAL réellement prélevé sur ce malaxeur (ex. 15) :", "");
+        if (nb == null) { throw {cancelled: true}; }
+        prelevement = {malaxeur: Number(mi), nombre: Number(nb)};
+      }
+      motif = window.prompt("Motif du complément (obligatoire, conservé dans l'historique) :", "Erreur de répartition constatée avant écrasement");
+      if (motif == null) { throw {cancelled: true}; }
+      if (motif.trim().length < 3) { throw new Error("Indiquez le motif de correction."); }
+      if (!window.confirm("Compléter le lot " + lot.ref + " à " + lot.ageJours + " jours : " + lot.nombre + " → " +
+        (CAEKIntegrite.codes(lot).length + ajout.length) + " éprouvettes.\n\n" + ajout.join(", ") +
+        "\n\nLes résultats existants sont conservés. Une nouvelle validation des résultats sera nécessaire.")) { throw {cancelled: true}; }
+      if (lot.statut === "sorti") {
+        var draft = Object.assign({}, lot, {essais: gatherEssais()});
+        return CAEKServer.upsertLot(token, lot.lotKey, draft).then(function (r) {
+          if (!r || !r.ok) { throw new Error(CAEKIntegrite.message(r)); }
+        });
+      }
+    }).then(function () {
+      return CAEKServer.completerLot(token, lot.lotKey, CAEKIntegrite.codes(lot).concat(ajout), motif, revision, prelevement);
+    }).then(function (r) {
+      if (!r || !r.ok) { throw new Error(CAEKIntegrite.message(r)); }
+      return CAEKLots.pull();
+    }).then(function (r) {
+      if (!r || !r.ok) { throw new Error("Complément enregistré. Synchronisez pour recharger les nouvelles cases."); }
+      return refresh();
+    }).then(function () { openLotTest(lot.id); }).catch(function (e) {
+      bouton.disabled = false;
+      if (!e.cancelled) { window.alert(e.message || String(e)); }
+    });
   }
 
   function detRow(label, val) {
@@ -401,7 +467,7 @@ var CAEKCompression = (function () {
   }
 
   function saveDraft() {
-    if (!_editLot) { return; }
+    if (!_editLot || _editLot.statut !== "sorti") { return; }
     _editLot.essais = gatherEssais();
     CAEKDB.updateLot(_editLot).then(function () {
       compResult("&#10004; Brouillon d'essai enregistré.", false);
@@ -430,8 +496,10 @@ var CAEKCompression = (function () {
 
   // Confirmation avant essai : date/âge prévus vs réels ; justification si écart.
   function validate() {
-    if (!_editLot) { return; }
+    if (!_editLot || _editLot.statut !== "sorti") { return; }
     var essais = gatherEssais();
+    var incoherent = CAEKIntegrite.verifierEssais(_editLot, essais);
+    if (incoherent) { compResult(escapeHtml(incoherent), true); return; }
     var bad = "";
     for (var i = 0; i < essais.length; i++) {
       var e = essais[i];
@@ -516,6 +584,8 @@ var CAEKCompression = (function () {
     }
     var dateReelle = info.dates.length ? info.dates.slice().sort()[info.dates.length - 1] : todayStr();
 
+    var nouvellesCassees = Math.max(0, essais.length - Number(_editLot.dechetsDejaComptes || 0));
+    _editLot.dechetsDejaComptes = essais.length;
     _editLot.essais = essais;
     _editLot.statut = "teste";
     _editLot.dateEssai = dateReelle;
@@ -537,7 +607,7 @@ var CAEKCompression = (function () {
       });
     }).then(function () {
       // Les eprouvettes testees deviennent des dechets beton (compteur).
-      return window.CAEKDechets ? CAEKDechets.addCasse(essais.length) : null;
+      return window.CAEKDechets ? CAEKDechets.addCasse(nouvellesCassees) : null;
     }).then(function () {
       _pendingEssais = null;
       $("comp-detail").hidden = true;
@@ -689,6 +759,7 @@ var CAEKCompression = (function () {
       var zone = [l.bloc ? "Bloc " + l.bloc : "", l.etage, l.partie].filter(Boolean).join(" · ");
       var provenance = provenanceDuLot(l);
       return "<div class=\"comp-hist-item\">" +
+        "<button type=\"button\" class=\"btn-text comp-correct-history\" data-id=\"" + l.id + "\">Corriger / compléter les éprouvettes</button>" +
         "<div class=\"rep-top\"><span class=\"rep-ref\">&#10004; " + escapeHtml(l.ref) + "</span>" +
         "<span class=\"comp-type\">" + escapeHtml(l.age === "autre" ? l.ageJours + "j" : l.age) +
         " · " + tr("essai le") + " " + escapeHtml(fmtDate(l.dateEssai)) + "</span></div>" +
@@ -890,6 +961,11 @@ var CAEKCompression = (function () {
      INITIALISATION
      ============================================================ */
   function init() {
+    var hist = $("comp-historique-liste");
+    if (hist) { hist.addEventListener("click", function (ev) {
+      var b = ev.target.closest ? ev.target.closest(".comp-correct-history") : null;
+      if (b) { openLotTest(intOr0(b.getAttribute("data-id"))); }
+    }); }
     var aBox = $("comp-atester-liste");
     if (aBox) {
       aBox.addEventListener("click", function (ev) {
@@ -905,6 +981,7 @@ var CAEKCompression = (function () {
         if (ev.target.closest && ev.target.closest("#comp-detail-close")) { overlay.hidden = true; return; }
         if (ev.target.closest && ev.target.closest("#comp-apply-all")) { applyDefaultsAll(); return; }
         if (ev.target.closest && ev.target.closest("#comp-save-draft")) { saveDraft(); return; }
+        if (ev.target.closest && ev.target.closest("#comp-complement")) { completerEprouvettes(); return; }
         if (ev.target.closest && ev.target.closest("#comp-valider")) { validate(); return; }
         if (ev.target.closest && ev.target.closest("#comp-confirm-final")) { doValidate(); return; }
         if (ev.target.closest && ev.target.closest("#comp-confirm-annuler")) {

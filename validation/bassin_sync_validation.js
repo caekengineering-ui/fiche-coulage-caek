@@ -218,6 +218,19 @@ chain = chain.then(function () {
   });
 });
 
+chain = chain.then(function () {
+  return cas("S8 — réouverture serveur : la nouvelle révision gagne sur un lot local validé",
+    [{id:1, lotKey:"K1", ref:"AUDIT", statut:"valide", nombre:3, correctionRevision:0}],
+    [{lot_key:"K1", labo_id:"L1", statut:"sorti", updated_at:"2026-09-13T10:00:00+00:00",
+      payload:{lotKey:"K1",ref:"AUDIT",statut:"sorti",nombre:12,correctionRevision:1}}],
+    {K1:"upsert"}, function(env) {
+      check("le lot rouvert a douze éprouvettes",env.lots()[0].nombre===12);
+      check("l'ancien état validé ne reste pas bloqué",env.lots()[0].statut==="sorti");
+      check("l'ancienne file ne réécrit pas la correction",!env.meta.lotsQueue.K1);
+      check("la date serveur est conservée pour les conflits",!!env.lots()[0]._serverUpdatedAt);
+    });
+});
+
 chain.then(function () {
   var ko = results.filter(function (r) { return !r.ok; });
   console.log("\n=== " + (results.length - ko.length) + "/" + results.length + " assertions OK ===");

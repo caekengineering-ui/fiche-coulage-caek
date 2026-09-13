@@ -125,6 +125,16 @@ var CAEKServer = (function () {
     return _rpc("op_proposer_formulation",
       { p_token: token, p_fournisseur: fournisseur, p_nom: nom, p_payload: payload });
   }
+  function replaceRepartition(token, ref, lots, expected) {
+    return _rpc("op_replace_repartition", { p_token: token, p_ref: ref, p_lots: lots, p_expected: expected });
+  }
+  function completerLot(token, key, codes, motif, revision, prelevement) {
+    return _rpc("op_completer_lot", {p_token: token, p_key: key, p_codes: codes,
+      p_motif: motif, p_revision: revision || 0, p_prelevement: prelevement || null});
+  }
+  function approuverComplement(token, key, revision) {
+    return _rpc("op_approuver_complement", {p_token: token, p_key: key, p_revision: revision || 0});
+  }
 
   /* ---------- Médias ---------- */
   function mediaRegister(token, media) {
@@ -286,6 +296,7 @@ var CAEKServer = (function () {
     saveCoulage: saveCoulage, soumettreCoulage: soumettreCoulage,
     listCoulages: listCoulages, deleteCoulage: deleteCoulage,
     saveRepartition: saveRepartition, listLots: listLots,
+    replaceRepartition: replaceRepartition, completerLot: completerLot, approuverComplement: approuverComplement,
     sortirLot: sortirLot, retourBassin: retourBassin, testerLot: testerLot,
     upsertLot: upsertLot, deleteLotByKey: deleteLotByKey,
     adminValiderResultatsKey: adminValiderResultatsKey,

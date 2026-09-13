@@ -1,0 +1,11 @@
+{
+  "name": "caek-validation-integrite",
+  "private": true,
+  "scripts": {
+    "test": "node integrite_validation.cjs . && node complement_ui_validation.cjs . && node bassin_sync_validation.js"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "jsdom": "30.0.1"
+  }
+}

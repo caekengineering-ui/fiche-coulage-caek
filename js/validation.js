@@ -1222,6 +1222,15 @@ var CAEKValidation = (function () {
       section("&#128296;", "Validation des essais d'écrasement", _lotsT.length,
         function () { return _lotsT.map(lotItemHtml).join(""); }(),
         "Aucun résultat en attente.");
+    var complements = _lotsAll.filter(function (r) { return r.payload && r.payload.correctionEnAttente; });
+    html = section("&#129514;", "Compléments d'éprouvettes à autoriser", complements.length,
+      complements.map(function (r) { var p = r.payload; return "<div class=\"valid-item\"><strong>" +
+        escapeHtml(r.coulage_ref) + " · " + r.age_jours + " jours · " + r.nombre + " éprouvettes</strong>" +
+        "<p>" + escapeHtml(p.correctionMotif || "") + " — " + escapeHtml(p.correctionAuteur || "") + "</p>" +
+        "<p>Codes : " + escapeHtml(CAEKIntegrite.codes(p).join(", ")) + "</p>" +
+        "<button type=\"button\" class=\"btn-primary\" data-complement-key=\"" + escapeHtml(r.lot_key) +
+        "\" data-revision=\"" + Number(p.correctionRevision || 0) + "\">Autoriser le complément</button></div>";
+      }).join(""), "Aucun complément en attente.") + html;
     box.innerHTML = html;
     var cnt = $("valid-count");
     if (cnt) {
@@ -1495,6 +1504,10 @@ var CAEKValidation = (function () {
   }
 
   function validerLot(key, itemEl) {
+    var lot = _lotsAll.filter(function (r) { return r.lot_key === key; })[0];
+    if (lot && (lot.payload || {}).correctionEnAttente) {
+      resultBox(itemEl, "Autorisez d'abord le complément d'éprouvettes dans la section dédiée.", true); return;
+    }
     if (!window.confirm("Valider ces résultats d'écrasement ?\nIls seront figés et transmis au bureau pour les PV.")) { return; }
     CAEKServer.adminValiderResultatsKey(CAEKOperateurs.token(), key).then(function (r) {
       if (!r || r.ok !== true) {
@@ -1508,6 +1521,17 @@ var CAEKValidation = (function () {
   }
 
   function onClick(ev) {
+    var complement = ev.target.closest ? ev.target.closest("[data-complement-key]") : null;
+    if (complement) {
+      if (!window.confirm("Autoriser ces éprouvettes complémentaires ? Les résultats doivent ensuite être validés séparément.")) { return; }
+      complement.disabled = true;
+      CAEKServer.approuverComplement(CAEKOperateurs.token(), complement.getAttribute("data-complement-key"),
+        Number(complement.getAttribute("data-revision"))).then(function (r) {
+          if (!r || !r.ok) { throw new Error(CAEKIntegrite.message(r)); }
+          return refresh();
+        }).catch(function (e) { complement.disabled = false; window.alert(e.message); });
+      return;
+    }
     var tgt = ev.target;
     var item = tgt.closest ? tgt.closest(".rep-item") : null;
     var act = tgt.closest ? tgt.closest("[data-act]") : null;
