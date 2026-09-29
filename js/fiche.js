@@ -834,6 +834,7 @@ var CAEKFiche = (function () {
     var total = window.CAEKModel ? CAEKModel.totalEprouvettes(current) : 0;
     if (!codif.length) {
       box.innerHTML = "<p class=\"hint\">Aucun prélèvement déclaré. Indiquez-le pendant la saisie d'un malaxeur (question « Avez-vous effectué un prélèvement ? »).</p>";
+      renderEprouvettePhotos([]);
       return;
     }
     var rows = codif.map(function (p) {
@@ -852,6 +853,61 @@ var CAEKFiche = (function () {
     }).join("");
     box.innerHTML = rows +
       "<div class=\"prel-total\">Total éprouvettes : <strong>" + total + "</strong></div>";
+    var codes = [];
+    codif.forEach(function (p) { (p.codes || []).forEach(function (code) { codes.push(code); }); });
+    renderEprouvettePhotos(codes);
+  }
+
+  function renderEprouvettePhotos(codes) {
+    var zone = $("fc-epr-photo-zone");
+    var select = $("fc-epr-photo-code");
+    var grid = $("fc-epr-photo-grid");
+    if (!zone || !select || !grid) { return; }
+    codes = codes || [];
+    zone.hidden = !codes.length;
+    if (!codes.length) { grid.innerHTML = ""; return; }
+    var previous = select.value;
+    select.innerHTML = codes.map(function (code) {
+      return "<option value=\"" + escapeHtml(code) + "\">" + escapeHtml(code) + "</option>";
+    }).join("");
+    if (codes.indexOf(previous) !== -1) { select.value = previous; }
+    show("fc-epr-photo-actions", !locked);
+    if (!window.CAEKDB || !current) { return; }
+    CAEKDB.getPhotosByRef(current.ref).then(function (list) {
+      grid.innerHTML = "";
+      (list || []).filter(function (p) { return p.categorie === "eprouvettes"; })
+        .forEach(function (p) {
+          var numero = p.metadata && p.metadata.numeroEchantillon || "Échantillon non renseigné";
+          var u = URL.createObjectURL(p.blob); thumbUrls.push(u);
+          var card = document.createElement("div");
+          card.className = "photo-card";
+          card.innerHTML = "<img class=\"photo-thumb\" src=\"" + u + "\" alt=\"" +
+            escapeHtml(numero) + "\"><span class=\"photo-cat\">" + escapeHtml(numero) + "</span>" +
+            (locked ? "" : "<button type=\"button\" class=\"photo-del\" title=\"Supprimer\">&#10006;</button>");
+          var del = card.querySelector(".photo-del");
+          if (del) {
+            del.addEventListener("click", function () {
+              if (!confirm("Supprimer la photo de " + numero + " ?")) { return; }
+              CAEKDB.deletePhoto(p.id).then(function () { renderEprouvettePhotos(codes); });
+            });
+          }
+          grid.appendChild(card);
+        });
+    });
+  }
+
+  function addEprouvettePhoto(file) {
+    var select = $("fc-epr-photo-code");
+    var code = select && select.value;
+    if (!file || !current || locked || !code) { return; }
+    var compression = (window.CAEKPhotos && CAEKPhotos.compress)
+      ? CAEKPhotos.compress(file) : Promise.resolve(file);
+    compression.then(function (blob) {
+      return CAEKDB.addPhoto(current.ref, "eprouvettes", blob,
+        { numeroEchantillon: code });
+    }).then(renderPrelevements).catch(function (err) {
+      alert("Photo éprouvette : " + (err && err.message ? err.message : err));
+    });
   }
 
   function renderAnomaliePhotos() {
@@ -1197,6 +1253,15 @@ var CAEKFiche = (function () {
           .catch(function (e) { alert("Photo : " + (e && e.message || e)); });
       });
     }
+    ["fc-epr-photo-input", "fc-epr-photo-gallery"].forEach(function (id) {
+      var input = $(id);
+      if (!input) { return; }
+      input.addEventListener("change", function () {
+        var file = input.files && input.files[0];
+        input.value = "";
+        addEprouvettePhoto(file);
+      });
+    });
     var atx = $("fc-anomalie-texte");
     if (atx) {
       atx.addEventListener("input", function () {

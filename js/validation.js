@@ -1278,7 +1278,10 @@ var CAEKValidation = (function () {
         d.className = "valid-media";
         var cat = document.createElement("div");
         cat.className = "photo-cat";
-        cat.textContent = (m.type === "audio" ? "🎤 " : "") + (CAT_LABEL[m.categorie] || m.categorie);
+        var numeroEchantillon = m.numeroEchantillon || m.numero_echantillon || "";
+        cat.textContent = (m.type === "audio" ? "🎤 " : "") +
+          (CAT_LABEL[m.categorie] || m.categorie) +
+          (numeroEchantillon ? " · " + numeroEchantillon : "");
         d.appendChild(cat);
         if (m.type === "audio") {
           var au = document.createElement("audio");
@@ -1289,14 +1292,17 @@ var CAEKValidation = (function () {
           var img = document.createElement("img");
           img.className = "valid-media-img";
           img.src = u;
-          img.alt = m.categorie || "photo";
+          img.alt = (m.categorie || "photo") +
+            (numeroEchantillon ? " " + numeroEchantillon : "");
           d.appendChild(img);
         }
         zone.appendChild(d);
       }).catch(function () {
         var d = document.createElement("div");
         d.className = "hint";
-        d.textContent = "⚠ Média indisponible (" + (CAT_LABEL[m.categorie] || m.categorie) + ")";
+        var numeroEchantillon = m.numeroEchantillon || m.numero_echantillon || "";
+        d.textContent = "⚠ Média indisponible (" + (CAT_LABEL[m.categorie] || m.categorie) +
+          (numeroEchantillon ? " · " + numeroEchantillon : "") + ")";
         zone.appendChild(d);
       });
     });

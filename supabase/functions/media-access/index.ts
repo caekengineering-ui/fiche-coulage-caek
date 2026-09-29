@@ -97,11 +97,12 @@ Deno.serve(async (req) => {
 
     if (body.action === "upload") {
       const storagePath = String(body.storagePath || "");
+      const numeroEchantillon = String(body.numeroEchantillon || "").trim();
       const mime = String(body.mime || "").split(";")[0].toLowerCase();
       const declaredSize = Number(body.taille || 0);
       const expectedPrefix = `coulages/${coulageRef}/`;
       if (!storagePath.startsWith(expectedPrefix) || !storagePath.includes(String(mediaUuid)) ||
-          !ALLOWED_MIME.has(mime) || !body.base64) {
+          !ALLOWED_MIME.has(mime) || !body.base64 || numeroEchantillon.length > 120) {
         return response({ ok: false, error: "media_invalide" }, 400);
       }
       const binary = atob(String(body.base64));
@@ -123,7 +124,8 @@ Deno.serve(async (req) => {
         headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
         body: JSON.stringify({
           uuid: mediaUuid, coulage_ref: coulageRef, storage_path: storagePath,
-          mime, taille: bytes.length, upload_state: "uploaded",
+          mime, taille: bytes.length, numero_echantillon: numeroEchantillon,
+          upload_state: "uploaded",
         }),
       });
       return response({ ok: true, uuid: mediaUuid, storagePath });

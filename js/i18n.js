@@ -642,6 +642,12 @@ var I18N = (function () {
     "Choisissez : photographier la formulation (BL) ou la saisir (manuellement ou depuis un modèle enregistré).": "اختر: تصوير الصيغة (وصل التسليم) أو إدخالها (يدويًا أو من نموذج محفوظ).",
     "Prendre une photo": "التقاط صورة",
     "Choisir dans la galerie": "اختيار من المعرض",
+    "Photo d’une éprouvette": "صورة عيّنة خرسانية",
+    "Numéro d’échantillon": "رقم العيّنة",
+    "Le numéro reste lié à la photo hors ligne et dans l’archive bureau.": "يبقى رقم العيّنة مرتبطًا بالصورة دون اتصال وفي أرشيف المكتب.",
+    "Échantillon non renseigné": "رقم العيّنة غير محدد",
+    "Photo éprouvette :": "صورة العيّنة:",
+    "Supprimer la photo de": "حذف صورة",
 
     // ---- Bassin : séchage + passage forcé ----
     "En séchage hors bassin": "قيد التجفيف خارج الحوض",

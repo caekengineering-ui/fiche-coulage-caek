@@ -296,10 +296,14 @@ var CAEKDB = (function () {
 
   /* ---------- Photos ---------- */
 
-  function addPhoto(ref, categorie, blob) {
+  function addPhoto(ref, categorie, blob, metadata) {
     return tx("photos", "readwrite").then(function (store) {
       return new Promise(function (resolve, reject) {
-        var req = store.add({ ref: ref, categorie: categorie, blob: blob, dateAjout: new Date().toISOString() });
+        var req = store.add({
+          ref: ref, categorie: categorie, blob: blob,
+          metadata: (metadata && typeof metadata === "object") ? metadata : {},
+          dateAjout: new Date().toISOString()
+        });
         req.onsuccess = function () { resolve(req.result); };
         req.onerror = function () { reject(req.error); };
       });

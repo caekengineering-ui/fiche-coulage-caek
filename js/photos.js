@@ -136,5 +136,5 @@ var CAEKPhotos = (function () {
     }
   }
 
-  return { init: init, refresh: refresh };
+  return { init: init, refresh: refresh, compress: compress };
 })();

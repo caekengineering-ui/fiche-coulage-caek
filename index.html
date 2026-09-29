@@ -726,6 +726,20 @@
         <p class="hint">Les prélèvements sont déclarés pendant la saisie de chaque malaxeur. Codification : <strong>RÉF-E1</strong>, <strong>RÉF-E2</strong>…</p>
         <div id="fc-prelevements" class="fc-prelevements"></div>
 
+        <div id="fc-epr-photo-zone">
+          <h4 class="block-subtitle">&#128247; Photo d’une éprouvette</h4>
+          <label class="field-label" for="fc-epr-photo-code">Numéro d’échantillon</label>
+          <select id="fc-epr-photo-code" class="field"></select>
+          <div id="fc-epr-photo-actions">
+            <label class="btn-secondary" for="fc-epr-photo-input">Prendre une photo</label>
+            <input id="fc-epr-photo-input" type="file" accept="image/*" capture="environment" hidden>
+            <label class="btn-secondary" for="fc-epr-photo-gallery">Choisir dans la galerie</label>
+            <input id="fc-epr-photo-gallery" type="file" accept="image/*" hidden>
+          </div>
+          <p class="hint">Le numéro reste lié à la photo hors ligne et dans l’archive bureau.</p>
+          <div id="fc-epr-photo-grid" class="photos-grid"></div>
+        </div>
+
         <h3 class="block-subtitle">&#9888;&#65039; Signaler un problème / anomalie</h3>
         <textarea id="fc-anomalie-texte" class="field" rows="2" placeholder="Décrire le problème (facultatif)"></textarea>
         <label class="btn-secondary" for="fc-anomalie-photo-input">&#128247; Photo de l'anomalie</label>

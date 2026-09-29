@@ -65,7 +65,7 @@ var CAEKMedias = (function () {
     });
   }
 
-  function uploadEdge(ref, mediaUuid, path, blob) {
+  function uploadEdge(ref, mediaUuid, path, blob, metadata) {
     if (!window.CAEKOperateurs || !CAEKOperateurs.token()) { return Promise.reject(new Error("auth")); }
     return blobBase64(blob).then(function (base64) {
       return fetch(edgeUrl(), {
@@ -74,6 +74,7 @@ var CAEKMedias = (function () {
         body: JSON.stringify({
           action: "upload", token: CAEKOperateurs.token(), coulageRef: ref,
           mediaUuid: mediaUuid, storagePath: path,
+          numeroEchantillon: (metadata && metadata.numeroEchantillon) || "",
           mime: (blob && blob.type) || "application/octet-stream",
           taille: (blob && blob.size) || 0, base64: base64
         })
@@ -103,12 +104,13 @@ var CAEKMedias = (function () {
     });
   }
 
-  function register(ref, mediaUuid, path, blob) {
+  function register(ref, mediaUuid, path, blob, metadata) {
     if (!window.CAEKServer || !CAEKServer.mediaRegister || !window.CAEKOperateurs) {
       return Promise.resolve(true);
     }
     return CAEKServer.mediaRegister(CAEKOperateurs.token(), {
       uuid: mediaUuid, coulageRef: ref, storagePath: path,
+      numeroEchantillon: (metadata && metadata.numeroEchantillon) || "",
       mime: (blob && blob.type) || "", taille: (blob && blob.size) || 0
     }).then(function (r) {
       if (!r || r.ok !== true) { throw new Error((r && r.error) || "media_register"); }
@@ -116,9 +118,11 @@ var CAEKMedias = (function () {
     });
   }
 
-  function upload(ref, mediaUuid, path, blob) {
-    return uploadEdge(ref, mediaUuid, path, blob).catch(function () {
-      return uploadDirect(path, blob).then(function () { return register(ref, mediaUuid, path, blob); });
+  function upload(ref, mediaUuid, path, blob, metadata) {
+    return uploadEdge(ref, mediaUuid, path, blob, metadata).catch(function () {
+      return uploadDirect(path, blob).then(function () {
+        return register(ref, mediaUuid, path, blob, metadata);
+      });
     });
   }
 
@@ -137,11 +141,17 @@ var CAEKMedias = (function () {
           if (!ph || !ph.blob) { return; }
           var cat = ph.categorie || "photo";
           var type = (cat === "audio") ? "audio" : "photo";
+          var metadata = (ph.metadata && typeof ph.metadata === "object") ? ph.metadata : {};
           if (!ph.mediaUuid) { ph.mediaUuid = uuid(); }
           var keepUuid = (CAEKDB.updatePhoto ? CAEKDB.updatePhoto(ph) : Promise.resolve());
           var path = "coulages/" + ref + "/" + cat + "_" + ph.mediaUuid + "." + extOf(ph.blob, cat);
-          return keepUuid.then(function () { return upload(ref, ph.mediaUuid, path, ph.blob); }).then(function () {
-            medias.push({ uuid: ph.mediaUuid, path: path, categorie: cat, type: type });
+          return keepUuid.then(function () {
+            return upload(ref, ph.mediaUuid, path, ph.blob, metadata);
+          }).then(function () {
+            medias.push({
+              uuid: ph.mediaUuid, path: path, categorie: cat, type: type,
+              numeroEchantillon: metadata.numeroEchantillon || ""
+            });
           }).catch(function () { incomplet = true; });
         });
       }, Promise.resolve()).then(function () {
