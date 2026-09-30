@@ -859,6 +859,7 @@ var CAEKFiche = (function () {
   }
 
   function renderEprouvettePhotos(codes) {
+    var locked = !current || (current.statut || "brouillon") !== "brouillon";
     var zone = $("fc-epr-photo-zone");
     var select = $("fc-epr-photo-code");
     var grid = $("fc-epr-photo-grid");
@@ -897,6 +898,7 @@ var CAEKFiche = (function () {
   }
 
   function addEprouvettePhoto(file) {
+    var locked = !current || (current.statut || "brouillon") !== "brouillon";
     var select = $("fc-epr-photo-code");
     var code = select && select.value;
     if (!file || !current || locked || !code) { return; }

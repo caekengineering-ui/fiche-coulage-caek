@@ -241,14 +241,14 @@ var CAEKNouveau = (function () {
       referenceCommande: "",
       referenceDossier: "",
       resistance: "",
-      laboId: ""                 // labo réel (hérité du projet) -> filtrage/validation
+      laboId: (window.CAEKOperateurs && CAEKOperateurs.laboId()) || ""
     };
 
     if (mode === "projet") {
       if (activeProjet) {
         var cli = activeClient || findClient(activeProjet.clientId);
         coulage.clientId = activeProjet.clientId || "";
-        coulage.laboId = activeProjet.laboId || "";   // labo du projet -> coulage
+        coulage.laboId = activeProjet.laboId || coulage.laboId;
         coulage.nomProjet = activeProjet.nomProjet || "";
         coulage.localisation = activeProjet.localisation || "";
         coulage.referenceCommande = activeProjet.referenceCommande || "";
@@ -334,6 +334,10 @@ var CAEKNouveau = (function () {
   /* ---------- Init (branchement des evenements) ---------- */
 
   function init() {
+    document.addEventListener("caek-sync-done", function () {
+      var screen = $("screen-nouveau");
+      if (screen && screen.classList.contains("is-active") && !activeCode) { refresh(); }
+    });
     var sw = $("nc-mode-switch");
     if (sw) {
       sw.addEventListener("click", function (ev) {

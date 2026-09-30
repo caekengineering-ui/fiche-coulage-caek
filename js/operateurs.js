@@ -167,6 +167,8 @@ var CAEKOperateurs = (function () {
       writeSession(_session);
       applyActive();
       renderAll();
+      if (window.CAEKSync) { CAEKSync.autoSync(); }
+      if (window.CAEKCoulages) { CAEKCoulages.pull(); }
       // Les référentiels en mémoire peuvent appartenir à la session
       // précédente. Ils sont rechargés avec le nouveau jeton avant la saisie.
       if (window.CAEKLaboFilter) { CAEKLaboFilter.refresh(); }
