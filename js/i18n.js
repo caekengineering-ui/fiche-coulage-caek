@@ -1578,9 +1578,14 @@ var I18N = (function () {
     var t = raw.trim();
     if (!t) { return; }
     var tr = AR[t];
-    if (tr) { if (n.__fr == null) { n.__fr = raw; } n.nodeValue = raw.replace(t, tr); return; }
+    if (tr) {
+      // Une écriture identique déclenche encore MutationObserver (Rc (MPa)).
+      if (tr !== t) { if (n.__fr == null) { n.__fr = raw; } n.nodeValue = raw.replace(t, tr); }
+      return;
+    }
     var m = t.match(LEAD);
     if (m && AR[m[2].trim()]) {
+      if (m[1] + AR[m[2].trim()] === t) { return; }
       if (n.__fr == null) { n.__fr = raw; }
       n.nodeValue = raw.replace(t, m[1] + AR[m[2].trim()]);
       return;
@@ -1605,7 +1610,7 @@ var I18N = (function () {
         var t = (el.getAttribute(attr) || "").trim();
         // Exact d'abord, puis substitutions MIXED (ex. placeholders « ex. … »).
         var tr = t ? (AR[t] || _translateMixed(t)) : "";
-        if (tr) {
+        if (tr && tr !== el.getAttribute(attr)) {
           var bak = "data-fr-" + attr;
           if (!el.hasAttribute(bak)) { el.setAttribute(bak, el.getAttribute(attr)); }
           el.setAttribute(attr, tr);
