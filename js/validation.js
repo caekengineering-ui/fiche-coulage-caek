@@ -1271,6 +1271,9 @@ var CAEKValidation = (function () {
       return pa - pb;
     });
     sorted.forEach(function (m) {
+      // Réserver la place avant le téléchargement : le BL reste prioritaire.
+      var slot = document.createElement("div");
+      zone.appendChild(slot);
       CAEKMedias.fetchBlob(m.path, ref, m.uuid).then(function (blob) {
         var u = URL.createObjectURL(blob);
         _urls.push(u);
@@ -1296,14 +1299,14 @@ var CAEKValidation = (function () {
             (numeroEchantillon ? " " + numeroEchantillon : "");
           d.appendChild(img);
         }
-        zone.appendChild(d);
+        slot.replaceWith(d);
       }).catch(function () {
         var d = document.createElement("div");
         d.className = "hint";
         var numeroEchantillon = m.numeroEchantillon || m.numero_echantillon || "";
         d.textContent = "⚠ Média indisponible (" + (CAT_LABEL[m.categorie] || m.categorie) +
           (numeroEchantillon ? " · " + numeroEchantillon : "") + ")";
-        zone.appendChild(d);
+        slot.replaceWith(d);
       });
     });
   }
