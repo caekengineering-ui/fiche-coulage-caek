@@ -1243,7 +1243,9 @@ var CAEKValidation = (function () {
 
   /* ---------- Médias (photos + audios du coulage ouvert) ---------- */
   var _urls = [];
+  var _mediaGeneration = 0;
   function revokeUrls() {
+    _mediaGeneration++;
     _urls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} });
     _urls = [];
   }
@@ -1255,6 +1257,7 @@ var CAEKValidation = (function () {
 
   function loadMedias() {
     revokeUrls();
+    var generation = _mediaGeneration;
     var wrap = document.querySelector("#valid-liste .valid-medias");
     if (!wrap || !window.CAEKMedias) { return; }
     var ref = wrap.getAttribute("data-ref");
@@ -1275,6 +1278,7 @@ var CAEKValidation = (function () {
       var slot = document.createElement("div");
       zone.appendChild(slot);
       CAEKMedias.fetchBlob(m.path, ref, m.uuid).then(function (blob) {
+        if (generation !== _mediaGeneration || !slot.isConnected) { return; }
         var u = URL.createObjectURL(blob);
         _urls.push(u);
         var d = document.createElement("div");
@@ -1301,6 +1305,7 @@ var CAEKValidation = (function () {
         }
         slot.replaceWith(d);
       }).catch(function () {
+        if (generation !== _mediaGeneration || !slot.isConnected) { return; }
         var d = document.createElement("div");
         d.className = "hint";
         var numeroEchantillon = m.numeroEchantillon || m.numero_echantillon || "";

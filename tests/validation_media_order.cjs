@@ -6,7 +6,8 @@ const { JSDOM } = require(require.resolve('jsdom', {paths: [path.join(root, '.au
 const dom = new JSDOM('<div id="valid-liste"><div class="valid-medias" data-ref="TEST"><div class="valid-medias-zone"></div></div></div>', {runScripts:'outside-only'});
 const w = dom.window;
 const pending = {};
-w.URL.createObjectURL = () => 'blob:isolated';
+let created = 0;
+w.URL.createObjectURL = () => 'blob:isolated-' + (++created);
 w.URL.revokeObjectURL = () => {};
 w.CAEKMedias = {fetchBlob: path => new Promise((resolve, reject) => {pending[path] = {resolve, reject};})};
 w.findRow = () => ({payload:{medias:[
@@ -37,6 +38,24 @@ w.eval(source.slice(source.indexOf('  var _urls = []'), source.indexOf('  functi
     assert.match(zone.firstElementChild.textContent, /Média indisponible.*Bon de livraison.*TEST-E1/);
     assert.equal(zone.querySelectorAll('audio[controls]').length, 1);
     assert.equal(zone.querySelectorAll('img').length, 1);
-    console.log('OK : ordre BL/audio/photo conservé malgré téléchargements inversés et échec BL explicite.');
+    w.loadMedias();
+    const abandoned = {...pending};
+    w.loadMedias();
+    const before = created;
+    Object.values(abandoned).forEach(p => p.resolve(new w.Blob()));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(created, before, 'Ancien chargement : aucune nouvelle URL blob');
+    w.revokeUrls();
+    Object.values(pending).forEach(p => p.resolve(new w.Blob()));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(created, before, 'Fermeture : aucune nouvelle URL blob');
+    w.loadMedias();
+    w.document.querySelector('.valid-medias').remove();
+    pending.photo.resolve(new w.Blob());
+    pending.audio.resolve(new w.Blob());
+    pending.bl.reject(new Error('detached'));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(created, before, 'Zone retirée : aucune nouvelle URL blob');
+    console.log('OK : ordre, échec BL, rechargement, fermeture et zone retirée.');
   } finally { w.close(); }
 })().catch(error => {console.error(error); process.exitCode=1;});
