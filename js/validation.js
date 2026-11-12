@@ -1257,6 +1257,8 @@ var CAEKValidation = (function () {
 
   function loadMedias() {
     revokeUrls();
+    var screen = document.getElementById("screen-validation");
+    if (screen && !screen.classList.contains("is-active")) { return; }
     var generation = _mediaGeneration;
     var wrap = document.querySelector("#valid-liste .valid-medias");
     if (!wrap || !window.CAEKMedias) { return; }
@@ -1638,5 +1640,5 @@ var CAEKValidation = (function () {
     }
   }
 
-  return { init: init, refresh: refresh, updateBadge: updateBadge };
+  return { init: init, refresh: refresh, updateBadge: updateBadge, releaseMedias: revokeUrls };
 })();

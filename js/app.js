@@ -10,6 +10,9 @@
 
   /* ---------- Navigation entre ecrans ---------- */
   function showScreen(id) {
+    if (id !== "screen-validation" && window.CAEKValidation && CAEKValidation.releaseMedias) {
+      CAEKValidation.releaseMedias();
+    }
     var screens = document.querySelectorAll(".screen");
     for (var i = 0; i < screens.length; i++) {
       screens[i].classList.remove("is-active");
