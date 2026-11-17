@@ -23,6 +23,7 @@ var CAEKValidation = (function () {
   var _labos = {};       // id -> nom
   var _openRef = null;   // détail déplié
   var _editRef = null;   // coulage en cours de CORRECTION par le vérificateur
+  var _refreshGeneration = 0;
 
   function $(id) { return document.getElementById(id); }
   function escapeHtml(s) {
@@ -1325,17 +1326,26 @@ var CAEKValidation = (function () {
   }
 
   function refresh() {
+    var generation = ++_refreshGeneration;
     var box = $("valid-liste");
     if (!ready()) {
       if (box) { box.innerHTML = "<p class=\"hint\">&#128274; Écran réservé à l'administrateur (réseau requis).</p>"; }
       return Promise.resolve();
     }
     var labo = (window.CAEKLaboFilter ? CAEKLaboFilter.get() : "") || null;
+    var token = CAEKOperateurs.token();
+    function current() {
+      return generation === _refreshGeneration && ready() &&
+        token === CAEKOperateurs.token() &&
+        labo === ((window.CAEKLaboFilter ? CAEKLaboFilter.get() : "") || null);
+    }
     return Promise.all([
-      CAEKServer.listCoulages(CAEKOperateurs.token(), labo),
-      CAEKServer.adminListLabos(CAEKOperateurs.token()),
-      CAEKServer.listLots(CAEKOperateurs.token(), labo).catch(function () { return []; })
+      CAEKServer.listCoulages(token, labo),
+      CAEKServer.adminListLabos(token),
+      CAEKServer.listLots(token, labo).catch(function () { return []; })
     ]).then(function (out) {
+      // Une réponse ancienne ne doit pas remplacer la sélection courante.
+      if (!current()) { return; }
       _labos = {};
       ((out[1] && out[1].labos) || []).forEach(function (b) { _labos[b.id] = b.nom; });
       _rows = (out[0] || []).filter(function (r) { return r.statut === "soumis"; });
@@ -1363,6 +1373,7 @@ var CAEKValidation = (function () {
       });
       render();
     }).catch(function (e) {
+      if (!current()) { return; }
       if (box) { box.innerHTML = "<p class=\"hint\">&#9888; Chargement impossible (réseau requis) : " + escapeHtml(e && e.message || "") + "</p>"; }
     });
   }
